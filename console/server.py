@@ -393,9 +393,9 @@ class H(SimpleHTTPRequestHandler):
         if not blocks and not rejects:
             raise ValueError("Nothing accepted or rejected yet.")
         cs = current_change_set(req["madeBy"])
-        n = 0
         for b in blocks:
-            n = append_block(cs, b["kind"], "new", b["fields"], [], self.evidence({**req, "evidence": "baseline of generated registers"}), b["gist"])
+            append_block(cs, b["kind"], "new", b["fields"], [], self.evidence({**req, "evidence": "baseline of generated registers"}), b["gist"])
+        B.mark_exported(B_DIR, [b["cid"] for b in blocks] + [c["id"] for c in cands if v.get(c["id"], {}).get("verdict") in ("Reject", "Merge")], cs["id"])
         with open(os.path.join(B_DIR, "rejections.md"), "w", encoding="utf-8") as f:
             f.write(f"# Baseline rejections\n\nWritten {today()} by {req['madeBy']}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
         return {"ok": True, "changeSet": cs["id"], "accepted": len(blocks), "rejected": len(rejects)}

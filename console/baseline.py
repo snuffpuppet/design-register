@@ -223,7 +223,7 @@ def effective(c, v):
     e = v.get(c["id"], {}); out = dict(c)
     if e.get("kind"): out["kind"] = e["kind"]
     out.update(e.get("fields", {}))
-    out["verdict"] = e.get("verdict", ""); out["reason"] = e.get("reason", ""); out["mergedInto"] = e.get("mergedInto")
+    out["verdict"] = e.get("verdict", ""); out["reason"] = e.get("reason", ""); out["mergedInto"] = e.get("mergedInto"); out["exported"] = e.get("exported", "")
     return out
 
 
@@ -236,6 +236,8 @@ def export_blocks(cands, v, today):
             merged_into.setdefault(c["mergedInto"], []).append(c)
     blocks, rejects = [], []
     for c in eff.values():
+        if v.get(c["id"], {}).get("exported"):
+            continue
         if c["verdict"] == "Reject":
             rejects.append(f"| {c['page']} | {c['ref'] or ''} | {c['title']} | {c['reason']} |")
         if c["verdict"] != "Accept":
@@ -249,6 +251,7 @@ def export_blocks(cands, v, today):
             if key in M.LONG[k] and c.get(key): fields[lab] = c[key]
         if k == "CR" and c.get("rationale"): fields["Reason"] = c["rationale"]
         if k == "OI" and not c.get("next action") and c.get("description"): fields["Next action"] = c["description"].split("\n")[0]
+        if k == "DEC" and c.get("approved-by"): fields["Approved by"] = c["approved-by"]
         src = [c["source"]] + [m["source"] for m in merged_into.get(c["id"], [])]
         fields["Source"] = "; ".join(dict.fromkeys(s for s in src if s))
         notes = [c["notes"]] + ([f"Merged in at baseline: " + "; ".join(m["title"] for m in merged_into[c["id"]])] if c["id"] in merged_into else [])
@@ -256,3 +259,10 @@ def export_blocks(cands, v, today):
         fields["Notes"] = " ⏎ ".join(n.replace("\n", " ⏎ ") for n in notes if n)
         blocks.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"]})
     return blocks, rejects
+
+
+def mark_exported(bdir, cids, cs_id):
+    v = load_verdicts(bdir)
+    for cid in cids:
+        v.setdefault(cid, {})["exported"] = cs_id
+    save_verdicts(bdir, v)

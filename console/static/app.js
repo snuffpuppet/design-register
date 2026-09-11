@@ -346,6 +346,7 @@ function baselineView() {
       <select id="bf-kindset"><option value="">retype as…</option>${KINDS.map(k => `<option value="${k}">${S.model.names[k]}</option>`).join("")}</select>
       <input id="bf-owner" placeholder="set owner" list="stk" style="width:160px"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">`).join("")}</datalist>
       <select id="bf-moscow"><option value="">set MoSCoW…</option>${S.model.choices.moscow.map(m => `<option>${m}</option>`).join("")}</select>
+      <select id="bf-impl"><option value="">set implemented by…</option>${S.model.choices["implemented-by"].map(m => `<option>${m}</option>`).join("")}</select>
       <button data-bulk="fields">Apply fields</button><button data-bulk="clear" class="ghost">Clear verdict</button></div>
     <div style="overflow-x:auto"><table><tr><th></th><th>Type</th><th>Title</th><th>Page · source id</th><th>Owner</th><th>MoSCoW</th><th>Confidence</th><th>Verdict</th></tr>
     ${f.map(c => `<tr class="row ${c.verdict ? "decided" : ""}"><td><input type="checkbox" data-sel="${c.id}" ${BF.sel.has(c.id) ? "checked" : ""}></td>
@@ -353,7 +354,7 @@ function baselineView() {
       <td class="t"><div>${esc(c.title)}${c.inferred ? '<span class="tag">inferred</span>' : ""}</div>${c.description ? `<div class="small muted">${esc(c.description.slice(0, 160))}</div>` : ""}</td>
       <td class="small">${esc(c.page)}${c.ref ? `<br><code>${esc(c.ref)}</code>` : ""}${c.source_status ? `<br><span class="muted">was ${esc(c.source_status)}</span>` : ""}</td>
       <td>${esc(c.owner)}</td><td>${esc(c.moscow)}</td><td class="small">${esc(c.confidence)}</td>
-      <td class="st">${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
+      <td class="st">${c.exported ? `<span class="small muted">in ${esc(c.exported)}</span><br>` : ""}${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
     </table></div>`;
 }
 async function blPost(body) { await post("/api/baseline/verdict", body); await load(); }
@@ -373,7 +374,7 @@ function wireBaseline(m) {
       if (w === "Accept") await blPost({ids, verdict: "Accept"});
       else if (w === "Reject") await blPost({ids, verdict: "Reject", reason: $("#bf-reason", m).value});
       else if (w === "clear") await blPost({ids, verdict: ""});
-      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; await blPost({ids, kind, fields}); }
+      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; await blPost({ids, kind, fields}); }
       BF.sel.clear(); toast(`${ids.length} updated`);
     } catch (e) { toast(e.message); }
   });
