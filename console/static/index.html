@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:wght@600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="eyebrow">Register console</span><h1 id="eng-name">…</h1></div>
+  <div class="session">
+    <label>Made by <input id="made-by" placeholder="your name" autocomplete="off"></label>
+    <span id="session-info" class="muted"></span>
+    <button id="close-session" class="ghost">Close session</button>
+  </div>
+</header>
+<div class="banner">This view is the registers <strong>as proposed</strong>: the source files plus every change set not yet applied. Nothing here writes an item file. Every edit appends a block to your session's change set, which the ingester applies.</div>
+<div class="layout">
+  <nav class="side" id="nav"></nav>
+  <main class="main" id="main"></main>
+  <aside class="detail" id="detail" hidden></aside>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
