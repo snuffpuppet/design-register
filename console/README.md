@@ -7,10 +7,13 @@ A lifecycle console for the registers in `solution-register-model.md` (2.22). It
 ## Run
 
 ```
-console/make-sample.py            # writes test-data/puppy-gloves (re-run to reset)
-console/run.sh                    # in Docker; http://localhost:8080/
-console/run.sh <engagement-dir> 8090
+make sample                        # writes test-data/puppy-gloves (re-run to reset)
+make up                            # build and run in Docker; http://localhost:8080/
+make up ENG=engagements/acme PORT=8090
+make down | restart | logs | status | clean
 ```
+
+`console/run.sh [engagement-dir] [port]` does the same as `make up` without make.
 
 Only the Python standard library is used. Nothing is installed on the host.
 
