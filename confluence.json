@@ -4,7 +4,6 @@
   "parent_page_title": "Design Register",
   "mcp_server": "",
   "_mcp_server": "Name of the Confluence MCP connector as it appears in this session (for example mcp__atlassian or mcp__claude_ai_Confluence). Blank means none is connected yet: connect one, then Claude fills this in after a successful read.",
-  "engagement": "test-data/puppy-gloves",
   "local_copy": "baseline",
   "_local_copy": "Folder under the engagement where each subpage is written as <page-title>.md with a frontmatter block (page id, version, url, pulled on) and the page's tables as Markdown tables. The console baselines this folder. The pull never edits item files.",
   "permissions": {
@@ -17,5 +16,7 @@
     "_mode": "replace-tables rewrites only the register table on each subpage, keeping any prose above and below; new-child writes the normalised registers as new subpages named '<register> (baselined)' and leaves the originals untouched.",
     "add_note": true
   },
-  "log": []
+  "log": [],
+  "engagements_root": "engagements",
+  "_engagements_root": "Folder holding one subfolder per engagement name; the import skill writes <engagements_root>/<engagement>/baseline/."
 }
