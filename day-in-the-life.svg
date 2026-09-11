@@ -1,0 +1,305 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="1250" viewBox="0 0 1720 1250" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 z" fill="#444"/></marker></defs>
+<rect width="1720" height="1250" fill="#ffffff"/>
+<text x="20" y="44" font-size="24" font-weight="bold" fill="#222">A day in the life of the design register</text>
+<text x="20" y="66" font-size="13" fill="#666">Six things that happen on the project, and how each one runs through the registers. Dashed blue boxes are open items: the only rows with an owner, a next action and a due date, apart from requirements which keep their owner.</text>
+<rect x="20" y="95" width="1680" height="92" rx="8" fill="#c77d00" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="119" font-size="13" font-weight="bold" fill="#222">1. Requirement raised</text>
+<text x="36" y="137" font-size="10.5" fill="#555">the row is the stakeholder's; the work</text>
+<text x="36" y="150" font-size="10.5" fill="#555">to agree it is an open item</text>
+<rect x="290" y="110" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">SME states a need</text>
+<text x="367.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">in a workshop, review or</text>
+<text x="367.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">email</text>
+<rect x="467" y="110" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="544.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">REQ Draft</text>
+<text x="544.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">Raised on, Raised by, Owner</text>
+<text x="544.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">= the SME, MoSCoW proposed</text>
+<path d="M445,141.0 L467,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="110" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="721.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">OI: agree it</text>
+<text x="721.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">owner: architect. Confirm</text>
+<text x="721.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">MoSCoW and phase with</text>
+<text x="721.5" y="165" text-anchor="middle" font-size="9.8" fill="#444">stakeholders</text>
+<path d="M622,141.0 L644,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="110" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="898.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">REQ Agreed</text>
+<text x="898.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">Phase set: this or next. The</text>
+<text x="898.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">OI closes into this REQ</text>
+<path d="M799,141.0 L821,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="110" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="1075.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">REQ Designed</text>
+<text x="1075.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">a design section covers it.</text>
+<text x="1075.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">DEC only if a real choice</text>
+<text x="1075.5" y="165" text-anchor="middle" font-size="9.8" fill="#444">was made</text>
+<path d="M976,141.0 L998,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1175" y="110" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1252.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Vendor or team builds</text>
+<text x="1252.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">per Implemented by. Vendor</text>
+<text x="1252.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">ref lines up their item</text>
+<path d="M1153,141.0 L1175,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1352" y="110" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="1429.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">REQ Delivered</text>
+<text x="1429.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">OI: verify it with the SME</text>
+<path d="M1330,141.0 L1352,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1529" y="110" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="1606.5" y="127" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">REQ Verified</text>
+<text x="1606.5" y="141" text-anchor="middle" font-size="9.8" fill="#444">the owner confirms the need</text>
+<text x="1606.5" y="153" text-anchor="middle" font-size="9.8" fill="#444">is met</text>
+<path d="M1507,141.0 L1529,141.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="20" y="200" width="1680" height="300" rx="8" fill="#b83232" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="224" font-size="13" font-weight="bold" fill="#222">2. Limitation identified</text>
+<text x="36" y="242" font-size="10.5" fill="#555">a fact about the solution; assessed</text>
+<text x="36" y="255" font-size="10.5" fill="#555">inside an open item; leaves by exactly</text>
+<text x="36" y="268" font-size="10.5" fill="#555">one path</text>
+<rect x="290" y="215" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Discovery</text>
+<text x="367.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">the platform does not do</text>
+<text x="367.5" y="258" text-anchor="middle" font-size="9.8" fill="#444">what a REQ needs</text>
+<rect x="467" y="215" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="544.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Identified</text>
+<text x="544.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">Identified on, Raised by,</text>
+<text x="544.5" y="258" text-anchor="middle" font-size="9.8" fill="#444">constrains REQ-nnn</text>
+<path d="M445,246.0 L467,246.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="215" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="721.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">OI: assess it</text>
+<text x="721.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">owner named. Fill Impact.</text>
+<text x="721.5" y="258" text-anchor="middle" font-size="9.8" fill="#444">Talk to the vendor</text>
+<path d="M622,246.0 L644,246.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="215" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="898.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Under assessment</text>
+<text x="898.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">Options listed with impact</text>
+<text x="898.5" y="258" text-anchor="middle" font-size="9.8" fill="#444">and phase; choose one</text>
+<path d="M799,246.0 L821,246.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="215" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1075.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Accept</text>
+<text x="1075.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">we live with it</text>
+<rect x="1175" y="215" width="155" height="62" rx="7" fill="#eef7ea" stroke="#3a7d2c" stroke-width="1.6"/>
+<text x="1252.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">DEC Accepted</text>
+<text x="1252.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">Rationale, Consulted,</text>
+<text x="1252.5" y="258" text-anchor="middle" font-size="9.8" fill="#444">Approved by, Decided on</text>
+<rect x="1352" y="215" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="1429.5" y="232" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Accepted</text>
+<text x="1429.5" y="246" text-anchor="middle" font-size="9.8" fill="#444">Disposition record = the DEC</text>
+<path d="M976,246.0 L998,246.0" stroke="#b83232" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1153,246.0 L1175,246.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1330,246.0 L1352,246.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="285" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1075.5" y="302" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Change now</text>
+<text x="1075.5" y="316" text-anchor="middle" font-size="9.8" fill="#444">fix it in this phase</text>
+<rect x="1175" y="285" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="1252.5" y="302" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Proposed</text>
+<text x="1252.5" y="316" text-anchor="middle" font-size="9.8" fill="#444">continues on strip 4</text>
+<rect x="1352" y="285" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="1429.5" y="302" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Change requested</text>
+<text x="1429.5" y="316" text-anchor="middle" font-size="9.8" fill="#444">status follows the CR</text>
+<path d="M976,246.0 C987.0,246.0 987.0,316.0 998,316.0" stroke="#b83232" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1153,316.0 L1175,316.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1330,316.0 L1352,316.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="355" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1075.5" y="372" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Change later</text>
+<text x="1075.5" y="386" text-anchor="middle" font-size="9.8" fill="#444">fix it in a named phase</text>
+<rect x="1175" y="355" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="1252.5" y="372" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Deferred</text>
+<text x="1252.5" y="386" text-anchor="middle" font-size="9.8" fill="#444">waits for phase planning;</text>
+<text x="1252.5" y="398" text-anchor="middle" font-size="9.8" fill="#444">then strip 4</text>
+<rect x="1352" y="355" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="1429.5" y="372" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Change requested</text>
+<text x="1429.5" y="386" text-anchor="middle" font-size="9.8" fill="#444">CR shows on the next-phase</text>
+<text x="1429.5" y="398" text-anchor="middle" font-size="9.8" fill="#444">view</text>
+<path d="M976,246.0 C987.0,246.0 987.0,386.0 998,386.0" stroke="#b83232" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1153,386.0 L1175,386.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1330,386.0 L1352,386.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="425" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1075.5" y="442" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Resolved</text>
+<text x="1075.5" y="456" text-anchor="middle" font-size="9.8" fill="#444">the vendor fixed it</text>
+<rect x="1175" y="425" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1252.5" y="442" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Evidence noted</text>
+<text x="1252.5" y="456" text-anchor="middle" font-size="9.8" fill="#444">vendor item or design</text>
+<text x="1252.5" y="468" text-anchor="middle" font-size="9.8" fill="#444">version</text>
+<rect x="1352" y="425" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="1429.5" y="442" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM Resolved</text>
+<text x="1429.5" y="456" text-anchor="middle" font-size="9.8" fill="#444">no further work</text>
+<path d="M976,246.0 C987.0,246.0 987.0,456.0 998,456.0" stroke="#b83232" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1153,456.0 L1175,456.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M1330,456.0 L1352,456.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="20" y="515" width="1680" height="300" rx="8" fill="#3a7d2c" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="539" font-size="13" font-weight="bold" fill="#222">3. Decision by an SME or stakeholder</text>
+<text x="36" y="557" font-size="10.5" fill="#555">a choice between options, or a</text>
+<text x="36" y="570" font-size="10.5" fill="#555">constraint accepted. Approval is ours</text>
+<rect x="290" y="530" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="547" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">SME picks an option</text>
+<text x="367.5" y="561" text-anchor="middle" font-size="9.8" fill="#444">or accepts a platform</text>
+<text x="367.5" y="573" text-anchor="middle" font-size="9.8" fill="#444">constraint</text>
+<rect x="467" y="530" width="155" height="62" rx="7" fill="#eef7ea" stroke="#3a7d2c" stroke-width="1.6"/>
+<text x="544.5" y="547" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">DEC Proposed</text>
+<text x="544.5" y="561" text-anchor="middle" font-size="9.8" fill="#444">Raised by = the SME.</text>
+<text x="544.5" y="573" text-anchor="middle" font-size="9.8" fill="#444">Rationale names the rejected</text>
+<text x="544.5" y="585" text-anchor="middle" font-size="9.8" fill="#444">option</text>
+<path d="M445,561.0 L467,561.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="530" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="721.5" y="547" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">OI: confirm and approve</text>
+<text x="721.5" y="561" text-anchor="middle" font-size="9.8" fill="#444">consult the vendor and SMEs;</text>
+<text x="721.5" y="573" text-anchor="middle" font-size="9.8" fill="#444">take it to the approver</text>
+<path d="M622,561.0 L644,561.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="530" width="155" height="62" rx="7" fill="#eef7ea" stroke="#3a7d2c" stroke-width="1.6"/>
+<text x="898.5" y="547" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">DEC Accepted</text>
+<text x="898.5" y="561" text-anchor="middle" font-size="9.8" fill="#444">Consulted, Approved by,</text>
+<text x="898.5" y="573" text-anchor="middle" font-size="9.8" fill="#444">Decided on. Immutable from</text>
+<text x="898.5" y="585" text-anchor="middle" font-size="9.8" fill="#444">here</text>
+<path d="M799,561.0 L821,561.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="530" width="155" height="62" rx="7" fill="#fff8e6" stroke="#c77d00" stroke-width="1.6"/>
+<text x="1075.5" y="547" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">addresses REQ-nnn</text>
+<text x="1075.5" y="561" text-anchor="middle" font-size="9.8" fill="#444">only if a real choice was</text>
+<text x="1075.5" y="573" text-anchor="middle" font-size="9.8" fill="#444">made; REQ moves to Designed</text>
+<path d="M976,561.0 L998,561.0" stroke="#3a7d2c" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="600" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="1075.5" y="617" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">introduces a LIM?</text>
+<text x="1075.5" y="631" text-anchor="middle" font-size="9.8" fill="#444">start strip 2</text>
+<path d="M976,561.0 C987.0,561.0 987.0,631.0 998,631.0" stroke="#3a7d2c" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="670" width="155" height="62" rx="7" fill="#f3eefb" stroke="#6a3fa0" stroke-width="1.6"/>
+<text x="1075.5" y="687" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">raises a RSK?</text>
+<text x="1075.5" y="701" text-anchor="middle" font-size="9.8" fill="#444">start strip 5</text>
+<path d="M976,561.0 C987.0,561.0 987.0,701.0 998,701.0" stroke="#3a7d2c" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="740" width="155" height="62" rx="7" fill="#eef7ea" stroke="#3a7d2c" stroke-width="1.6"/>
+<text x="1075.5" y="757" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Change of mind later</text>
+<text x="1075.5" y="771" text-anchor="middle" font-size="9.8" fill="#444">new DEC supersedes; old one</text>
+<text x="1075.5" y="783" text-anchor="middle" font-size="9.8" fill="#444">marked Superseded, never</text>
+<text x="1075.5" y="795" text-anchor="middle" font-size="9.8" fill="#444">edited</text>
+<path d="M976,561.0 C987.0,561.0 987.0,771.0 998,771.0" stroke="#3a7d2c" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+<rect x="20" y="830" width="1680" height="160" rx="8" fill="#1a7f8e" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="854" font-size="13" font-weight="bold" fill="#222">4. Change request</text>
+<text x="36" y="872" font-size="10.5" fill="#555">raised only once a limitation or</text>
+<text x="36" y="885" font-size="10.5" fill="#555">requirement chose to ask for a change;</text>
+<text x="36" y="898" font-size="10.5" fill="#555">one row for its whole life</text>
+<rect x="290" y="845" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIM or REQ chose change</text>
+<text x="367.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">strip 2 said fix it, now or</text>
+<text x="367.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">in a named phase</text>
+<rect x="467" y="845" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="544.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Proposed</text>
+<text x="544.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">Reason, Raised by, Raised</text>
+<text x="544.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">on, Phase, triggered by</text>
+<path d="M445,876.0 L467,876.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="845" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="721.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Options</text>
+<text x="721.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">ways to make the change,</text>
+<text x="721.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">each with impact and phase</text>
+<path d="M622,876.0 L644,876.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="845" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="898.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR For approval</text>
+<text x="898.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">Consulted; stakeholders pick</text>
+<text x="898.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">an option</text>
+<path d="M799,876.0 L821,876.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="845" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="1075.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Approved &gt; Submitted</text>
+<text x="1075.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">Chosen option, Approved by.</text>
+<text x="1075.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">Vendor ref when vendor</text>
+<path d="M976,876.0 L998,876.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1175" y="845" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="1252.5" y="862" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Delivered</text>
+<text x="1252.5" y="876" text-anchor="middle" font-size="9.8" fill="#444">built. Linked REQ moves to</text>
+<text x="1252.5" y="888" text-anchor="middle" font-size="9.8" fill="#444">Delivered</text>
+<path d="M1153,876.0 L1175,876.0" stroke="#1a7f8e" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="467" y="915" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="544.5" y="932" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Deferred</text>
+<text x="544.5" y="946" text-anchor="middle" font-size="9.8" fill="#444">created here for a later</text>
+<text x="544.5" y="958" text-anchor="middle" font-size="9.8" fill="#444">phase; reopens at phase</text>
+<text x="544.5" y="970" text-anchor="middle" font-size="9.8" fill="#444">planning</text>
+<path d="M445,876.0 C456.0,876.0 456.0,946.0 467,946.0" stroke="#1a7f8e" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<path d="M622,946.0 C633.0,946.0 633.0,876.0 644,876.0" stroke="#888" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+<rect x="998" y="915" width="155" height="62" rx="7" fill="#e6f4f6" stroke="#1a7f8e" stroke-width="1.6"/>
+<text x="1075.5" y="932" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">CR Withdrawn or Rejected</text>
+<text x="1075.5" y="946" text-anchor="middle" font-size="9.8" fill="#444">LIM back to assessment;</text>
+<text x="1075.5" y="958" text-anchor="middle" font-size="9.8" fill="#444">usually Accepted with a DEC</text>
+<path d="M976,876.0 C987.0,876.0 987.0,946.0 998,946.0" stroke="#1a7f8e" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="20" y="1005" width="1680" height="92" rx="8" fill="#6a3fa0" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="1029" font-size="13" font-weight="bold" fill="#222">5. Risk raised</text>
+<text x="36" y="1047" font-size="10.5" fill="#555">a record with a review date; the weekly</text>
+<text x="36" y="1060" font-size="10.5" fill="#555">routine keeps it honest</text>
+<rect x="290" y="1020" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Review raises a risk</text>
+<text x="367.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">or an assumption that would</text>
+<text x="367.5" y="1063" text-anchor="middle" font-size="9.8" fill="#444">hurt if wrong</text>
+<rect x="467" y="1020" width="155" height="62" rx="7" fill="#f3eefb" stroke="#6a3fa0" stroke-width="1.6"/>
+<text x="544.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">RSK Identified</text>
+<text x="544.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">Identified on, Raised by,</text>
+<text x="544.5" y="1063" text-anchor="middle" font-size="9.8" fill="#444">Likelihood, Impact</text>
+<path d="M445,1051.0 L467,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="1020" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="721.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Weekly routine</text>
+<text x="721.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">set Trigger, Mitigation and</text>
+<text x="721.5" y="1063" text-anchor="middle" font-size="9.8" fill="#444">the review Due</text>
+<path d="M622,1051.0 L644,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="1020" width="155" height="62" rx="7" fill="#f3eefb" stroke="#6a3fa0" stroke-width="1.6"/>
+<text x="898.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">RSK Mitigating</text>
+<text x="898.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">mitigation actions are open</text>
+<text x="898.5" y="1063" text-anchor="middle" font-size="9.8" fill="#444">items</text>
+<path d="M799,1051.0 L821,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="1020" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="1075.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">OI: mitigate</text>
+<text x="1075.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">owner, next action, due</text>
+<path d="M976,1051.0 L998,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1175" y="1020" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1252.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Review Due passes</text>
+<text x="1252.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">routine updates L/I and Due,</text>
+<text x="1252.5" y="1063" text-anchor="middle" font-size="9.8" fill="#444">or Retires it with a reason</text>
+<path d="M1153,1051.0 L1175,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1352" y="1020" width="155" height="62" rx="7" fill="#f3eefb" stroke="#6a3fa0" stroke-width="1.6"/>
+<text x="1429.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Trigger seen: Realised</text>
+<text x="1429.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">raise an OI at once</text>
+<path d="M1330,1051.0 L1352,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1529" y="1020" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="1606.5" y="1037" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">OI resolves into</text>
+<text x="1606.5" y="1051" text-anchor="middle" font-size="9.8" fill="#444">a LIM, a CR or a DEC</text>
+<path d="M1507,1051.0 L1529,1051.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="20" y="1110" width="1680" height="92" rx="8" fill="#1f5fa8" fill-opacity="0.18" stroke="none"/>
+<text x="36" y="1134" font-size="13" font-weight="bold" fill="#222">6. Weekly meeting</text>
+<text x="36" y="1152" font-size="10.5" fill="#555">one page, top to bottom; nothing leaves</text>
+<text x="36" y="1165" font-size="10.5" fill="#555">without an owner and a date</text>
+<rect x="290" y="1125" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="367.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Open the Outstanding page</text>
+<text x="367.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">OIs by owner and due; LIMs</text>
+<text x="367.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">in assessment; risks past</text>
+<text x="367.5" y="1180" text-anchor="middle" font-size="9.8" fill="#444">review</text>
+<rect x="467" y="1125" width="155" height="62" rx="7" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="1.6" stroke-dasharray="5,3"/>
+<text x="544.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Walk each OI</text>
+<text x="544.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">new next action and due, or</text>
+<text x="544.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">close it into a record</text>
+<path d="M445,1156.0 L467,1156.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="644" y="1125" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="721.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Blocked?</text>
+<text x="721.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">Blocked by is on the row;</text>
+<text x="721.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">unblock or escalate</text>
+<path d="M622,1156.0 L644,1156.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="821" y="1125" width="155" height="62" rx="7" fill="#fdecec" stroke="#b83232" stroke-width="1.6"/>
+<text x="898.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">LIMs over 14 days</text>
+<text x="898.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">disposition now, or a new</text>
+<text x="898.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">due on their OI</text>
+<path d="M799,1156.0 L821,1156.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="998" y="1125" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1075.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">New items</text>
+<text x="1075.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">id, Raised by, and an owner</text>
+<text x="1075.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">before the meeting ends</text>
+<path d="M976,1156.0 L998,1156.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="1175" y="1125" width="155" height="62" rx="7" fill="#f3f3f3" stroke="#777" stroke-width="1.6"/>
+<text x="1252.5" y="1142" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#222">Phase planning</text>
+<text x="1252.5" y="1156" text-anchor="middle" font-size="9.8" fill="#444">next-phase view: deferred</text>
+<text x="1252.5" y="1168" text-anchor="middle" font-size="9.8" fill="#444">CRs by phase, then</text>
+<text x="1252.5" y="1180" text-anchor="middle" font-size="9.8" fill="#444">next-phase REQs</text>
+<path d="M1153,1156.0 L1175,1156.0" stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+<rect x="290" y="1222" width="16" height="12" rx="3" fill="#f3f3f3" stroke="#777"/>
+<text x="312" y="1232" font-size="11" fill="#333">trigger or event</text>
+<rect x="450" y="1222" width="16" height="12" rx="3" fill="#fff8e6" stroke="#c77d00"/>
+<text x="472" y="1232" font-size="11" fill="#333">requirement</text>
+<rect x="610" y="1222" width="16" height="12" rx="3" fill="#eef7ea" stroke="#3a7d2c"/>
+<text x="632" y="1232" font-size="11" fill="#333">decision</text>
+<rect x="770" y="1222" width="16" height="12" rx="3" fill="#fdecec" stroke="#b83232"/>
+<text x="792" y="1232" font-size="11" fill="#333">limitation</text>
+<rect x="930" y="1222" width="16" height="12" rx="3" fill="#f3eefb" stroke="#6a3fa0"/>
+<text x="952" y="1232" font-size="11" fill="#333">risk</text>
+<rect x="1090" y="1222" width="16" height="12" rx="3" fill="#e6f4f6" stroke="#1a7f8e"/>
+<text x="1112" y="1232" font-size="11" fill="#333">change request</text>
+<rect x="1250" y="1222" width="16" height="12" rx="3" fill="#e8f1fb" stroke="#1f5fa8" stroke-dasharray="5,3"/>
+<text x="1272" y="1232" font-size="11" fill="#333">open item (the work)</text>
+</svg>
