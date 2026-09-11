@@ -10,6 +10,7 @@ const toast = m => { const t = $("#toast"); t.textContent = m; t.hidden = false;
 async function load() {
   S = await (await fetch("/api/state")).json();
   S.byId = Object.fromEntries(S.items.map(i => [i.id, i]));
+  S.baseline = await (await fetch("/api/baseline")).json();
   $("#eng-name").textContent = S.engagement.name + (S.engagement.current ? " · " + S.engagement.current : "");
   const mine = S.change_sets.filter(c => !c.closed && !c.applied && c.header["Made by"] === madeBy());
   $("#session-info").textContent = mine.length ? `${mine[0].id}, ${mine[0].blocks.length} block(s) this session` : "no open change set";
@@ -30,6 +31,7 @@ function render() {
     `<a href="#" data-v="outstanding" class="${view === "outstanding" ? "on" : ""}">Outstanding</a>`,
     `<a href="#" data-v="triage" class="${view === "triage" ? "on" : ""}">Work through <span class="n">${queue().length}</span></a>`,
     `<a href="#" data-v="report" class="${view === "report" ? "on" : ""}">Meeting report</a>`,
+    ...(S.baseline?.present ? [`<a href="#" data-v="baseline" style="--c:var(--cs)" class="${view === "baseline" ? "on" : ""}">Baseline <span class="n">${S.baseline.candidates.filter(c => !c.verdict).length}</span></a>`] : []),
     `<div class="gap"></div>`,
     ...KINDS.map(k => `<a href="#" data-v="${k}" style="${COLOR(k)}" class="${view === k ? "on" : ""}">${S.model.names[k]}s <span class="n">${counts(k)}</span></a>`),
     `<div class="gap"></div>`,
@@ -41,6 +43,7 @@ function render() {
   if (view === "outstanding") m.innerHTML = outstanding();
   else if (view === "triage") { m.innerHTML = triage(); wire(m); }
   else if (view === "report") m.innerHTML = report();
+  else if (view === "baseline") { m.innerHTML = baselineView(); wireBaseline(m); }
   else if (view === "cs") m.innerHTML = changeSets();
   else m.innerHTML = register(view);
   m.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
@@ -285,7 +288,7 @@ function reportData() {
 function report() {
   const r = reportData();
   const li = (i, extra = "") => `<li><span class="id" style="${COLOR(i.kind)}">${i.id}</span> ${esc(i.title)} <span class="st">${esc(i.status)}</span>${extra}</li>`;
-  return `<div class="toolbar no-print"><h2>Meeting report</h2><div class="moves"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
+  return `<div class="toolbar no-print"><h2>Meeting report</h2><div style="display:flex;gap:6px"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
     <div class="report">
     <div class="rhead"><span class="eyebrow">${esc(S.engagement.name)} · ${esc(S.engagement.current)}</span><h1>Register report, ${esc(S.today)}</h1><p class="small muted">Registers as proposed, including ${r.pending.length} pending change(s) not yet applied by the ingester.</p></div>
     <div class="stat"><div><b>${r.decisions.length}</b><span>calls needed</span></div><div><b>${r.crs.filter(c => c.status === "For approval").length}</b><span>CRs awaiting approval</span></div><div><b>${Object.values(r.byOwner).flat().length}</b><span>open items</span></div><div><b>${r.risks.length}</b><span>risks to review</span></div><div><b class="${r.defects.length ? "req" : ""}">${r.defects.length}</b><span>register defects</span></div></div>
@@ -312,4 +315,71 @@ function reportMarkdown() {
   L.push(`## Pending changes`, ...r.pending.map(p => `- ${p.cs} (${p.by}): ${p.b.kind} ${p.b.fields.Target}${p.b.fields.From ? ` ${p.b.fields.From} → ${p.b.fields.Status}` : p.b.fields.Title ? ": " + p.b.fields.Title : ""}. ${p.b.fields.Gist || ""}`), ``);
   if (r.defects.length) L.push(`## Register defects`, ...r.defects.map(i => line(i, !i.owner ? " no owner" : " no next action")));
   return L.join("\n");
+}
+
+
+/* ---------- baseline mode ---------- */
+let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", showClusters: true};
+function baselineView() {
+  const B = S.baseline, cs = B.candidates;
+  const f = cs.filter(c => (!BF.kind || c.kind === BF.kind) && (!BF.page || c.page === BF.page) && (BF.verdict === "" ? true : BF.verdict === "none" ? !c.verdict : c.verdict === BF.verdict) && (!BF.q || (c.title + " " + c.description).toLowerCase().includes(BF.q.toLowerCase())));
+  f.sort((a, b) => (a.verdict ? 1 : 0) - (b.verdict ? 1 : 0) || (b.inferred ? 1 : 0) - (a.inferred ? 1 : 0));
+  const n = v => cs.filter(c => c.verdict === v).length;
+  const byId = Object.fromEntries(cs.map(c => [c.id, c]));
+  const clusters = B.clusters.filter(g => g.some(id => !byId[id]?.verdict));
+  const opt = (arr, cur, blank) => `<option value="">${blank}</option>` + arr.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
+  return `<div class="toolbar"><div><h2>Baseline</h2><span class="small muted">${cs.length} candidates from ${B.pages.length} page(s) · ${n("Accept")} accepted · ${n("Merge")} merged · ${n("Reject")} rejected · ${cs.filter(c => !c.verdict).length} to go</span></div>
+    <div><button id="bl-export" class="primary">Export change set</button></div></div>
+    <div class="progress"><div style="width:${Math.round(100 * cs.filter(c => c.verdict).length / Math.max(1, cs.length))}%"></div></div>
+    ${clusters.length && BF.showClusters ? `<div class="section"><h3>Suggested duplicates <span class="small muted">${clusters.length} group(s)</span></h3>
+      ${clusters.slice(0, 8).map(g => `<div class="cs"><div class="small muted">Pick the survivor; the rest merge into it and keep their sources.</div>${g.map(id => { const c = byId[id]; return `<div class="blk"><button class="ghost" data-survivor="${id}" data-group="${g.join(",")}">Keep this</button> <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}${c.verdict ? " · " + esc(c.verdict) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : ""}
+    <div class="toolbar bl-filters">
+      <select id="bf-kind">${opt(KINDS, BF.kind, "all types")}</select>
+      <select id="bf-page">${opt(B.pages, BF.page, "all pages")}</select>
+      <select id="bf-verdict"><option value="">any verdict</option><option value="none" ${BF.verdict === "none" ? "selected" : ""}>undecided</option>${["Accept", "Merge", "Reject"].map(v => `<option ${BF.verdict === v ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <input id="bf-q" placeholder="search titles" value="${esc(BF.q)}" style="width:220px">
+      <span class="small muted">${f.length} shown · ${BF.sel.size} selected</span>
+    </div>
+    <div class="bulk"><label><input type="checkbox" id="bf-all"> select shown</label>
+      <button data-bulk="Accept">Accept</button>
+      <select id="bf-reason">${B.reasons.map(r => `<option ${BF.reason === r ? "selected" : ""}>${r}</option>`).join("")}</select><button data-bulk="Reject">Reject</button>
+      <select id="bf-kindset"><option value="">retype as…</option>${KINDS.map(k => `<option value="${k}">${S.model.names[k]}</option>`).join("")}</select>
+      <input id="bf-owner" placeholder="set owner" list="stk" style="width:160px"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">`).join("")}</datalist>
+      <select id="bf-moscow"><option value="">set MoSCoW…</option>${S.model.choices.moscow.map(m => `<option>${m}</option>`).join("")}</select>
+      <button data-bulk="fields">Apply fields</button><button data-bulk="clear" class="ghost">Clear verdict</button></div>
+    <div style="overflow-x:auto"><table><tr><th></th><th>Type</th><th>Title</th><th>Page · source id</th><th>Owner</th><th>MoSCoW</th><th>Confidence</th><th>Verdict</th></tr>
+    ${f.map(c => `<tr class="row ${c.verdict ? "decided" : ""}"><td><input type="checkbox" data-sel="${c.id}" ${BF.sel.has(c.id) ? "checked" : ""}></td>
+      <td><span class="id" style="${COLOR(c.kind)}">${c.kind}</span></td>
+      <td class="t"><div>${esc(c.title)}${c.inferred ? '<span class="tag">inferred</span>' : ""}</div>${c.description ? `<div class="small muted">${esc(c.description.slice(0, 160))}</div>` : ""}</td>
+      <td class="small">${esc(c.page)}${c.ref ? `<br><code>${esc(c.ref)}</code>` : ""}${c.source_status ? `<br><span class="muted">was ${esc(c.source_status)}</span>` : ""}</td>
+      <td>${esc(c.owner)}</td><td>${esc(c.moscow)}</td><td class="small">${esc(c.confidence)}</td>
+      <td class="st">${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
+    </table></div>`;
+}
+async function blPost(body) { await post("/api/baseline/verdict", body); await load(); }
+function wireBaseline(m) {
+  const re = () => { render(); };
+  $("#bf-kind", m).onchange = e => { BF.kind = e.target.value; re(); };
+  $("#bf-page", m).onchange = e => { BF.page = e.target.value; re(); };
+  $("#bf-verdict", m).onchange = e => { BF.verdict = e.target.value; re(); };
+  $("#bf-q", m).oninput = e => { BF.q = e.target.value; clearTimeout(BF.t); BF.t = setTimeout(re, 250); };
+  $("#bf-reason", m).onchange = e => BF.reason = e.target.value;
+  m.querySelectorAll("[data-sel]").forEach(el => el.onchange = () => { el.checked ? BF.sel.add(el.dataset.sel) : BF.sel.delete(el.dataset.sel); });
+  $("#bf-all", m).onchange = e => { m.querySelectorAll("[data-sel]").forEach(el => { el.checked = e.target.checked; e.target.checked ? BF.sel.add(el.dataset.sel) : BF.sel.delete(el.dataset.sel); }); re(); };
+  m.querySelectorAll("[data-bulk]").forEach(el => el.onclick = async () => {
+    const ids = [...BF.sel]; if (!ids.length) return toast("Select some candidates first");
+    try {
+      const w = el.dataset.bulk;
+      if (w === "Accept") await blPost({ids, verdict: "Accept"});
+      else if (w === "Reject") await blPost({ids, verdict: "Reject", reason: $("#bf-reason", m).value});
+      else if (w === "clear") await blPost({ids, verdict: ""});
+      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; await blPost({ids, kind, fields}); }
+      BF.sel.clear(); toast(`${ids.length} updated`);
+    } catch (e) { toast(e.message); }
+  });
+  m.querySelectorAll("[data-survivor]").forEach(el => el.onclick = async () => {
+    const keep = el.dataset.survivor, others = el.dataset.group.split(",").filter(x => x !== keep);
+    try { await blPost({ids: [keep], verdict: "Accept"}); await blPost({ids: others, verdict: "Merge", mergedInto: keep}); toast("Merged"); } catch (e) { toast(e.message); }
+  });
+  $("#bl-export", m).onclick = async () => { try { const r = await post("/api/baseline/export", {}); toast(`${r.changeSet}: ${r.accepted} accepted, ${r.rejected} rejected`); await load(); } catch (e) { toast(e.message); } };
 }

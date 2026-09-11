@@ -1,0 +1,22 @@
+{
+ "cf68288c5": {
+  "verdict": "Accept",
+  "reason": "",
+  "mergedInto": null
+ },
+ "cc1be070a": {
+  "verdict": "Merge",
+  "reason": "",
+  "mergedInto": "cf68288c5"
+ },
+ "c61d5ba8d": {
+  "verdict": "Reject",
+  "reason": "duplicate",
+  "mergedInto": null
+ },
+ "c6dd9248a": {
+  "verdict": "Reject",
+  "reason": "duplicate",
+  "mergedInto": null
+ }
+}

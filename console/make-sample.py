@@ -175,4 +175,9 @@ open(os.path.join(ROOT, "change-sets", "CS-0001.md"), "w", encoding="utf-8").wri
 - Gist: New next action after the weekly.
 
 """)
+# --- pulled Confluence pages for the baseline mode, as the runbook's pull step would write them ---
+sb = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample-baseline")
+os.makedirs(os.path.join(ROOT, "baseline"), exist_ok=True)
+for f in os.listdir(sb):
+    shutil.copy(os.path.join(sb, f), os.path.join(ROOT, "baseline", f))
 print("sample engagement written to", ROOT)

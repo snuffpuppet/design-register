@@ -13,11 +13,13 @@ import json, os, re, sys, glob, datetime, threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 import model as M
+import baseline as B
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENG = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "test-data/puppy-gloves")
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
 CS_DIR = os.path.join(ENG, "change-sets")
+B_DIR = os.path.join(ENG, "baseline")
 TOOL = "solution-workflows console 0.1"
 LOCK = threading.Lock()
 
@@ -251,6 +253,10 @@ class H(SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def send_json(self, obj, code=200):
         body = json.dumps(obj).encode()
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
@@ -265,6 +271,8 @@ class H(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "no such change set"}, 404)
             body = open(f, encoding="utf-8").read().encode()
             self.send_response(200); self.send_header("Content-Type", "text/markdown; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
+        if p == "/api/baseline":
+            return self.send_json(self.baseline_state())
         if p == "/":
             self.path = "/index.html"
         return super().do_GET()
@@ -283,6 +291,11 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.edit(req))
                 if p == "/api/close-session":
                     return self.send_json(self.close_session(req))
+                if p == "/api/baseline/verdict":
+                    B.apply_verdict(B_DIR, req["ids"], req.get("verdict"), req.get("reason", ""), req.get("mergedInto"), req.get("fields"), req.get("kind"))
+                    return self.send_json({"ok": True})
+                if p == "/api/baseline/export":
+                    return self.send_json(self.baseline_export(req))
             except ValueError as e:
                 return self.send_json({"error": str(e)}, 400)
         self.send_json({"error": "unknown"}, 404)
@@ -366,6 +379,26 @@ class H(SimpleHTTPRequestHandler):
         cs = current_change_set(req["madeBy"])
         n = append_block(cs, it["kind"], it["id"], fields, req.get("links", []), self.evidence(req), req.get("gist", "") or "fields updated", frm=None, based_on=it.get("updated", ""))
         return {"ok": True, "changeSet": cs["id"], "item": n}
+
+    def baseline_state(self):
+        if not os.path.isdir(B_DIR):
+            return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS}
+        cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
+        return {"present": True, "candidates": [B.effective(c, v) for c in cands], "clusters": B.clusters(cands),
+                "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands))}
+
+    def baseline_export(self, req):
+        cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
+        blocks, rejects = B.export_blocks(cands, v, today())
+        if not blocks and not rejects:
+            raise ValueError("Nothing accepted or rejected yet.")
+        cs = current_change_set(req["madeBy"])
+        n = 0
+        for b in blocks:
+            n = append_block(cs, b["kind"], "new", b["fields"], [], self.evidence({**req, "evidence": "baseline of generated registers"}), b["gist"])
+        with open(os.path.join(B_DIR, "rejections.md"), "w", encoding="utf-8") as f:
+            f.write(f"# Baseline rejections\n\nWritten {today()} by {req['madeBy']}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
+        return {"ok": True, "changeSet": cs["id"], "accepted": len(blocks), "rejected": len(rejects)}
 
     def close_session(self, req):
         cs = current_change_set(req["madeBy"])
