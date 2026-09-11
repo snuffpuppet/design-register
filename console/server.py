@@ -76,7 +76,7 @@ def parse_item(path):
     flush()
     if isinstance(item.get("links"), str):
         item["links"] = [item["links"]]
-    item.setdefault("links", [])
+    item["links"] = [l for l in item.get("links", []) if str(l).strip()]
     item["kind"] = item["id"].split("-")[0]
     item["pending"] = []
     return item

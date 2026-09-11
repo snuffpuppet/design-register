@@ -28,6 +28,8 @@ function render() {
   const pendingN = S.change_sets.filter(c => !c.applied).reduce((n, c) => n + c.blocks.length, 0);
   $("#nav").innerHTML = [
     `<a href="#" data-v="outstanding" class="${view === "outstanding" ? "on" : ""}">Outstanding</a>`,
+    `<a href="#" data-v="triage" class="${view === "triage" ? "on" : ""}">Work through <span class="n">${queue().length}</span></a>`,
+    `<a href="#" data-v="report" class="${view === "report" ? "on" : ""}">Meeting report</a>`,
     `<div class="gap"></div>`,
     ...KINDS.map(k => `<a href="#" data-v="${k}" style="${COLOR(k)}" class="${view === k ? "on" : ""}">${S.model.names[k]}s <span class="n">${counts(k)}</span></a>`),
     `<div class="gap"></div>`,
@@ -35,11 +37,17 @@ function render() {
   ].join("");
   $("#nav").querySelectorAll("a").forEach(a => a.onclick = e => { e.preventDefault(); view = a.dataset.v; open = null; form = null; render(); });
   const m = $("#main");
+  document.body.classList.toggle("print-mode", view === "report");
   if (view === "outstanding") m.innerHTML = outstanding();
+  else if (view === "triage") { m.innerHTML = triage(); wire(m); }
+  else if (view === "report") m.innerHTML = report();
   else if (view === "cs") m.innerHTML = changeSets();
   else m.innerHTML = register(view);
   m.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
   m.querySelectorAll("[data-new]").forEach(el => el.onclick = () => { open = null; form = {mode: "create", kind: el.dataset.new, fields: {}, links: []}; renderDetail(); });
+  $("#copy-md", m)?.addEventListener("click", () => { navigator.clipboard.writeText(reportMarkdown()).then(() => toast("Report copied as markdown")); });
+  $("#print", m)?.addEventListener("click", () => window.print());
+  m.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => { triageMove(el.dataset.tq); });
   m.querySelectorAll("[data-raw]").forEach(el => el.onclick = async e => { e.preventDefault(); const t = await (await fetch("/api/change-set/" + el.dataset.raw)).text(); $("#raw-" + el.dataset.raw).innerHTML = `<pre>${esc(t)}</pre>`; });
   renderDetail();
 }
@@ -93,18 +101,23 @@ function changeSets() {
 }
 
 /* ---------- detail drawer ---------- */
-function openItem(id) { open = id; form = null; renderDetail(); }
+function openItem(id) { open = id; form = null; if (view === "triage") { const q = queue(); const at = q.findIndex(e => e.item.id === id); if (at >= 0) { setPos(at); render(); return; } view = S.byId[id]?.kind || "outstanding"; render(); return; } renderDetail(); }
 function renderDetail() {
   const d = $("#detail");
   if (!open && !form) { d.hidden = true; return; }
   d.hidden = false;
   if (form && form.mode === "create") { d.innerHTML = createForm(); wire(d); return; }
   const i = S.byId[open]; if (!i) { d.hidden = true; return; }
+  if (view === "triage") { d.hidden = true; render(); return; }
+  d.innerHTML = itemPanel(i, true);
+  wire(d);
+}
+function itemPanel(i, closable) {
   const k = i.kind, changed = new Set();
   i.pending.forEach(p => { const b = S.change_sets.find(c => c.id === p.cs)?.blocks.find(b => b.n === p.n); if (b) Object.keys(b.fields).forEach(f => changed.add(f.toLowerCase())); });
   const fld = (key, v) => `<div class="field ${changed.has(key) ? "changed" : ""}"><label>${esc(S.model.labels[key] || key)}</label><div class="v">${esc(v) || '<span class="muted">—</span>'}</div></div>`;
   const moves = (S.model.transitions[k] || {})[i.status] || [];
-  d.innerHTML = `<button class="ghost close" id="close-detail">×</button>
+  return `${closable ? '<button class="ghost close" id="close-detail">×</button>' : ""}
     <span class="eyebrow">${S.model.names[k]}</span>
     <h2>${idTag(i)} ${esc(i.title)}</h2>
     <div class="st">${esc(i.status)}${S.model.terminal[k].includes(i.status) ? " (terminal)" : ""}</div>
@@ -117,7 +130,6 @@ function renderDetail() {
     ${fld("raised-on", i["raised-on"])}${fld("closed-on", i["closed-on"])}
     <div class="small muted">updated ${esc(i.updated || "")}</div>
     ${form && form.mode === "edit" ? editForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button></div>`}`;
-  wire(d);
 }
 function wire(d) {
   $("#close-detail", d)?.addEventListener("click", () => { open = null; form = null; renderDetail(); });
@@ -126,6 +138,7 @@ function wire(d) {
   $("#edit-btn", d)?.addEventListener("click", () => { form = {mode: "edit", fields: {}, links: []}; renderDetail(); });
   $("#cancel", d)?.addEventListener("click", () => { form = null; renderDetail(); });
   $("#submit", d)?.addEventListener("click", submit);
+  d.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => triageMove(el.dataset.tq));
   d.querySelectorAll("[data-f]").forEach(el => el.oninput = () => form.fields[el.dataset.f] = el.value);
   $("#new-link", d)?.addEventListener("input", e => form.linkText = e.target.value);
   $("#new-link-word", d)?.addEventListener("change", e => form.linkWord = e.target.value);
@@ -182,6 +195,7 @@ async function submit() {
     else r = await post("/api/edit", {...body, id: open});
     toast(`${r.changeSet} item ${r.item} appended`);
     form = null; await load();
+    if (view === "triage") { const q = queue(); if (!q.some(e => e.item.id === open)) { open = null; } render(); }
   } catch (e) { err.textContent = e.message; }
 }
 function parseDate(s) { const m = /^(\d{1,2}) (\w+) (\d{4})/.exec(s || ""); if (!m) return null; const mi = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(m[2]); return mi < 0 ? null : new Date(+m[3], mi, +m[1]); }
@@ -191,3 +205,111 @@ try { $("#made-by").value = localStorage.getItem("madeBy") || ""; } catch {}
 $("#made-by").addEventListener("change", () => { try { localStorage.setItem("madeBy", madeBy()); } catch {} load(); });
 $("#close-session").addEventListener("click", async () => { try { const r = await post("/api/close-session", {}); toast(`${r.changeSet} closed for the ingester`); load(); } catch (e) { toast(e.message); } });
 load();
+
+
+/* ---------- workflow mode: the triage queue ---------- */
+function queue() {
+  const it = S.items, term = k => S.model.terminal[k];
+  const dt = s => parseDate(s), now = new Date(), old14 = i => dt(i["raised-on"]) && (now - dt(i["raised-on"])) / 864e5 > 14;
+  const later = i => i.phase && S.engagement.current && S.engagement.phases.indexOf(i.phase) > S.engagement.phases.indexOf(S.engagement.current);
+  let parked = []; try { parked = JSON.parse(localStorage.getItem("parked") || "[]"); } catch {}
+  const q = [];
+  const add = (i, why, rank) => { if (!q.some(e => e.item.id === i.id)) q.push({item: i, why, rank}); };
+  it.filter(i => !term(i.kind).includes(i.status) && !i.provisional).forEach(i => {
+    if (!i.owner) add(i, "No owner. Every live item needs one person who answers for it.", 0);
+    else if (i.kind === "OI" && !i["next action"]) add(i, "Open item with no next action.", 0);
+  });
+  it.filter(i => i.kind === "LIM" && i.status === "Identified").forEach(i => add(i, "Limitation not yet under assessment. Raise the assessing open item, or withdraw it.", 1));
+  it.filter(i => i.kind === "LIM" && i.status === "Under assessment" && old14(i)).forEach(i => add(i, "Under assessment for more than 14 days. Choose an option or give the open item a new due date.", 1));
+  it.filter(i => i.kind === "OI" && i.status !== "Closed").sort((a, b) => (dt(a.due) || 9e15) - (dt(b.due) || 9e15)).forEach(i => add(i, dt(i.due) && dt(i.due) < now ? "Open item past its due date." : "Open item. Set the next action and due, or close it into a record.", 2));
+  it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && (!dt(i.due) || dt(i.due) < now)).forEach(i => add(i, i.due ? "Risk past its review date. Update likelihood, impact and mitigation, or retire it." : "Risk with no review date.", 3));
+  it.filter(i => i.kind === "CR" && i.status === "For approval").forEach(i => add(i, "Change request with the business. Record the decision when it comes.", 4));
+  it.filter(i => i.kind === "CR" && i.status === "Proposed").forEach(i => add(i, "Change request being shaped. Reason, chosen option and estimate get it to the board.", 4));
+  it.filter(i => i.kind === "DEC" && i.status === "Proposed" && old14(i)).forEach(i => add(i, "Decision proposed more than 14 days ago. Accept, reject, or give it an open item.", 5));
+  it.filter(i => i.kind === "REQ" && i.status === "Draft" && old14(i) && !later(i)).forEach(i => add(i, "Requirement in Draft for more than 14 days. Agree it with its owner, or withdraw it.", 6));
+  it.filter(i => i.kind === "REQ" && i.status === "Agreed" && !later(i)).forEach(i => add(i, "Agreed but not yet designed. Does a design section cover it?", 7));
+  q.sort((a, b) => a.rank - b.rank);
+  return q.filter(e => !parked.includes(e.item.id)).concat(q.filter(e => parked.includes(e.item.id)).map(e => ({...e, parked: true})));
+}
+function getPos() { try { return +(localStorage.getItem("triagePos") || 0); } catch { return 0; } }
+function setPos(n) { try { localStorage.setItem("triagePos", n); } catch {} }
+function triageMove(what) {
+  const q = queue(); let p = getPos();
+  if (what === "next") p = Math.min(q.length - 1, p + 1);
+  if (what === "prev") p = Math.max(0, p - 1);
+  if (what === "park" || what === "unpark") { let parked = []; try { parked = JSON.parse(localStorage.getItem("parked") || "[]"); } catch {}
+    const id = q[p]?.item.id; if (id) { parked = what === "park" ? [...new Set([...parked, id])] : parked.filter(x => x !== id); try { localStorage.setItem("parked", JSON.stringify(parked)); } catch {} } }
+  if (what === "reset") p = 0;
+  setPos(p); form = null; render();
+}
+function triage() {
+  const q = queue();
+  if (!q.length) return `<h2>Work through</h2><p class="muted">Nothing needs a hand. The register is clean.</p>`;
+  let p = Math.min(getPos(), q.length - 1); setPos(p);
+  const e = q[p], i = e.item; open = i.id;
+  const related = i.links.map(l => l.match(/([A-Z]+-\d{4}(?:\.\d+)?)/)?.[1]).filter(id => id && S.byId[id]).map(id => S.byId[id]);
+  const back = S.items.filter(o => o.id !== i.id && o.links.some(l => l.includes(i.id)));
+  const ctx = [...related, ...back.filter(b => !related.includes(b))];
+  const done = q.filter((x, n) => n < p).length;
+  return `<div class="toolbar"><div><h2>Work through</h2><span class="small muted">${p + 1} of ${q.length}${e.parked ? " · parked" : ""}</span></div>
+    <div class="moves"><button data-tq="prev" title="k">← Previous</button><button data-tq="next" title="j">Next →</button>${e.parked ? '<button data-tq="unpark">Unpark</button>' : '<button data-tq="park" title="p">Park for later</button>'}<button class="ghost" data-tq="reset">Start over</button></div></div>
+    <div class="progress"><div style="width:${Math.round(100 * p / q.length)}%"></div></div>
+    <div class="triage">
+      <div class="tq-main"><div class="why">${esc(e.why)}</div>${itemPanel(i, false)}</div>
+      <div class="tq-side"><h3>Around it</h3>${ctx.length ? ctx.map(c => `<div class="ctx"><a href="#" data-open="${c.id}" class="id" style="${COLOR(c.kind)}">${c.id}</a> <span class="st">${esc(c.status)}</span><div>${esc(c.title)}</div>${c.kind === "OI" && c["next action"] ? `<div class="small muted">${esc(c["next action"])}</div>` : ""}</div>`).join("") : '<p class="small muted">No linked items.</p>'}
+      <p class="small muted" style="margin-top:14px">Keys: j next, k previous, p park.</p></div>
+    </div>`;
+}
+document.addEventListener("keydown", e => {
+  if (view !== "triage" || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  if (e.key === "j") triageMove("next"); if (e.key === "k") triageMove("prev"); if (e.key === "p") triageMove("park");
+});
+
+/* ---------- report mode ---------- */
+function reportData() {
+  const it = S.items, dt = parseDate, now = new Date();
+  const later = i => i.phase && S.engagement.current && S.engagement.phases.indexOf(i.phase) > S.engagement.phases.indexOf(S.engagement.current);
+  const byOwner = {};
+  it.filter(i => i.kind === "OI" && i.status !== "Closed").forEach(i => (byOwner[i.owner || "Unowned"] ||= []).push(i));
+  return {
+    decisions: it.filter(i => (i.kind === "DEC" && i.status === "Proposed") || (i.kind === "LIM" && i.status === "Under assessment")),
+    crs: it.filter(i => i.kind === "CR" && ["For approval", "Proposed", "Submitted"].includes(i.status)),
+    risks: it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && (i.impact === "H" || (dt(i.due) && dt(i.due) < now))),
+    byOwner, blocked: it.filter(i => i.kind === "OI" && i.status === "Blocked"),
+    newLims: it.filter(i => i.kind === "LIM" && i.status === "Identified"),
+    drafts: it.filter(i => i.kind === "REQ" && i.status === "Draft" && !later(i)),
+    pending: S.change_sets.filter(c => !c.applied).flatMap(c => c.blocks.map(b => ({cs: c.id, by: c.header["Made by"], b}))),
+    defects: it.filter(i => !S.model.terminal[i.kind].includes(i.status) && (!i.owner || (i.kind === "OI" && !i["next action"]))),
+  };
+}
+function report() {
+  const r = reportData();
+  const li = (i, extra = "") => `<li><span class="id" style="${COLOR(i.kind)}">${i.id}</span> ${esc(i.title)} <span class="st">${esc(i.status)}</span>${extra}</li>`;
+  return `<div class="toolbar no-print"><h2>Meeting report</h2><div class="moves"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
+    <div class="report">
+    <div class="rhead"><span class="eyebrow">${esc(S.engagement.name)} · ${esc(S.engagement.current)}</span><h1>Register report, ${esc(S.today)}</h1><p class="small muted">Registers as proposed, including ${r.pending.length} pending change(s) not yet applied by the ingester.</p></div>
+    <div class="stat"><div><b>${r.decisions.length}</b><span>calls needed</span></div><div><b>${r.crs.filter(c => c.status === "For approval").length}</b><span>CRs awaiting approval</span></div><div><b>${Object.values(r.byOwner).flat().length}</b><span>open items</span></div><div><b>${r.risks.length}</b><span>risks to review</span></div><div><b class="${r.defects.length ? "req" : ""}">${r.defects.length}</b><span>register defects</span></div></div>
+    <h3>Calls needed at this meeting</h3><ul class="rl">${r.decisions.map(i => li(i, i.kind === "LIM" && i.options ? `<div class="small">${esc(i.options).replace(/\n/g, "<br>")}</div>` : i.rationale ? `<div class="small muted">${esc(i.rationale)}</div>` : "")).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Change requests</h3><ul class="rl">${r.crs.map(i => li(i, `<div class="small">${esc(i.reason || "")}</div><div class="small muted">${i.estimate ? "Estimate: " + esc(i.estimate) : "No estimate yet"}${i["approved-by"] ? " · approved by " + esc(i["approved-by"]) : ""}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Risks to review</h3><ul class="rl">${r.risks.map(i => li(i, ` <span class="small">L ${esc(i.likelihood)} · I ${esc(i.impact)} · review ${esc(i.due || "unset")}</span>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>New limitations</h3><ul class="rl">${r.newLims.map(i => li(i, `<div class="small muted">${esc(i.impact || "")}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Actions by owner</h3>${Object.entries(r.byOwner).sort().map(([o, items]) => `<h4>${esc(o)}</h4><ul class="rl">${items.map(i => li(i, `<div class="small">${esc(i["next action"] || "no next action")}${i.due ? " · due " + esc(i.due) : ""}</div>`)).join("")}</ul>`).join("")}
+    <h3>Requirements still in Draft</h3><ul class="rl">${r.drafts.map(i => li(i, ` <span class="small muted">${esc(i.moscow)} · ${esc(i.owner)}</span>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Pending changes since last ingestion</h3><ul class="rl">${r.pending.map(p => `<li><span class="small">${p.cs} · ${esc(p.by)}</span> ${esc(p.b.kind)} ${esc(p.b.fields.Target)}${p.b.fields.From ? ` ${esc(p.b.fields.From)} → ${esc(p.b.fields.Status)}` : p.b.fields.Title ? ": " + esc(p.b.fields.Title) : ""} <span class="small muted">${esc(p.b.fields.Gist || "")}</span></li>`).join("") || "<li class='muted'>none</li>"}</ul>
+    ${r.defects.length ? `<h3>Register defects</h3><ul class="rl">${r.defects.map(i => li(i, ` <span class="small req">${!i.owner ? "no owner" : "no next action"}</span>`)).join("")}</ul>` : ""}
+    </div>`;
+}
+function reportMarkdown() {
+  const r = reportData(), L = [];
+  const line = (i, extra = "") => `- **${i.id}** ${i.title} _(${i.status})_${extra}`;
+  L.push(`# Register report, ${S.today}`, ``, `${S.engagement.name} · ${S.engagement.current}. Registers as proposed, ${r.pending.length} pending change(s).`, ``);
+  L.push(`## Calls needed`, ...(r.decisions.map(i => line(i, i.kind === "LIM" && i.options ? "\n" + i.options.split("\n").map(o => "    " + o).join("\n") : "")) || []), ``);
+  L.push(`## Change requests`, ...r.crs.map(i => line(i, `\n    ${i.reason || ""}\n    ${i.estimate ? "Estimate: " + i.estimate : "No estimate yet"}`)), ``);
+  L.push(`## Risks to review`, ...r.risks.map(i => line(i, ` L ${i.likelihood} I ${i.impact}, review ${i.due || "unset"}`)), ``);
+  L.push(`## New limitations`, ...r.newLims.map(i => line(i, i.impact ? `\n    ${i.impact}` : "")), ``);
+  L.push(`## Actions by owner`); Object.entries(r.byOwner).sort().forEach(([o, items]) => { L.push(`### ${o}`, ...items.map(i => line(i, ` ${i["next action"] || "no next action"}${i.due ? ", due " + i.due : ""}`)), ``); });
+  L.push(`## Requirements still in Draft`, ...r.drafts.map(i => line(i, ` ${i.moscow}, ${i.owner}`)), ``);
+  L.push(`## Pending changes`, ...r.pending.map(p => `- ${p.cs} (${p.by}): ${p.b.kind} ${p.b.fields.Target}${p.b.fields.From ? ` ${p.b.fields.From} → ${p.b.fields.Status}` : p.b.fields.Title ? ": " + p.b.fields.Title : ""}. ${p.b.fields.Gist || ""}`), ``);
+  if (r.defects.length) L.push(`## Register defects`, ...r.defects.map(i => line(i, !i.owner ? " no owner" : " no next action")));
+  return L.join("\n");
+}
