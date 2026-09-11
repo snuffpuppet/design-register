@@ -358,7 +358,7 @@ function baselineView() {
       <button data-bulk="Accept">Accept</button>
       <select id="bf-reason">${B.reasons.map(r => `<option ${BF.reason === r ? "selected" : ""}>${r}</option>`).join("")}</select><button data-bulk="Reject">Reject</button>
       <select id="bf-kindset"><option value="">retype as…</option>${KINDS.map(k => `<option value="${k}">${S.model.names[k]}</option>`).join("")}</select>
-      <input id="bf-owner" placeholder="set owner" list="stk" style="width:160px"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">`).join("")}</datalist>
+      <span class="sep"></span><input id="bf-owner" placeholder="new owner" list="stk" style="width:170px"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">`).join("")}<option value="Joint"><option value="Vendor: "></datalist><button data-bulk="owner">Reassign owner</button><span class="sep"></span>
       <select id="bf-moscow"><option value="">set MoSCoW…</option>${S.model.choices.moscow.map(m => `<option>${m}</option>`).join("")}</select>
       <select id="bf-impl"><option value="">set implemented by…</option>${S.model.choices["implemented-by"].map(m => `<option>${m}</option>`).join("")}</select>
       <button data-bulk="fields">Apply fields</button><button data-bulk="clear" class="ghost">Clear verdict</button></div>
@@ -388,6 +388,7 @@ function wireBaseline(m) {
       if (w === "Accept") await blPost({ids, verdict: "Accept"});
       else if (w === "Reject") await blPost({ids, verdict: "Reject", reason: $("#bf-reason", m).value});
       else if (w === "clear") await blPost({ids, verdict: ""});
+      else if (w === "owner") { const o = $("#bf-owner", m).value.trim(); if (!o) return toast("Type the new owner first"); await blPost({ids, fields: {owner: o}}); }
       else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; await blPost({ids, kind, fields}); }
       BF.sel.clear(); toast(`${ids.length} updated`);
     } catch (e) { toast(e.message); }
