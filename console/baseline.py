@@ -13,17 +13,17 @@ KIND_WORDS = {
     "REQ": ["requirement", "req", "need", "shall", "user story"],
     "DEC": ["decision", "dec", "adr"],
     "LIM": ["limitation", "lim", "constraint", "gap", "shortfall"],
-    "RSK": ["risk", "rsk", "issue"],
+    "RSK": ["risk", "rsk", "issue", "assumption", "dependency", "dependencies", "raid"],
     "OI":  ["open item", "action", "open question", "question", "todo", "oi"],
     "CR":  ["change request", "cr", "change"],
 }
 # column heuristics: model key -> words that a source header may use
 COLS = {
-    "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "action", "item", "statement"],
+    "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "assumption", "dependency", "action", "item", "statement", "change request"],
     "ref": ["id", "ref", "key", "#", "number", "identifier"],
     "kind": ["type", "kind", "category", "class"],
     "status": ["status", "state"],
-    "owner": ["owner", "raised by", "assignee", "responsible", "accountable", "stakeholder", "requested by", "assigned to"],
+    "owner": ["owner", "raised by", "assignee", "responsible", "accountable", "stakeholder", "requested by", "assigned to", "from", "provider"],
     "approved-by": ["approved by", "decided by", "approver", "decision maker"],
     "moscow": ["moscow", "priority", "must/should"],
     "phase": ["phase", "release", "iteration", "target"],
@@ -38,9 +38,9 @@ COLS = {
     "likelihood": ["likelihood", "probability"],
     "options": ["options", "alternatives"],
     "next action": ["next action", "next step", "action required"],
-    "due": ["due", "date", "deadline", "review"],
+    "due": ["due", "date", "deadline", "review", "needed by"],
 }
-REJECT_REASONS = ["duplicate", "inferred, no evidence", "not a requirement (present tense)", "legacy practice", "out of scope",
+REJECT_REASONS = ["duplicate", "inferred, no evidence", "verified, no longer an assumption", "delivered, no longer a dependency", "not a requirement (present tense)", "legacy practice", "out of scope",
                   "vendor detail", "too vague to act on", "already covered by design", "other"]
 
 
@@ -142,6 +142,10 @@ def load_candidates(bdir):
                     continue
                 kind = guess_kind(rec.get("kind", "")) or page_kind or guess_kind(rec.get("ref", "")) or "REQ"
                 owner = rec.get("owner", "") or (rec.get("approved-by", "") if kind != "DEC" else "")
+                rkind = ""
+                if kind == "RSK":
+                    src = (rec.get("kind", "") + " " + heading + " " + page).lower()
+                    rkind = "Assumption" if "assumption" in src else "Dependency" if "dependenc" in src else "Risk"
                 cid = "c" + hashlib.sha1((page + heading + title + rec.get("ref", "")).encode()).hexdigest()[:8]
                 inferred = bool(re.search(r"inferred|derived|implied|assumed", (rec.get("inferred", "") + " " + rec.get("confidence", "") + " " + rec.get("source", "")).lower()))
                 conf = rec.get("confidence", "").strip()
@@ -156,7 +160,7 @@ def load_candidates(bdir):
                     "rationale": rec.get("rationale", ""), "impact": norm_lmh(rec.get("impact", "")) if kind == "RSK" else rec.get("impact", ""), "description": rec.get("description", ""),
                     "source": rec.get("source", "") or f"{page}{(' / ' + heading) if heading else ''}{(' / ' + rec['ref']) if rec.get('ref') else ''}",
                     "confidence": conf, "inferred": inferred, "trigger": rec.get("trigger", ""), "mitigation": rec.get("mitigation", ""),
-                    "likelihood": norm_lmh(rec.get("likelihood", "")), "options": rec.get("options", ""), "next action": rec.get("next action", ""),
+                    "likelihood": norm_lmh(rec.get("likelihood", "")), "risk-kind": rkind, "options": rec.get("options", ""), "next action": rec.get("next action", ""),
                     "due": rec.get("due", ""), "notes": "\n".join(notes),
                 })
     return cands
@@ -245,6 +249,9 @@ def export_blocks(cands, v, today):
         k = c["kind"]
         fields = {"Title": c["title"], "Status": M.FIRST_STATE[k], "Raised on": today}
         for key in M.SHORT[k]:
+            if key == "risk-kind":
+                fields["Kind"] = c.get("risk-kind") or "Risk"
+                continue
             if c.get(key): fields[M.LABELS.get(key, key)] = c[key]
         long_map = {"rationale": "Rationale", "impact": "Impact", "trigger": "Trigger", "mitigation": "Mitigation", "options": "Options", "next action": "Next action"}
         for key, lab in long_map.items():

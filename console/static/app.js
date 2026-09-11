@@ -36,8 +36,9 @@ function render() {
     ...KINDS.map(k => `<a href="#" data-v="${k}" style="${COLOR(k)}" class="${view === k ? "on" : ""}">${S.model.names[k]}s <span class="n">${counts(k)}</span></a>`),
     `<div class="gap"></div>`,
     `<a href="#" data-v="cs" style="--c:var(--cs)" class="${view === "cs" ? "on" : ""}">Change sets <span class="n">${pendingN}</span></a>`,
+    `<a href="guide.html" data-ext="1">Guide</a>`,
   ].join("");
-  $("#nav").querySelectorAll("a").forEach(a => a.onclick = e => { e.preventDefault(); view = a.dataset.v; open = null; form = null; render(); });
+  $("#nav").querySelectorAll("a:not([data-ext])").forEach(a => a.onclick = e => { e.preventDefault(); view = a.dataset.v; open = null; form = null; render(); });
   const m = $("#main");
   document.body.classList.toggle("print-mode", view === "report");
   if (view === "outstanding") m.innerHTML = outstanding();
@@ -51,6 +52,7 @@ function render() {
   $("#copy-md", m)?.addEventListener("click", () => { navigator.clipboard.writeText(reportMarkdown()).then(() => toast("Report copied as markdown")); });
   $("#print", m)?.addEventListener("click", () => window.print());
   m.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => { triageMove(el.dataset.tq); });
+  m.querySelectorAll("[data-rk]").forEach(el => el.onclick = () => { riskKind = el.dataset.rk; render(); });
   m.querySelectorAll("[data-raw]").forEach(el => el.onclick = async e => { e.preventDefault(); const t = await (await fetch("/api/change-set/" + el.dataset.raw)).text(); $("#raw-" + el.dataset.raw).innerHTML = `<pre>${esc(t)}</pre>`; });
   renderDetail();
 }
@@ -59,10 +61,16 @@ const pendTag = i => i.pending.length && !i.provisional ? `<span class="tag">${i
 const row = (i, cols) => `<tr class="row ${i.pending.length ? "pending" : ""}" data-open="${i.id}"><td>${idTag(i)}</td><td class="t">${esc(i.title)}${pendTag(i)}</td>${cols.map(c => `<td class="${c === "status" ? "st" : ""}">${esc(Array.isArray(i[c]) ? i[c].join("; ") : i[c])}</td>`).join("")}</tr>`;
 const table = (items, cols) => `<div style="overflow-x:auto"><table><tr><th>ID</th><th>Title</th>${cols.map(c => `<th>${esc(S.model.labels[c] || c)}</th>`).join("")}</tr>${items.map(i => row(i, cols)).join("") || `<tr><td colspan="${cols.length + 2}" class="muted">none</td></tr>`}</table></div>`;
 
+let riskKind = "";
 function register(k) {
-  const items = S.items.filter(i => i.kind === k);
+  let items = S.items.filter(i => i.kind === k);
+  let chips = "";
+  if (k === "RSK") {
+    if (riskKind) items = items.filter(i => i["risk-kind"] === riskKind);
+    chips = `<div class="moves" style="--c:var(--rsk)">${["", "Risk", "Assumption", "Dependency"].map(v => `<button data-rk="${v}" class="${riskKind === v ? "on" : ""}">${v || "All"}</button>`).join("")}</div>`;
+  }
   const cols = ["status", ...S.model.short[k].filter(f => f !== "owner"), "owner", "raised-on", "closed-on"];
-  return `<div class="toolbar"><h2>${S.model.names[k]}s</h2><button class="primary" data-new="${k}">New ${S.model.names[k].toLowerCase()}</button></div>${table(items, cols)}`;
+  return `<div class="toolbar"><h2>${S.model.names[k]}s</h2>${chips}<button class="primary" data-new="${k}">New ${S.model.names[k].toLowerCase()}</button></div>${table(items, cols)}`;
 }
 
 function outstanding() {
@@ -225,7 +233,7 @@ function queue() {
   it.filter(i => i.kind === "LIM" && i.status === "Identified").forEach(i => add(i, "Limitation not yet under assessment. Raise the assessing open item, or withdraw it.", 1));
   it.filter(i => i.kind === "LIM" && i.status === "Under assessment" && old14(i)).forEach(i => add(i, "Under assessment for more than 14 days. Choose an option or give the open item a new due date.", 1));
   it.filter(i => i.kind === "OI" && i.status !== "Closed").sort((a, b) => (dt(a.due) || 9e15) - (dt(b.due) || 9e15)).forEach(i => add(i, dt(i.due) && dt(i.due) < now ? "Open item past its due date." : "Open item. Set the next action and due, or close it into a record.", 2));
-  it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && (!dt(i.due) || dt(i.due) < now)).forEach(i => add(i, i.due ? "Risk past its review date. Update likelihood, impact and mitigation, or retire it." : "Risk with no review date.", 3));
+  it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && (!dt(i.due) || dt(i.due) < now)).forEach(i => { const w = (i["risk-kind"] || "Risk").toLowerCase(); add(i, i.due ? `${i["risk-kind"] || "Risk"} past its review date. ${w === "assumption" ? "Verify it, or retire it as confirmed." : w === "dependency" ? "Chase it, or retire it as delivered." : "Update likelihood, impact and mitigation, or retire it."}` : `${i["risk-kind"] || "Risk"} with no review date.`, 3); });
   it.filter(i => i.kind === "CR" && i.status === "For approval").forEach(i => add(i, "Change request with the business. Record the decision when it comes.", 4));
   it.filter(i => i.kind === "CR" && i.status === "Proposed").forEach(i => add(i, "Change request being shaped. Reason, chosen option and estimate get it to the board.", 4));
   it.filter(i => i.kind === "DEC" && i.status === "Proposed" && old14(i)).forEach(i => add(i, "Decision proposed more than 14 days ago. Accept, reject, or give it an open item.", 5));
@@ -278,6 +286,8 @@ function reportData() {
     decisions: it.filter(i => (i.kind === "DEC" && i.status === "Proposed") || (i.kind === "LIM" && i.status === "Under assessment")),
     crs: it.filter(i => i.kind === "CR" && ["For approval", "Proposed", "Submitted"].includes(i.status)),
     risks: it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && (i.impact === "H" || (dt(i.due) && dt(i.due) < now))),
+    assumptions: it.filter(i => i.kind === "RSK" && i["risk-kind"] === "Assumption" && ["Identified", "Mitigating"].includes(i.status)),
+    dependencies: it.filter(i => i.kind === "RSK" && i["risk-kind"] === "Dependency" && ["Identified", "Mitigating"].includes(i.status)),
     byOwner, blocked: it.filter(i => i.kind === "OI" && i.status === "Blocked"),
     newLims: it.filter(i => i.kind === "LIM" && i.status === "Identified"),
     drafts: it.filter(i => i.kind === "REQ" && i.status === "Draft" && !later(i)),
@@ -295,6 +305,8 @@ function report() {
     <h3>Calls needed at this meeting</h3><ul class="rl">${r.decisions.map(i => li(i, i.kind === "LIM" && i.options ? `<div class="small">${esc(i.options).replace(/\n/g, "<br>")}</div>` : i.rationale ? `<div class="small muted">${esc(i.rationale)}</div>` : "")).join("") || "<li class='muted'>none</li>"}</ul>
     <h3>Change requests</h3><ul class="rl">${r.crs.map(i => li(i, `<div class="small">${esc(i.reason || "")}</div><div class="small muted">${i.estimate ? "Estimate: " + esc(i.estimate) : "No estimate yet"}${i["approved-by"] ? " · approved by " + esc(i["approved-by"]) : ""}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
     <h3>Risks to review</h3><ul class="rl">${r.risks.map(i => li(i, ` <span class="small">L ${esc(i.likelihood)} · I ${esc(i.impact)} · review ${esc(i.due || "unset")}</span>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Dependencies</h3><ul class="rl">${r.dependencies.map(i => li(i, `<div class="small">${esc(i.trigger || "")}</div><div class="small muted">${esc(i.owner)}${i.due ? " · review " + esc(i.due) : ""}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    <h3>Assumptions</h3><ul class="rl">${r.assumptions.map(i => li(i, `<div class="small">${i.mitigation ? "Verify: " + esc(i.mitigation) : "Not yet being verified"}</div><div class="small muted">${esc(i.owner)}${i.due ? " · review " + esc(i.due) : ""}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
     <h3>New limitations</h3><ul class="rl">${r.newLims.map(i => li(i, `<div class="small muted">${esc(i.impact || "")}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
     <h3>Actions by owner</h3>${Object.entries(r.byOwner).sort().map(([o, items]) => `<h4>${esc(o)}</h4><ul class="rl">${items.map(i => li(i, `<div class="small">${esc(i["next action"] || "no next action")}${i.due ? " · due " + esc(i.due) : ""}</div>`)).join("")}</ul>`).join("")}
     <h3>Requirements still in Draft</h3><ul class="rl">${r.drafts.map(i => li(i, ` <span class="small muted">${esc(i.moscow)} · ${esc(i.owner)}</span>`)).join("") || "<li class='muted'>none</li>"}</ul>
@@ -309,6 +321,8 @@ function reportMarkdown() {
   L.push(`## Calls needed`, ...(r.decisions.map(i => line(i, i.kind === "LIM" && i.options ? "\n" + i.options.split("\n").map(o => "    " + o).join("\n") : "")) || []), ``);
   L.push(`## Change requests`, ...r.crs.map(i => line(i, `\n    ${i.reason || ""}\n    ${i.estimate ? "Estimate: " + i.estimate : "No estimate yet"}`)), ``);
   L.push(`## Risks to review`, ...r.risks.map(i => line(i, ` L ${i.likelihood} I ${i.impact}, review ${i.due || "unset"}`)), ``);
+  L.push(`## Dependencies`, ...r.dependencies.map(i => line(i, ` ${i.trigger || ""} (${i.owner})`)), ``);
+  L.push(`## Assumptions`, ...r.assumptions.map(i => line(i, i.mitigation ? ` verify: ${i.mitigation}` : " not yet being verified")), ``);
   L.push(`## New limitations`, ...r.newLims.map(i => line(i, i.impact ? `\n    ${i.impact}` : "")), ``);
   L.push(`## Actions by owner`); Object.entries(r.byOwner).sort().forEach(([o, items]) => { L.push(`### ${o}`, ...items.map(i => line(i, ` ${i["next action"] || "no next action"}${i.due ? ", due " + i.due : ""}`)), ``); });
   L.push(`## Requirements still in Draft`, ...r.drafts.map(i => line(i, ` ${i.moscow}, ${i.owner}`)), ``);

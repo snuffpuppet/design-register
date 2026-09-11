@@ -18,6 +18,20 @@ pulled-on: 11 September 2026
 | RK-3 | Manual port assignment volume outgrows the operations team | Low | Medium | Weekly report | Priya Nair |
 | RK-4 | Customers may complain about two invoice lines | Low | Low | | |
 
+## Assumptions
+
+| Ref | Assumption | Confidence | Owner | Basis |
+|---|---|---|---|---|
+| AS-1 | The billing adapter can merge two service lines at rating time | Medium | Tom Okafor | Stated in billing workshop |
+| AS-2 | The vendor test environment mirrors production port limits | Low | | Derived |
+
+## Dependencies
+
+| Ref | Dependency | Needed by | From | Status |
+|---|---|---|---|---|
+| DP-1 | Vendor delivers the port allocation change | 30 Sep 2026 | Vendor | On track |
+| DP-2 | Vendor delivery of port allocation fix | end of September | Martin Vasquez | Open |
+
 ## Limitations
 
 | Ref | Limitation | Impact | Confidence | Evidence |

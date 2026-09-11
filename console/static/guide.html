@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide · Register console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --ink:#1c2230; --ink-2:#4a5468; --ink-3:#7b8497; --line:#d5dae3; --line-2:#e6e9ef;
+  --req:#2b5fb3; --lim:#8a3fa6; --dec:#2c7a4b; --rsk:#b8412f; --oi:#b97412; --cr:#1a7f86; --doc:#5b6478;
+  --req-bg:#e6edf9; --lim-bg:#f1e6f6; --dec-bg:#e3f2e9; --rsk-bg:#f9e6e2; --oi-bg:#fbeed8; --cr-bg:#dff2f3; --doc-bg:#eceef2;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141821; --surface:#1b2029; --ink:#e7eaf0; --ink-2:#b4bccb; --ink-3:#7f889a; --line:#323a48; --line-2:#272e3b;
+    --req:#7ea6ea; --lim:#c78be0; --dec:#6fc494; --rsk:#ee8a78; --oi:#e6a94a; --cr:#5fc6cd; --doc:#9aa3b6;
+    --req-bg:#1e2c45; --lim-bg:#31213d; --dec-bg:#1b3327; --rsk-bg:#3d221d; --oi-bg:#3a2c14; --cr-bg:#173536; --doc-bg:#252b37;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141821; --surface:#1b2029; --ink:#e7eaf0; --ink-2:#b4bccb; --ink-3:#7f889a; --line:#323a48; --line-2:#272e3b;
+  --req:#7ea6ea; --lim:#c78be0; --dec:#6fc494; --rsk:#ee8a78; --oi:#e6a94a; --cr:#5fc6cd; --doc:#9aa3b6;
+  --req-bg:#1e2c45; --lim-bg:#31213d; --dec-bg:#1b3327; --rsk-bg:#3d221d; --oi-bg:#3a2c14; --cr-bg:#173536; --doc-bg:#252b37;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;padding-block:40px 80px;padding-inline:20px}
+main{max-width:980px;margin:0 auto}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;text-wrap:balance;margin:0}
+h1{font-size:2.2rem;letter-spacing:-.01em}
+h2{font-size:1.5rem;margin-top:3.2rem;margin-bottom:.6rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;margin-top:1.8rem;margin-bottom:.4rem}
+p{max-width:70ch;margin:.6rem 0}
+.lede{font-size:1.1rem;color:var(--ink-2);max-width:62ch;margin-top:.8rem}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.6rem}
+code,.id{font-family:var(--mono);font-size:.88em}
+.id{padding:.05em .35em;border-radius:3px;font-weight:500;white-space:nowrap}
+.id.req{color:var(--req);background:var(--req-bg)} .id.lim{color:var(--lim);background:var(--lim-bg)}
+.id.dec{color:var(--dec);background:var(--dec-bg)} .id.rsk{color:var(--rsk);background:var(--rsk-bg)}
+.id.oi{color:var(--oi);background:var(--oi-bg)} .id.cr{color:var(--cr);background:var(--cr-bg)}
+.id.doc{color:var(--doc);background:var(--doc-bg)}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:1.6rem 0 0}
+.legend div{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 12px;border-left:4px solid var(--c)}
+.legend b{display:block;font-family:var(--mono);font-size:.8rem;color:var(--c);letter-spacing:.04em}
+.legend span{font-size:.85rem;color:var(--ink-2)}
+figure{margin:1.4rem 0;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;min-width:640px;font-family:var(--sans);color:var(--ink)}
+figcaption{font-size:.88rem;color:var(--ink-2);margin-top:10px;max-width:80ch}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin:1rem 0}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line-2)}
+th{font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.tbl{overflow-x:auto}
+ul,ol{max-width:72ch;padding-left:1.3rem}
+li{margin:.3rem 0}
+.story{display:grid;grid-template-columns:130px 1fr;gap:0 18px;max-width:80ch;margin:1rem 0}
+.story .when{font-family:var(--mono);font-size:.8rem;color:var(--ink-3);padding-top:.35rem;border-top:1px solid var(--line-2)}
+.story .what{padding:.3rem 0 .9rem;border-top:1px solid var(--line-2)}
+.story .what p{margin:.15rem 0}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--oi);border-radius:4px;padding:12px 16px;max-width:76ch;margin:1.2rem 0}
+.callout p{margin:.3rem 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:1rem 0}
+.two > div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.two h4{margin:0 0 .4rem;font-family:var(--serif);font-size:1rem;font-weight:600}
+.two p,.two li{font-size:.92rem}
+@media (max-width:520px){.story{grid-template-columns:1fr}.story .when{border-top:none;padding-bottom:0}.story .what{border-top:none;padding-top:0}}
+.back{font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-decoration:none;display:inline-block;margin-bottom:1.2rem}
+.back:hover{color:var(--ink)}
+</style></head><body>
+<main>
+<a class="back" href="/">← Back to the console</a>
+<div class="eyebrow">Solution register model, version 2.23</div>
+<h1>Two Ways Into the Registers</h1>
+<p class="lede">The same six item types, followed from the two places work actually starts on a vendor build: a stakeholder stating a need, and a discovery that the solution falls short. Open items are the only thing anyone works. Everything else is a record that an open item changes.</p>
+
+<div class="legend">
+  <div style="--c:var(--req)"><b>REQ</b><span>What we need. Owned by whoever said so.</span></div>
+  <div style="--c:var(--lim)"><b>LIM</b><span>What the solution cannot do. A fact.</span></div>
+  <div style="--c:var(--dec)"><b>DEC</b><span>A choice made, or a shortfall accepted.</span></div>
+  <div style="--c:var(--rsk)"><b>RSK</b><span>An uncertainty with a trigger: a risk, an assumption or a dependency.</span></div>
+  <div style="--c:var(--cr)"><b>CR</b><span>A change to agreed scope, with a cost.</span></div>
+  <div style="--c:var(--oi)"><b>OI</b><span>Work. The bridge between records.</span></div>
+</div>
+
+<h2>Requirements first</h2>
+<p>Trigger: a stakeholder or SME states a need. The requirement is a record from the moment it is written, and it carries no next action of its own. Each move along its track is made by an open item, and the Designed state is the only place the register points into a design document.</p>
+
+<figure>
+<svg viewBox="0 0 960 330" role="img" aria-label="A requirement moves Draft, Agreed, Designed, Delivered, Verified. Each move is made by an open item below the track. A design document section is written at Designed. A decision appears only when a real choice is made. A discovery during build drops out to a limitation.">
+<defs>
+  <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+</defs>
+<g font-size="11" fill="currentColor">
+  <!-- lane labels -->
+  <text x="12" y="56" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--ink-3)" letter-spacing="1">TRIGGER</text>
+  <text x="12" y="140" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--ink-3)" letter-spacing="1">REGISTER</text>
+  <text x="12" y="228" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--ink-3)" letter-spacing="1">WORK</text>
+  <text x="12" y="300" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--ink-3)" letter-spacing="1">DOCUMENT</text>
+  <line x1="90" y1="100" x2="950" y2="100" stroke="var(--line-2)"/>
+  <line x1="90" y1="190" x2="950" y2="190" stroke="var(--line-2)"/>
+  <line x1="90" y1="262" x2="950" y2="262" stroke="var(--line-2)"/>
+
+  <!-- trigger -->
+  <rect x="100" y="34" width="150" height="36" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="175" y="50" text-anchor="middle" font-size="11">Stakeholder states</text>
+  <text x="175" y="63" text-anchor="middle" font-size="11">a need</text>
+  <line x1="175" y1="70" x2="175" y2="118" stroke="currentColor" marker-end="url(#a1)"/>
+
+  <!-- REQ track -->
+  <g font-family="IBM Plex Mono,monospace" font-size="11">
+    <rect x="100" y="120" width="150" height="40" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="175" y="136" text-anchor="middle" fill="var(--req)" font-weight="500">REQ-0014</text>
+    <text x="175" y="151" text-anchor="middle" fill="var(--req)">Draft</text>
+    <rect x="290" y="120" width="130" height="40" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="355" y="145" text-anchor="middle" fill="var(--req)">Agreed</text>
+    <rect x="470" y="120" width="130" height="40" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="535" y="145" text-anchor="middle" fill="var(--req)">Designed</text>
+    <rect x="650" y="120" width="130" height="40" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="715" y="145" text-anchor="middle" fill="var(--req)">Delivered</text>
+    <rect x="820" y="120" width="120" height="40" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="880" y="145" text-anchor="middle" fill="var(--req)">Verified</text>
+  </g>
+  <line x1="250" y1="140" x2="288" y2="140" stroke="currentColor" marker-end="url(#a1)"/>
+  <line x1="420" y1="140" x2="468" y2="140" stroke="currentColor" marker-end="url(#a1)"/>
+  <line x1="600" y1="140" x2="648" y2="140" stroke="currentColor" marker-end="url(#a1)"/>
+  <line x1="780" y1="140" x2="818" y2="140" stroke="currentColor" marker-end="url(#a1)"/>
+
+  <!-- OIs -->
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="200" y="205" width="140" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
+    <text x="270" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0030</text>
+    <text x="270" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">agree scope, MoSCoW</text>
+    <rect x="380" y="205" width="150" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
+    <text x="455" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0031</text>
+    <text x="455" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">write design section</text>
+    <rect x="740" y="205" width="140" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
+    <text x="810" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0058</text>
+    <text x="810" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">verify with owner</text>
+  </g>
+  <line x1="270" y1="205" x2="270" y2="142" stroke="var(--oi)" stroke-dasharray="3 3"/>
+  <line x1="455" y1="205" x2="455" y2="142" stroke="var(--oi)" stroke-dasharray="3 3"/>
+  <line x1="810" y1="205" x2="810" y2="142" stroke="var(--oi)" stroke-dasharray="3 3"/>
+  <text x="640" y="228" text-anchor="middle" font-size="10" fill="var(--ink-3)">vendor build lands</text>
+  <text x="640" y="241" text-anchor="middle" font-size="10" fill="var(--ink-3)">(no OI: build is their queue)</text>
+
+  <!-- doc -->
+  <rect x="380" y="276" width="150" height="34" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
+  <text x="455" y="297" text-anchor="middle" fill="var(--doc)" font-family="IBM Plex Mono,monospace" font-size="10">Design doc §4.2</text>
+  <line x1="455" y1="276" x2="455" y2="247" stroke="var(--doc)" marker-end="url(#a1)" style="color:var(--doc)"/>
+  <text x="545" y="296" font-size="10" fill="var(--ink-3)">REQ Source → §4.2</text>
+
+  <!-- DEC optional -->
+  <rect x="470" y="34" width="130" height="36" rx="3" fill="var(--dec-bg)" stroke="var(--dec)" stroke-dasharray="4 3"/>
+  <text x="535" y="49" text-anchor="middle" fill="var(--dec)" font-family="IBM Plex Mono,monospace" font-size="10" font-weight="500">DEC-0009</text>
+  <text x="535" y="62" text-anchor="middle" fill="var(--dec)" font-size="10">only if a real choice</text>
+  <line x1="535" y1="70" x2="535" y2="118" stroke="var(--dec)" stroke-dasharray="4 3" marker-end="url(#a1)" style="color:var(--dec)"/>
+  <text x="545" y="98" font-size="10" fill="var(--dec)">addresses</text>
+
+  <!-- discovery to LIM -->
+  <rect x="650" y="34" width="150" height="36" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+  <text x="725" y="49" text-anchor="middle" fill="var(--lim)" font-family="IBM Plex Mono,monospace" font-size="10" font-weight="500">LIM-0021</text>
+  <text x="725" y="62" text-anchor="middle" fill="var(--lim)" font-size="10">discovery during build</text>
+  <line x1="715" y1="118" x2="715" y2="72" stroke="var(--lim)" marker-end="url(#a1)" style="color:var(--lim)"/>
+  <text x="723" y="98" font-size="10" fill="var(--lim)">constrains</text>
+</g>
+</svg>
+<figcaption>One requirement through the registers. The register row never carries a next action. Three open items move it, the vendor's build moves it once, and the only document reference is the design section written at Designed. A limitation found during build points back at the requirement it constrains and starts the second story.</figcaption>
+</figure>
+
+<h3>What triggers each move</h3>
+<div class="tbl"><table>
+<tr><th>Move</th><th>Trigger</th><th>Record changed</th><th>Design reference</th></tr>
+<tr><td>Draft → Agreed</td><td>Owner confirms wording and MoSCoW; <span class="id oi">OI-0030</span> closes</td><td>REQ Status, MoSCoW, Phase</td><td>none</td></tr>
+<tr><td>Agreed → Designed</td><td>A design section covers it; <span class="id oi">OI-0031</span> closes</td><td>REQ Status, Source → section</td><td>Design doc section, ours or the vendor's</td></tr>
+<tr><td>Designed → Delivered</td><td>Vendor or internal build lands</td><td>REQ Status, Vendor ref if any</td><td>none new</td></tr>
+<tr><td>Delivered → Verified</td><td>Owner accepts; <span class="id oi">OI-0058</span> closes</td><td>REQ Status</td><td>none</td></tr>
+<tr><td>Any → Won't or next phase</td><td>Owner agrees it is out, or later</td><td>REQ MoSCoW or Phase</td><td>none</td></tr>
+</table></div>
+
+<h2>Limitations first</h2>
+<p>Trigger: while designing or building, we or the vendor find that the solution will not do, or does differently, something we need. The row is a fact. The assessment is an open item, and its first job is to find the requirement the limitation constrains. Only then are options sketched and one chosen, and the chosen option picks exactly one exit.</p>
+
+<figure>
+<svg viewBox="0 0 960 560" role="img" aria-label="A limitation goes Identified, then Under assessment. The assessing open item first links the requirement it constrains or raises one, then sketches options and chooses one. Five exits: Change requested to a change request, Accepted with a workaround to a decision and a procedure document, Accepted doing nothing to a decision with an optional risk, Resolved when the vendor conforms, and Withdrawn when there is no need.">
+<defs>
+  <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+</defs>
+<g font-size="11" fill="currentColor">
+  <!-- trigger -->
+  <rect x="20" y="40" width="150" height="40" rx="3" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="95" y="57" text-anchor="middle">Edge case found</text>
+  <text x="95" y="71" text-anchor="middle">in vendor design</text>
+  <line x1="95" y1="80" x2="95" y2="118" stroke="currentColor" marker-end="url(#a2)"/>
+
+  <!-- LIM Identified -->
+  <g font-family="IBM Plex Mono,monospace" font-size="11">
+    <rect x="20" y="120" width="150" height="44" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="95" y="138" text-anchor="middle" fill="var(--lim)" font-weight="500">LIM-0021</text>
+    <text x="95" y="154" text-anchor="middle" fill="var(--lim)">Identified</text>
+    <rect x="230" y="120" width="170" height="44" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="315" y="138" text-anchor="middle" fill="var(--lim)" font-weight="500">LIM-0021</text>
+    <text x="315" y="154" text-anchor="middle" fill="var(--lim)">Under assessment</text>
+  </g>
+  <line x1="170" y1="142" x2="228" y2="142" stroke="currentColor" marker-end="url(#a2)"/>
+
+  <!-- the OI under assessment -->
+  <rect x="200" y="210" width="230" height="96" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
+  <text x="212" y="228" fill="var(--oi)" font-family="IBM Plex Mono,monospace" font-size="10" font-weight="500">OI-0045  assess LIM-0021</text>
+  <text x="212" y="248" fill="var(--oi)" font-size="10">1. find the REQ it constrains, or raise one</text>
+  <text x="212" y="264" fill="var(--oi)" font-size="10">2. sketch each option, enough to cost it</text>
+  <text x="212" y="280" fill="var(--oi)" font-size="10">3. put Options and impacts on the row</text>
+  <text x="212" y="296" fill="var(--oi)" font-size="10">4. stakeholder picks: Chosen option</text>
+  <line x1="315" y1="210" x2="315" y2="166" stroke="var(--oi)" stroke-dasharray="3 3"/>
+
+  <!-- REQ link -->
+  <g font-family="IBM Plex Mono,monospace" font-size="11">
+    <rect x="20" y="236" width="140" height="44" rx="3" fill="var(--req-bg)" stroke="var(--req)"/>
+    <text x="90" y="254" text-anchor="middle" fill="var(--req)" font-weight="500">REQ-0014</text>
+    <text x="90" y="270" text-anchor="middle" fill="var(--req)">Agreed</text>
+  </g>
+  <line x1="200" y1="250" x2="162" y2="250" stroke="var(--req)" marker-end="url(#a2)" style="color:var(--req)"/>
+  <text x="90" y="296" text-anchor="middle" font-size="10" fill="var(--req)">constrains (required)</text>
+  <text x="90" y="310" text-anchor="middle" font-size="10" fill="var(--ink-3)">or raise REQ in Draft</text>
+
+  <!-- option sketch doc -->
+  <rect x="200" y="330" width="230" height="30" rx="3" fill="var(--doc-bg)" stroke="var(--doc)" stroke-dasharray="4 3"/>
+  <text x="315" y="349" text-anchor="middle" fill="var(--doc)" font-family="IBM Plex Mono,monospace" font-size="10">Options page: one sketch per option</text>
+  <line x1="315" y1="330" x2="315" y2="308" stroke="var(--doc)" stroke-dasharray="3 3"/>
+
+  <!-- fan: from Under assessment right edge -->
+  <line x1="400" y1="142" x2="470" y2="142" stroke="currentColor"/>
+  <line x1="470" y1="60" x2="470" y2="500" stroke="currentColor"/>
+  <text x="440" y="132" text-anchor="middle" font-size="10" fill="var(--ink-3)">chosen</text>
+  <text x="440" y="145" text-anchor="middle" font-size="10" fill="var(--ink-3)">option</text>
+
+  <!-- exit a: CR -->
+  <line x1="470" y1="60" x2="528" y2="60" stroke="currentColor" marker-end="url(#a2)"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="530" y="40" width="130" height="40" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="595" y="57" text-anchor="middle" fill="var(--lim)">Change requested</text>
+    <text x="595" y="71" text-anchor="middle" fill="var(--lim)" font-size="9">a) vendor builds it</text>
+    <rect x="700" y="40" width="130" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)"/>
+    <text x="765" y="57" text-anchor="middle" fill="var(--cr)" font-weight="500">CR-0002</text>
+    <text x="765" y="71" text-anchor="middle" fill="var(--cr)">Proposed</text>
+  </g>
+  <line x1="660" y1="60" x2="698" y2="60" stroke="var(--cr)" marker-end="url(#a2)" style="color:var(--cr)"/>
+  <text x="679" y="52" text-anchor="middle" font-size="9" fill="var(--cr)">by</text>
+  <rect x="850" y="40" width="100" height="40" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
+  <text x="900" y="57" text-anchor="middle" fill="var(--doc)" font-family="IBM Plex Mono,monospace" font-size="10">CR page</text>
+  <text x="900" y="71" text-anchor="middle" fill="var(--doc)" font-size="9">build design</text>
+  <line x1="830" y1="60" x2="848" y2="60" stroke="var(--doc)" style="color:var(--doc)" marker-end="url(#a2)"/>
+  <text x="765" y="96" text-anchor="middle" font-size="10" fill="var(--ink-3)">approval on the CR is the decision: no DEC row</text>
+
+  <!-- exit b: workaround -->
+  <line x1="470" y1="170" x2="528" y2="170" stroke="currentColor" marker-end="url(#a2)"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="530" y="150" width="130" height="40" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="595" y="167" text-anchor="middle" fill="var(--lim)">Accepted</text>
+    <text x="595" y="181" text-anchor="middle" fill="var(--lim)" font-size="9">b) manual workaround</text>
+    <rect x="700" y="150" width="130" height="40" rx="3" fill="var(--dec-bg)" stroke="var(--dec)"/>
+    <text x="765" y="167" text-anchor="middle" fill="var(--dec)" font-weight="500">DEC-0011</text>
+    <text x="765" y="181" text-anchor="middle" fill="var(--dec)">Accepted</text>
+  </g>
+  <line x1="660" y1="170" x2="698" y2="170" stroke="var(--dec)" marker-end="url(#a2)" style="color:var(--dec)"/>
+  <rect x="850" y="150" width="100" height="40" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
+  <text x="900" y="167" text-anchor="middle" fill="var(--doc)" font-family="IBM Plex Mono,monospace" font-size="10">Ops doc §7</text>
+  <text x="900" y="181" text-anchor="middle" fill="var(--doc)" font-size="9">the procedure</text>
+  <line x1="830" y1="170" x2="848" y2="170" stroke="var(--doc)" style="color:var(--doc)" marker-end="url(#a2)"/>
+  <rect x="700" y="204" width="130" height="34" rx="3" fill="var(--rsk-bg)" stroke="var(--rsk)" stroke-dasharray="4 3"/>
+  <text x="765" y="218" text-anchor="middle" fill="var(--rsk)" font-family="IBM Plex Mono,monospace" font-size="10">RSK-0003</text>
+  <text x="765" y="231" text-anchor="middle" fill="var(--rsk)" font-size="9">only if residual is uncertain</text>
+  <line x1="765" y1="190" x2="765" y2="202" stroke="var(--rsk)" stroke-dasharray="3 3" marker-end="url(#a2)" style="color:var(--rsk)"/>
+  <text x="840" y="225" font-size="9" fill="var(--req)">needs tooling? raise an internal REQ</text>
+
+  <!-- exit c: do nothing -->
+  <line x1="470" y1="290" x2="528" y2="290" stroke="currentColor" marker-end="url(#a2)"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="530" y="270" width="130" height="40" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="595" y="287" text-anchor="middle" fill="var(--lim)">Accepted</text>
+    <text x="595" y="301" text-anchor="middle" fill="var(--lim)" font-size="9">c) do nothing</text>
+    <rect x="700" y="270" width="130" height="40" rx="3" fill="var(--dec-bg)" stroke="var(--dec)"/>
+    <text x="765" y="287" text-anchor="middle" fill="var(--dec)" font-weight="500">DEC-0012</text>
+    <text x="765" y="301" text-anchor="middle" fill="var(--dec)">Accepted</text>
+  </g>
+  <line x1="660" y1="290" x2="698" y2="290" stroke="var(--dec)" marker-end="url(#a2)" style="color:var(--dec)"/>
+  <rect x="850" y="270" width="100" height="40" rx="3" fill="var(--rsk-bg)" stroke="var(--rsk)"/>
+  <text x="900" y="287" text-anchor="middle" fill="var(--rsk)" font-family="IBM Plex Mono,monospace" font-size="10">RSK-0004</text>
+  <text x="900" y="301" text-anchor="middle" fill="var(--rsk)" font-size="9">trigger + review date</text>
+  <line x1="830" y1="290" x2="848" y2="290" stroke="var(--rsk)" style="color:var(--rsk)" marker-end="url(#a2)"/>
+  <text x="679" y="282" text-anchor="middle" font-size="9" fill="var(--dec)">by</text>
+  <text x="840" y="282" text-anchor="middle" font-size="9" fill="var(--rsk)">raises</text>
+  <text x="765" y="326" text-anchor="middle" font-size="10" fill="var(--ink-3)">certain consequence? it is Impact on the LIM, no RSK</text>
+
+  <!-- exit d: resolved via conformance -->
+  <line x1="470" y1="400" x2="528" y2="400" stroke="currentColor" marker-end="url(#a2)"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="530" y="380" width="130" height="40" rx="3" fill="var(--lim-bg)" stroke="var(--lim)"/>
+    <text x="595" y="397" text-anchor="middle" fill="var(--lim)">Resolved</text>
+    <text x="595" y="411" text-anchor="middle" fill="var(--lim)" font-size="9">vendor conforms</text>
+    <rect x="700" y="380" width="130" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
+    <text x="765" y="397" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0046</text>
+    <text x="765" y="411" text-anchor="middle" fill="var(--oi)" font-size="9">track the fix, evidence</text>
+  </g>
+  <line x1="660" y1="400" x2="698" y2="400" stroke="var(--oi)" marker-end="url(#a2)" style="color:var(--oi)"/>
+  <text x="765" y="436" text-anchor="middle" font-size="10" fill="var(--ink-3)">Agreed REQ, vendor scope: a defect, not a change. No DEC, no CR.</text>
+
+  <!-- exit e: withdrawn -->
+  <line x1="470" y1="500" x2="528" y2="500" stroke="currentColor" marker-end="url(#a2)"/>
+  <g font-family="IBM Plex Mono,monospace" font-size="10">
+    <rect x="530" y="480" width="130" height="40" rx="3" fill="var(--lim-bg)" stroke="var(--lim)" stroke-dasharray="4 3"/>
+    <text x="595" y="497" text-anchor="middle" fill="var(--lim)">Withdrawn</text>
+    <text x="595" y="511" text-anchor="middle" fill="var(--lim)" font-size="9">no need, or wrong</text>
+  </g>
+  <text x="700" y="504" font-size="10" fill="var(--ink-3)">stakeholder says we never needed it; reason in Source</text>
+
+  <!-- closing the loop to REQ -->
+  <text x="20" y="470" font-size="10" fill="var(--ink-3)">Effect on REQ-0014:</text>
+  <text x="20" y="486" font-size="10" fill="var(--ink-3)">a) CR delivers it more fully</text>
+  <text x="20" y="500" font-size="10" fill="var(--ink-3)">b, c) it keeps moving; the link and DEC record the shortfall</text>
+  <text x="20" y="514" font-size="10" fill="var(--ink-3)">wholly unmet? Won't, or next phase with a Deferred CR</text>
+</g>
+</svg>
+<figcaption>One limitation, five exits. The assessing open item does all the work. The stakeholder's call is recorded once: on the CR's approval for a change, or on a DEC for an acceptance. A risk appears only where the consequence of accepting is uncertain.</figcaption>
+</figure>
+
+<h3>The change request's own track</h3>
+<p>When the exit is Change requested, the CR carries the rest of the change's life on one row. The limitation is closed the moment the CR exists. Whether to change was settled on the limitation. The CR is what the business approves: the justification in their terms, the estimate they are approving, and who approved it.</p>
+
+<figure>
+<svg viewBox="0 0 960 210" role="img" aria-label="A change request moves Proposed, For approval, Approved, Submitted, Delivered. Reason, Chosen option and Estimate are written in Proposed with the design on a page named in Source; the business approves in For approval; Approved by, Phase and Closed on at Approved; Vendor ref at Submitted. Delivered moves the requirement. Deferred sits beside the track for a later phase.">
+<defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+<g font-size="10" fill="currentColor" font-family="IBM Plex Mono,monospace">
+  <rect x="20" y="40" width="150" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)"/><text x="95" y="64" text-anchor="middle" fill="var(--cr)">Proposed</text>
+  <rect x="210" y="40" width="150" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)" stroke-width="2"/><text x="285" y="64" text-anchor="middle" fill="var(--cr)" font-weight="500">For approval</text>
+  <rect x="400" y="40" width="150" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)"/><text x="475" y="64" text-anchor="middle" fill="var(--cr)">Approved</text>
+  <rect x="590" y="40" width="150" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)"/><text x="665" y="64" text-anchor="middle" fill="var(--cr)">Submitted</text>
+  <rect x="780" y="40" width="160" height="40" rx="3" fill="var(--cr-bg)" stroke="var(--cr)"/><text x="860" y="64" text-anchor="middle" fill="var(--cr)">Delivered</text>
+  <line x1="170" y1="60" x2="208" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
+  <line x1="360" y1="60" x2="398" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
+  <line x1="550" y1="60" x2="588" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
+  <line x1="740" y1="60" x2="778" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
+  <g font-family="IBM Plex Sans,sans-serif" fill="var(--ink-2)">
+    <text x="95" y="104" text-anchor="middle">Reason, Chosen option,</text><text x="95" y="117" text-anchor="middle">Estimate obtained</text>
+    <text x="285" y="104" text-anchor="middle">with the business:</text><text x="285" y="117" text-anchor="middle">cost and justification</text>
+    <text x="475" y="104" text-anchor="middle">Approved by, Phase,</text><text x="475" y="117" text-anchor="middle">Closed on</text>
+    <text x="665" y="104" text-anchor="middle">Vendor ref set</text>
+    <text x="860" y="104" text-anchor="middle">REQ-0014 → Delivered</text>
+  </g>
+  <rect x="20" y="136" width="150" height="32" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
+  <text x="95" y="156" text-anchor="middle" fill="var(--doc)">design page, in Source</text>
+  <line x1="95" y1="136" x2="95" y2="122" stroke="var(--doc)" stroke-dasharray="3 3"/>
+  <rect x="780" y="136" width="160" height="32" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
+  <text x="860" y="156" text-anchor="middle" fill="var(--doc)">Design doc §4.2 updated</text>
+  <line x1="860" y1="136" x2="860" y2="122" stroke="var(--doc)" stroke-dasharray="3 3"/>
+  <text x="480" y="196" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" fill="var(--ink-3)">Deferred sits beside this track for a named later phase. Withdrawn or Rejected sends the limitation back to Under assessment.</text>
+</g>
+</svg>
+<figcaption>The CR track. For approval is the state the business sees on the outstanding view, and the approval recorded there is the stakeholder's call, so no decision row is written for a change.</figcaption>
+</figure>
+
+<h2>Where the designs sit</h2>
+<div class="two">
+  <div><h4>Option sketches</h4><p>Made during <span class="id lim">LIM</span> assessment so that each option can carry an impact. A paragraph or a diagram per option, on a page linked from the limitation. Disposable once the option is chosen. The vendor's estimate is an input here.</p></div>
+  <div><h4>Build design</h4><p>Made only for the chosen option. For a change, on a page named in the <span class="id cr">CR</span>'s Source while it is Proposed, then folded into the design document section at Delivered. For a workaround, the procedure in an operations document, pointed at by the <span class="id dec">DEC</span>'s Source.</p></div>
+</div>
+<p>The register never holds a design. It holds a Source pointer, and a requirement's Designed state says a design exists. That is what lets design documents be split per service or combined without changing tracking.</p>
+
+<h2>Risks, assumptions and dependencies</h2>
+<p>One register, one lifecycle, three kinds. A programme manager can list the dependencies and the assumptions on their own, and nothing new needs working: the verifying and the chasing are mitigation open items, like any other work.</p>
+<div class="tbl"><table>
+<tr><th>Kind</th><th>Trigger</th><th>Mitigation</th><th>Realised means</th><th>Retired means</th></tr>
+<tr><td>Risk</td><td>the event that says it has happened</td><td>what is being done</td><td>it happened, open item raised</td><td>no longer possible or worth tracking</td></tr>
+<tr><td>Assumption</td><td>evidence that it is false</td><td>how and when it will be verified</td><td>it was false, open item raised</td><td>verified true, or replaced by a decision</td></tr>
+<tr><td>Dependency</td><td>the date passes or the other party says it slips</td><td>the chase plan and who chases</td><td>it slipped, open item raised</td><td>delivered</td></tr>
+</table></div>
+<p>Likelihood and Impact are the chance and the cost of the assumption being wrong or the dependency slipping. The party and the needed-by date go in the Trigger text. A dependency on the vendor can be owned by "Vendor: name".</p>
+
+<h2>Where this console fits</h2>
+<p>Everything you see here is the registers <em>as proposed</em>: the engagement's item files plus every change set not yet applied. Nothing in the console writes an item file. Each move, edit, new item or baseline export appends one block to your session's change set, a dated file that names you, the evidence and the item's version as you saw it. The ingester applies change sets through its gate, settles any conflict, and assigns ids. That is the single point where a register changes, whether the change came from a transcript or from this console.</p>
+
+<h2>The edge case, day by day</h2>
+<p>The same story as a sequence of register changes, using option b as the chosen path.</p>
+<div class="story">
+  <div class="when">Day 0</div><div class="what"><p>Vendor design review surfaces an edge case that <span class="id req">REQ-0014</span> does not cover cleanly. <span class="id lim">LIM-0021</span> created, Identified, Impact one line, Source = review date, Owner = who found it. <span class="id oi">OI-0045</span> raised to assess, worker named.</p></div>
+  <div class="when">Day 2</div><div class="what"><p><span class="id oi">OI-0045</span> confirms with the requirement owner that the edge case matters. Links on the limitation gain <code>constrains REQ-0014</code>. LIM moves to Under assessment.</p></div>
+  <div class="when">Day 5</div><div class="what"><p>Three options sketched on the options page. Vendor estimate obtained for a. Options and impacts written on the row: a) vendor change, cost and 6 weeks, this phase; b) manual process, 2 hours a week ops, this phase; c) nothing, 3 customers a month affected.</p></div>
+  <div class="when">Day 8</div><div class="what"><p>Stakeholder forum picks b. Chosen option = 2. <span class="id dec">DEC-0011</span> created and Accepted: Rationale names b and the options it beat, Consulted lists vendor and ops SME, Approved by the forum. LIM moves to Accepted with Links <code>dispositioned by DEC-0011</code>. <span class="id oi">OI-0045</span> closes with <code>resolves into DEC-0011</code>.</p></div>
+  <div class="when">Day 8</div><div class="what"><p>Ops needs a weekly report to find the affected customers. <span class="id req">REQ-0031</span> raised in Draft, Implemented by = Internal, owner the ops lead. Residual volume is uncertain, so <span class="id rsk">RSK-0003</span> raised by DEC-0011: Trigger = more than 20 cases in a week, review monthly.</p></div>
+  <div class="when">Day 15</div><div class="what"><p>Procedure written in the ops document. DEC-0011 Source points at it. <span class="id req">REQ-0014</span> moves on to Delivered when the vendor build lands, shortfall known and traceable.</p></div>
+</div>
+
+<div class="callout">
+<p><strong>The one rule that keeps this simple.</strong> A stakeholder makes one call per limitation, and it is recorded in one place. For a change, on the CR's approval. For an acceptance, on a DEC. Never both.</p>
+</div>
+
+</main>
+</body></html>

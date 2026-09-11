@@ -103,11 +103,18 @@ item("DEC-0010", "Provision access before delivery because the platform enforces
 
 # --- Risks ---
 item("RSK-0002", "Vendor build slips past the day-one date", "Mitigating",
-     {"owner": "Adam Moyes", "likelihood": "M", "impact": "H", "due": "18 September 2026", "raised-on": "28 August 2026", "closed-on": "", "updated": "4 September 2026"},
+     {"kind": "Risk", "owner": "Adam Moyes", "likelihood": "M", "impact": "H", "due": "18 September 2026", "raised-on": "28 August 2026", "closed-on": "", "updated": "4 September 2026"},
      {"Trigger": "Vendor sprint burndown shows more than two weeks of scope remaining at sprint 6 review.", "Mitigation": "Weekly vendor delivery review; scope held to Must requirements.", "Source": "Delivery review, 28 August 2026", "Notes": ""}, [])
 item("RSK-0003", "Manual port assignment volume outgrows the operations team", "Identified",
-     {"owner": "Priya Nair", "likelihood": "L", "impact": "M", "due": "2 September 2026", "raised-on": "22 August 2026", "closed-on": "", "updated": "22 August 2026"},
+     {"kind": "Risk", "owner": "Priya Nair", "likelihood": "L", "impact": "M", "due": "2 September 2026", "raised-on": "22 August 2026", "closed-on": "", "updated": "22 August 2026"},
      {"Trigger": "More than 20 split-site orders in one week.", "Mitigation": "", "Source": "Stakeholder forum, 22 August 2026", "Notes": "Review date has passed."}, [])
+
+item("RSK-0004", "Vendor delivers the port allocation change by 30 September", "Mitigating",
+     {"kind": "Dependency", "owner": "Vendor: Martin Vasquez", "likelihood": "M", "impact": "H", "due": "23 September 2026", "raised-on": "5 September 2026", "closed-on": "", "updated": "5 September 2026"},
+     {"Trigger": "30 September passes without the change in the test environment, or the vendor says it slips.", "Mitigation": "Adam checks the vendor sprint review each Tuesday; escalate to the change board at the first slip.", "Source": "Vendor sprint plan, 5 September 2026", "Notes": ""}, [])
+item("RSK-0005", "The billing adapter can merge two service lines at rating time", "Identified",
+     {"kind": "Assumption", "owner": "Tom Okafor", "likelihood": "L", "impact": "M", "due": "", "raised-on": "26 August 2026", "closed-on": "", "updated": "26 August 2026"},
+     {"Trigger": "Billing SME confirms rating happens per service line with no merge hook.", "Mitigation": "", "Source": "Billing workshop, 26 August 2026", "Notes": "Underpins CR-0002. Not yet verified."}, [])
 
 # --- Open items ---
 item("OI-0031", "Write the design section for multi-gig port allocation", "Closed",

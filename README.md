@@ -8,7 +8,7 @@ This repository holds the process and the console. The ingester that writes the 
 
 | Path | What it is |
 |---|---|
-| `solution-register-model.md` | The register model, version 2.22. Item types, states, fields, transitions, integrity rules, the outstanding view, and section 11, change sets. The single source of truth for everything else here. |
+| `solution-register-model.md` | The register model, version 2.23. Item types, states, fields, transitions, integrity rules, the outstanding view, and section 11, change sets. The single source of truth for everything else here. |
 | `console/` | The register console: a web app that reads an engagement folder, shows the registers as proposed, and appends every edit to a change set. It never writes an item file. See `console/README.md`. |
 | `console/confluence-runbook.md` | How Confluence registers are pulled, baselined, applied and pushed back. |
 | `confluence.json` | The Confluence source for the baseline: parent page, connector, engagements root, and read and write permissions. |
@@ -20,7 +20,7 @@ This repository holds the process and the console. The ingester that writes the 
 
 ## The idea in one paragraph
 
-Six item types: requirements, decisions, limitations, risks, open items and change requests. Open items are the only thing anyone works; everything else is a record that an open item changes. A limitation is a gap against a requirement and leaves assessment by exactly one path. A change request is what the business approves, with the justification and the estimate on it. Every item traces to a source, and every change arrives through a session that names who made it and when. The model document says the rest.
+Six item types: requirements, decisions, limitations, risks, open items and change requests. A risk has a kind: risk, assumption or dependency, all on one lifecycle. Open items are the only thing anyone works; everything else is a record that an open item changes. A limitation is a gap against a requirement and leaves assessment by exactly one path. A change request is what the business approves, with the justification and the estimate on it. Every item traces to a source, and every change arrives through a session that names who made it and when. The model document says the rest.
 
 ## How the pieces fit
 
@@ -56,7 +56,8 @@ Point it at a real engagement with `make up ENG=engagements/<name>`. Everything 
 - **Work through**: a triage queue for cleaning up a large register, one item per screen with its context and only its legal moves. Keys j, k, p.
 - **Meeting report**: one printable page with calls needed, change requests and estimates, risks to review, actions by owner, and pending changes. Copy as markdown.
 - **Baseline**: appears when `baseline/` holds pulled pages. Every row is a candidate whatever it claims; duplicates are suggested; verdicts are bulk; export writes a change set and a rejection log.
-- **Registers and change sets**: one tab per type, and the change set files with their blocks.
+- **Registers and change sets**: one tab per type, with a kind filter on risks, and the change set files with their blocks.
+- **Guide**: the lifecycle diagrams and explanation, served inside the console.
 
 ## Bringing registers in from Confluence
 

@@ -79,6 +79,8 @@ def parse_item(path):
     if isinstance(item.get("links"), str):
         item["links"] = [item["links"]]
     item["links"] = [l for l in item.get("links", []) if str(l).strip()]
+    if "kind" in item:
+        item["risk-kind"] = item.pop("kind")   # the RSK Kind field; "kind" on an item means its type in the console
     item["kind"] = item["id"].split("-")[0]
     item["pending"] = []
     return item
@@ -152,7 +154,10 @@ def load_change_sets():
 
 
 def field_key(label):
-    return label.strip().lower() if label.strip().lower() in M.LABELS or label.strip().lower() in ("title", "status") else label.strip().lower().replace(" ", "-")
+    low = label.strip().lower()
+    if low == "kind":
+        return "risk-kind"
+    return low if low in M.LABELS or low in ("title", "status") else low.replace(" ", "-")
 
 
 def overlay(items, change_sets):

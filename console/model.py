@@ -1,4 +1,4 @@
-"""Register model 2.22 as data: types, states, transitions and the fields each move demands.
+"""Register model 2.23 as data: types, states, transitions and the fields each move demands.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 of solution-register-model.md. Field keys are the frontmatter keys of section 7; long fields
@@ -61,7 +61,7 @@ SHORT = {
     "REQ": ["moscow", "phase", "owner", "implemented-by", "vendor-ref"],
     "DEC": ["owner", "consulted", "approved-by", "implemented-by"],
     "LIM": ["owner", "chosen-option", "implemented-by", "vendor-ref"],
-    "RSK": ["owner", "likelihood", "impact", "due"],
+    "RSK": ["risk-kind", "owner", "likelihood", "impact", "due"],
     "OI":  ["owner", "due"],
     "CR":  ["owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
 }
@@ -74,7 +74,7 @@ LONG = {
     "CR":  ["reason", "source", "notes"],
 }
 LABELS = {
-    "moscow": "MoSCoW", "phase": "Phase", "owner": "Owner", "implemented-by": "Implemented by",
+    "risk-kind": "Kind", "moscow": "MoSCoW", "phase": "Phase", "owner": "Owner", "implemented-by": "Implemented by",
     "vendor-ref": "Vendor ref", "consulted": "Consulted", "approved-by": "Approved by",
     "chosen-option": "Chosen option", "likelihood": "Likelihood", "impact": "Impact", "due": "Due",
     "estimate": "Estimate", "rationale": "Rationale", "options": "Options", "trigger": "Trigger",
@@ -84,7 +84,7 @@ LABELS = {
 CHOICES = {
     "moscow": ["Must", "Should", "Could", "Won't"],
     "implemented-by": ["Vendor", "Internal", "Both"],
-    "likelihood": ["L", "M", "H"], "impact": ["L", "M", "H"],
+    "likelihood": ["L", "M", "H"], "impact": ["L", "M", "H"], "risk-kind": ["Risk", "Assumption", "Dependency"],
 }
 
 # Fields that must be filled to enter a state (I2, 4.4). "link:<word>" means a Links entry with that word.
@@ -112,7 +112,7 @@ REQUIRED_ON_CREATE = {
     "REQ": ["title", "moscow", "owner", "implemented-by", "source"],
     "DEC": ["title", "owner", "rationale", "implemented-by", "source"],
     "LIM": ["title", "owner", "implemented-by", "source"],
-    "RSK": ["title", "owner", "likelihood", "impact", "source"],
+    "RSK": ["title", "risk-kind", "owner", "likelihood", "impact", "source"],
     "OI":  ["title", "owner", "next action", "source"],
     "CR":  ["title", "owner", "reason", "implemented-by", "source", "link:triggered by"],
 }
