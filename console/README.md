@@ -8,7 +8,7 @@ A lifecycle console for the registers in `solution-register-model.md` (2.22). It
 
 ```
 console/make-sample.py            # writes test-data/puppy-gloves (re-run to reset)
-console/run.sh                    # Docker if running, else host python3; http://localhost:8080/
+console/run.sh                    # in Docker; http://localhost:8080/
 console/run.sh <engagement-dir> 8090
 ```
 

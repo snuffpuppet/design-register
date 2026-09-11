@@ -88,7 +88,7 @@ function changeSets() {
       <a href="#" data-raw="${c.id}" class="small">show file</a></div>
       ${c.blocks.map(b => `<div class="blk"><b>Item ${b.n}</b> · ${b.kind} · target <code>${esc(b.fields.Target)}</code> ${b.fields.From ? `· <span class="st">${esc(b.fields.From)} → ${esc(b.fields.Status)}</span>` : b.fields.Status ? `· <span class="st">${esc(b.fields.Status)}</span>` : ""}
         <div class="f">${Object.entries(b.fields).filter(([k]) => !["Target", "Grade", "Verdict", "From", "Based on", "Gist", "Status"].includes(k)).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(" · ")}${b.links.length ? " · links: " + esc(b.links.join("; ")) : ""}</div>
-        <div class="small muted">${esc(b.fields.Gist || "")} — ${esc(b.evidence.join("; "))}</div></div>`).join("") || '<div class="blk muted">no blocks yet</div>'}
+        <div class="small muted">${esc(b.fields.Gist || "")} · ${esc(b.evidence.join("; "))}</div></div>`).join("") || '<div class="blk muted">no blocks yet</div>'}
       <div id="raw-${c.id}"></div></div>`).join("") || '<p class="muted">No change sets yet. Open an item and make a move.</p>');
 }
 
@@ -132,8 +132,8 @@ function wire(d) {
   $("#evidence", d)?.addEventListener("input", e => form.evidence = e.target.value);
   $("#gist", d)?.addEventListener("input", e => form.gist = e.target.value);
 }
-const input = (key, val = "", req = false) => {
-  const c = S.model.choices[key];
+const input = (key, val = "", req = false, kind = null) => {
+  const c = (key === "impact" && kind !== "RSK") ? null : S.model.choices[key];
   const lab = `<label>${esc(S.model.labels[key] || key)}${req ? ' <span class="req">required</span>' : ""}</label>`;
   if (c) return `<div class="field">${lab}<select data-f="${key}"><option value="">—</option>${c.map(o => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select></div>`;
   if (key === "owner" || key === "approved-by") return `<div class="field">${lab}<input data-f="${key}" list="stk" value="${esc(val)}"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">${esc(s.role)}</option>`).join("")}<option value="Joint"><option value="Vendor: "></datalist></div>`;
@@ -150,20 +150,22 @@ function moveForm(i) {
   const k = i.kind, req = (S.model.required[k] || {})[form.to] || [];
   const fields = req.filter(r => !r.startsWith("link:")).map(r => r === "options" ? "options" : r);
   const links = req.filter(r => r.startsWith("link:")).map(r => r.slice(5));
+  if (!form.linkWord && links.length) form.linkWord = links.find(w => !i.links.some(l => l.toLowerCase().startsWith(w))) || links[0];
   return `<div class="form"><h3>${esc(i.status)} → ${esc(form.to)}</h3>
-    ${fields.map(f => input(f, form.fields[f] ?? i[f] ?? "", true)).join("")}
+    ${fields.map(f => input(f, form.fields[f] ?? i[f] ?? "", true, k)).join("")}
     ${links.length ? `<p class="small muted">This move needs a link: ${links.map(esc).join(", ")}. ${i.links.some(l => links.some(w => l.toLowerCase().startsWith(w))) ? "Already present, or add another below." : "Add it below, or create the record first from its register and link <code>item n</code>."}</p>` : ""}
     ${linkAdder(k)}${tail()}</div>`;
 }
 function editForm(i) {
   const k = i.kind;
-  return `<div class="form"><h3>Edit fields</h3>${["title", ...S.model.short[k], ...S.model.long[k]].map(f => input(f, form.fields[f] ?? i[f] ?? "")).join("")}${linkAdder(k)}${tail()}</div>`;
+  return `<div class="form"><h3>Edit fields</h3>${["title", ...S.model.short[k], ...S.model.long[k]].map(f => input(f, form.fields[f] ?? i[f] ?? "", false, k)).join("")}${linkAdder(k)}${tail()}</div>`;
 }
 function createForm() {
   const k = form.kind, req = S.model.create[k];
+  if (!form.linkWord) form.linkWord = (req.find(r => r.startsWith("link:")) || "link:").slice(5) || Object.keys(S.model.linkWords[k])[0];
   return `<button class="ghost close" id="close-detail">×</button><span class="eyebrow">New</span><h2>${S.model.names[k]}</h2>
     <div class="field"><label>Starts in</label><select data-f="__status">${[S.model.first[k], ...((S.model.transitions[k] || {})[S.model.first[k]] || [])].map(st => `<option ${form.fields.__status === st ? "selected" : ""}>${st}</option>`).join("")}</select></div><div class="form">
-    ${["title", ...S.model.short[k], ...S.model.long[k]].filter(f => f !== "notes").map(f => input(f, form.fields[f] ?? "", req.includes(f))).join("")}
+    ${["title", ...S.model.short[k], ...S.model.long[k]].filter(f => f !== "notes").map(f => input(f, form.fields[f] ?? "", req.includes(f), k)).join("")}
     ${req.some(r => r.startsWith("link:")) ? `<p class="small muted">Needs a link: ${req.filter(r => r.startsWith("link:")).map(r => esc(r.slice(5))).join(", ")}.</p>` : ""}
     ${linkAdder(k)}${tail()}</div>`;
 }

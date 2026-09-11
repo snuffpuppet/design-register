@@ -105,6 +105,8 @@ def load_engagement():
     if os.path.exists(p):
         on = False
         for ln in open(p, encoding="utf-8"):
+            if ln.startswith("# Engagement:"):
+                eng["name"] = ln.split(":", 1)[1].strip()
             if ln.startswith("## Phases"):
                 on = True; continue
             if ln.startswith("## "):

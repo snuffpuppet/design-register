@@ -79,7 +79,7 @@ LABELS = {
     "chosen-option": "Chosen option", "likelihood": "Likelihood", "impact": "Impact", "due": "Due",
     "estimate": "Estimate", "rationale": "Rationale", "options": "Options", "trigger": "Trigger",
     "mitigation": "Mitigation", "next action": "Next action", "reason": "Reason", "source": "Source",
-    "notes": "Notes", "links": "Links", "title": "Title", "status": "Status",
+    "notes": "Notes", "links": "Links", "title": "Title", "status": "Status", "raised-on": "Raised on", "closed-on": "Closed on", "updated": "Updated",
 }
 CHOICES = {
     "moscow": ["Must", "Should", "Could", "Won't"],

@@ -58,7 +58,7 @@ textarea{min-height:64px;resize:vertical}
 .err{color:var(--bad);font-size:.82rem;margin-top:6px;white-space:pre-wrap}
 .section{margin-bottom:26px}
 .cs{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;margin-bottom:12px}
-.cs .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cs .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap} .cs .hd a{color:var(--ink-2)}
 .blk{border-top:1px solid var(--line-2);padding:8px 0;font-size:.83rem}
 .blk .f{font-family:var(--mono);font-size:.76rem;color:var(--ink-2)}
 pre{font-family:var(--mono);font-size:.75rem;background:var(--bg);padding:10px;border-radius:4px;overflow-x:auto;white-space:pre-wrap}
