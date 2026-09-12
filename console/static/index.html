@@ -6,6 +6,7 @@
 <title>Register console</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>try{const t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch{}</script>
 </head>
 <body>
 <header class="top">
@@ -14,6 +15,7 @@
     <label>Made by <input id="made-by" placeholder="your name" autocomplete="off"></label>
     <span id="session-info" class="muted small"></span>
     <button id="close-session" class="ghost">Close session</button>
+    <span class="theme" id="theme" title="Colour scheme"><button data-theme="light">Light</button><button data-theme="system">Auto</button><button data-theme="dark">Dark</button></span>
   </div>
 </header>
 <div class="banner" id="banner"></div>

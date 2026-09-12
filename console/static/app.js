@@ -241,6 +241,13 @@ async function submit() {
 function parseDate(s) { const m = /^(\d{1,2}) (\w+) (\d{4})/.exec(s || ""); if (!m) return null; const mi = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(m[2]); return mi < 0 ? null : new Date(+m[3], mi, +m[1]); }
 
 /* ---------- boot ---------- */
+function setTheme(t) {
+  try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch {}
+  if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  document.querySelectorAll("#theme button").forEach(b => b.classList.toggle("on", b.dataset.theme === t));
+}
+document.querySelectorAll("#theme button").forEach(b => b.onclick = () => setTheme(b.dataset.theme));
+setTheme((() => { try { return localStorage.getItem("theme") || "system"; } catch { return "system"; } })());
 try { $("#made-by").value = localStorage.getItem("madeBy") || ""; } catch {}
 $("#made-by").addEventListener("change", () => { try { localStorage.setItem("madeBy", madeBy()); } catch {} load(); });
 $("#close-session").addEventListener("click", async () => { try { const r = await post("/api/close-session", {}); toast(`${r.changeSet} closed for the ingester`); load(); } catch (e) { toast(e.message); } });
