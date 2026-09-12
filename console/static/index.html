@@ -9,14 +9,14 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="eyebrow">Register console</span><h1 id="eng-name">…</h1></div>
+  <div class="brand"><span class="eyebrow">Register console</span><h1 id="eng-name">…</h1><span id="stage" class="stage"></span></div>
   <div class="session">
     <label>Made by <input id="made-by" placeholder="your name" autocomplete="off"></label>
-    <span id="session-info" class="muted"></span>
+    <span id="session-info" class="muted small"></span>
     <button id="close-session" class="ghost">Close session</button>
   </div>
 </header>
-<div class="banner">This view is the registers <strong>as proposed</strong>: the source files plus every change set not yet applied. Nothing here writes an item file. Every edit appends a block to your session's change set, which the ingester applies.</div>
+<div class="banner" id="banner"></div>
 <div class="layout">
   <nav class="side" id="nav"></nav>
   <main class="main" id="main"></main>

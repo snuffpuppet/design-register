@@ -23,11 +23,21 @@ function banner(msg) {
   if (!b) { b = document.createElement("div"); b.id = "conn-banner"; document.body.prepend(b); }
   b.textContent = msg;
 }
+/* Baselining until the freeze; live once the registers hold items. */
+function stage() { return S.baseline?.present && !S.baseline.frozen && !S.items.length ? "baseline" : "live"; }
+let viewChosen = false;
 async function loadOnce() {
   S = await (await fetch("/api/state")).json();
   S.byId = Object.fromEntries(S.items.map(i => [i.id, i]));
   S.baseline = await (await fetch("/api/baseline")).json();
   $("#eng-name").textContent = S.engagement.name + (S.engagement.current ? " · " + S.engagement.current : "");
+  const st = stage();
+  $("#stage").textContent = st === "baseline" ? "Baselining" : S.baseline?.frozen ? `Live · baseline frozen ${S.baseline.frozen.on}` : "Live";
+  $("#stage").className = "stage " + st;
+  $("#banner").innerHTML = st === "baseline"
+    ? "<strong>Baselining.</strong> The pulled pages are candidates and nothing is written to the registers until you freeze. Verdicts and edits are kept in the baseline folder and can be changed until then."
+    : "This view is the registers <strong>as proposed</strong>: the item files plus every change set not yet applied. Every move, edit or new item appends a block to your session's change set, which the ingester applies.";
+  if (!viewChosen) { view = st === "baseline" ? "baseline" : "outstanding"; viewChosen = true; }
   const mine = S.change_sets.filter(c => !c.closed && !c.applied && c.header["Made by"] === madeBy());
   $("#session-info").textContent = mine.length ? `${mine[0].id}, ${mine[0].blocks.length} block(s) this session` : "no open change set";
   banner("");
@@ -44,17 +54,17 @@ async function post(url, body) {
 function render() {
   const counts = k => S.items.filter(i => i.kind === k).length;
   const pendingN = S.change_sets.filter(c => !c.applied).reduce((n, c) => n + c.blocks.length, 0);
+  const st = stage(), B = S.baseline;
+  const link = (v, label, n, style = "") => `<a href="#" data-v="${v}" style="${style}" class="${view === v ? "on" : ""}">${label}${n !== undefined ? ` <span class="n">${n}</span>` : ""}</a>`;
+  const group = (label, links) => `<div class="grp"><span class="grp-l">${label}</span>${links.join("")}</div>`;
   $("#nav").innerHTML = [
-    `<a href="#" data-v="outstanding" class="${view === "outstanding" ? "on" : ""}">Outstanding</a>`,
-    `<a href="#" data-v="triage" class="${view === "triage" ? "on" : ""}">Work through <span class="n">${queue().length}</span></a>`,
-    `<a href="#" data-v="report" class="${view === "report" ? "on" : ""}">Meeting report</a>`,
-    ...(S.baseline?.present ? [`<a href="#" data-v="baseline" style="--c:var(--cs)" class="${view === "baseline" ? "on" : ""}">Baseline <span class="n">${S.baseline.candidates.filter(c => !c.verdict).length}</span></a>`] : []),
-    `<div class="gap"></div>`,
-    ...KINDS.map(k => `<a href="#" data-v="${k}" style="${COLOR(k)}" class="${view === k ? "on" : ""}">${S.model.names[k]}s <span class="n">${counts(k)}</span></a>`),
-    `<div class="gap"></div>`,
-    `<a href="#" data-v="cs" style="--c:var(--cs)" class="${view === "cs" ? "on" : ""}">Change sets <span class="n">${pendingN}</span></a>`,
-    `<a href="guide.html" data-ext="1">Guide</a>`,
+    B?.present ? group("Source", [link("baseline", "Baseline", B.frozen ? "frozen" : B.candidates.filter(c => !c.verdict).length, "--c:var(--cs)")]) : "",
+    group("Meeting", [link("outstanding", "Outstanding"), link("triage", "Work through", queue().length), link("report", "Meeting report")]),
+    group("Registers", KINDS.map(k => link(k, S.model.names[k] + "s", counts(k), COLOR(k)))),
+    group("Changes", [link("cs", "Change sets", pendingN, "--c:var(--cs)")]),
+    `<div class="grp"><a href="guide.html" data-ext="1">Guide</a></div>`,
   ].join("");
+  if (st === "baseline") $("#nav").querySelectorAll(".grp").forEach((g, n) => { if (n === 1) g.classList.add("dim"); });
   $("#nav").querySelectorAll("a:not([data-ext])").forEach(a => a.onclick = e => { e.preventDefault(); view = a.dataset.v; open = null; form = null; render(); });
   const m = $("#main");
   document.body.classList.toggle("print-mode", view === "report");
@@ -73,6 +83,7 @@ function render() {
   m.querySelectorAll("[data-raw]").forEach(el => el.onclick = async e => { e.preventDefault(); const t = await (await fetch("/api/change-set/" + el.dataset.raw)).text(); $("#raw-" + el.dataset.raw).innerHTML = `<pre>${esc(t)}</pre>`; });
   renderDetail();
 }
+const head = (title, sub = "", actions = "") => `<div class="toolbar"><div><h2>${title}</h2>${sub ? `<div class="small muted">${sub}</div>` : ""}</div>${actions ? `<div class="actions">${actions}</div>` : ""}</div>`;
 const idTag = i => `<a href="#" data-open="${i.id}" class="id" style="${COLOR(i.kind)}">${i.id}</a>${i.provisional ? '<span class="tag new">pending id</span>' : ""}`;
 const pendTag = i => i.pending.length && !i.provisional ? `<span class="tag">${i.pending.length} pending</span>` : "";
 const row = (i, cols) => `<tr class="row ${i.pending.length ? "pending" : ""}" data-open="${i.id}"><td>${idTag(i)}</td><td class="t">${esc(i.title)}${pendTag(i)}</td>${cols.map(c => `<td class="${c === "status" ? "st" : ""}">${esc(Array.isArray(i[c]) ? i[c].join("; ") : i[c])}</td>`).join("")}</tr>`;
@@ -87,7 +98,7 @@ function register(k) {
     chips = `<div class="moves" style="--c:var(--rsk)">${["", "Risk", "Assumption", "Dependency"].map(v => `<button data-rk="${v}" class="${riskKind === v ? "on" : ""}">${v || "All"}</button>`).join("")}</div>`;
   }
   const cols = ["status", ...S.model.short[k].filter(f => f !== "owner"), "owner", "raised-on", "closed-on"];
-  return `<div class="toolbar"><h2>${S.model.names[k]}s</h2>${chips}<button class="primary" data-new="${k}">New ${S.model.names[k].toLowerCase()}</button></div>${table(items, cols)}`;
+  return head(`${S.model.names[k]}s`, `${items.length} item${items.length === 1 ? "" : "s"}. Click a row to open it.`, `${chips}<button class="primary" data-new="${k}">New ${S.model.names[k].toLowerCase()}</button>`) + table(items, cols);
 }
 
 function outstanding() {
@@ -104,7 +115,7 @@ function outstanding() {
   const req = it.filter(i => i.kind === "REQ" && i.status === "Draft" && old14(i) && !later(i));
   const defects = it.filter(i => !term(i.kind).includes(i.status) && defect(i));
   const deferred = it.filter(i => (i.kind === "CR" && i.status === "Deferred") || (i.kind === "REQ" && later(i)));
-  return `<h2>Outstanding</h2><p class="small muted">Model section 8, in order. Amber marks an item with a pending change in an unapplied change set.</p>
+  return head("Outstanding", "Model section 8, in order. Amber marks an item with a pending change in an unapplied change set.") + `
     <div class="stat"><div><b>${oi.length}</b><span>open items</span></div><div><b>${lim.length}</b><span>limitations to disposition</span></div><div><b>${cr.filter(c => c.status === "For approval").length}</b><span>CRs with the business</span></div><div><b class="${defects.length ? "req" : ""}">${defects.length}</b><span>register defects</span></div></div>
     ${sec("1. Open items not Closed", oi, ["status", "owner", "next action", "due"])}
     ${sec("2. Limitations in Identified or Under assessment", lim, ["status", "owner", "raised-on"])}
@@ -118,7 +129,7 @@ function outstanding() {
 
 function changeSets() {
   const cs = [...S.change_sets].reverse();
-  return `<h2>Change sets</h2><p class="small muted">One file per session under <code>change-sets/</code>. The ingester applies them; the console only appends.</p>` +
+  return head("Change sets", "One file per session under <code>change-sets/</code>. The ingester applies them; the console only appends.") +
     (cs.map(c => `<div class="cs"><div class="hd"><div><span class="id" style="--c:var(--cs);--cb:var(--cs-bg)">${c.id}</span> &nbsp;${esc(c.header["Made by"] || "")} · ${esc(c.header["Session date"] || "")}
       ${c.applied ? '<span class="tag new">applied</span>' : c.closed ? '<span class="tag">closed, awaiting ingester</span>' : '<span class="tag">open</span>'}</div>
       <a href="#" data-raw="${c.id}" class="small">show file</a></div>
@@ -272,14 +283,14 @@ function triageMove(what) {
 }
 function triage() {
   const q = queue();
-  if (!q.length) return `<h2>Work through</h2><p class="muted">Nothing needs a hand. The register is clean.</p>`;
+  if (!q.length) return head("Work through", "Nothing needs a hand. The register is clean.");
   let p = Math.min(getPos(), q.length - 1); setPos(p);
   const e = q[p], i = e.item; open = i.id;
   const related = i.links.map(l => l.match(/([A-Z]+-\d{4}(?:\.\d+)?)/)?.[1]).filter(id => id && S.byId[id]).map(id => S.byId[id]);
   const back = S.items.filter(o => o.id !== i.id && o.links.some(l => l.includes(i.id)));
   const ctx = [...related, ...back.filter(b => !related.includes(b))];
   const done = q.filter((x, n) => n < p).length;
-  return `<div class="toolbar"><div><h2>Work through</h2><span class="small muted">${p + 1} of ${q.length}${e.parked ? " · parked" : ""}</span></div>
+  return `<div class="toolbar"><div><h2>Work through</h2><div class="small muted">${p + 1} of ${q.length}${e.parked ? " · parked" : ""} · one item per screen with its context and only its legal moves</div></div>
     <div class="moves"><button data-tq="prev" title="k">← Previous</button><button data-tq="next" title="j">Next →</button>${e.parked ? '<button data-tq="unpark">Unpark</button>' : '<button data-tq="park" title="p">Park for later</button>'}<button class="ghost" data-tq="reset">Start over</button></div></div>
     <div class="progress"><div style="width:${Math.round(100 * p / q.length)}%"></div></div>
     <div class="triage">
@@ -315,7 +326,7 @@ function reportData() {
 function report() {
   const r = reportData();
   const li = (i, extra = "") => `<li><span class="id" style="${COLOR(i.kind)}">${i.id}</span> ${esc(i.title)} <span class="st">${esc(i.status)}</span>${extra}</li>`;
-  return `<div class="toolbar no-print"><h2>Meeting report</h2><div style="display:flex;gap:6px"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
+  return `<div class="toolbar no-print"><div><h2>Meeting report</h2><div class="small muted">One printable page for the weekly meeting.</div></div><div class="actions"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
     <div class="report">
     <div class="rhead"><span class="eyebrow">${esc(S.engagement.name)} · ${esc(S.engagement.current)}</span><h1>Register report, ${esc(S.today)}</h1><p class="small muted">Registers as proposed, including ${r.pending.length} pending change(s) not yet applied by the ingester.</p></div>
     <div class="stat"><div><b>${r.decisions.length}</b><span>calls needed</span></div><div><b>${r.crs.filter(c => c.status === "For approval").length}</b><span>CRs awaiting approval</span></div><div><b>${Object.values(r.byOwner).flat().length}</b><span>open items</span></div><div><b>${r.risks.length}</b><span>risks to review</span></div><div><b class="${r.defects.length ? "req" : ""}">${r.defects.length}</b><span>register defects</span></div></div>
@@ -350,7 +361,7 @@ function reportMarkdown() {
 
 
 /* ---------- baseline mode ---------- */
-let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", showClusters: true, edit: null, confirmFreeze: false};
+let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", tab: "rows", edit: null, confirmFreeze: false};
 function baselineView() {
   const B = S.baseline, cs = B.candidates;
   const f = cs.filter(c => (!BF.kind || c.kind === BF.kind) && (!BF.page || c.page === BF.page) && (BF.verdict === "" ? true : BF.verdict === "none" ? !c.verdict : c.verdict === BF.verdict) && (!BF.q || (c.title + " " + c.description).toLowerCase().includes(BF.q.toLowerCase())));
@@ -360,13 +371,15 @@ function baselineView() {
   // a group with one undecided row left holds no duplicate decision; only suggest where two or more remain
   const clusters = B.clusters.filter(g => { const und = g.filter(id => !byId[id]?.verdict).length; return und > 1 || (und === 1 && g.some(id => byId[id]?.verdict === "Accept")); });
   const opt = (arr, cur, blank) => `<option value="">${blank}</option>` + arr.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
-  return `<div class="toolbar"><div><h2>Baseline</h2><span class="small muted">${cs.length} candidates from ${B.pages.length} page(s) · ${n("Accept")} accepted · ${n("Merge")} merged · ${n("Reject")} rejected · ${n("Discard")} discarded · ${cs.filter(c => !c.verdict).length} to go${B.dismissed ? ` · ${B.dismissed} group(s) called not duplicates` : ""}</span></div>
-    <div>${B.frozen ? `<span class="small muted">Frozen ${esc(B.frozen.on)} by ${esc(B.frozen.by)}</span>` : BF.confirmFreeze ? `<span class="small muted">Writes ${n("Accept")} items into the registers and ends baselining. </span><button id="bl-freeze-go" class="primary">Yes, freeze</button> <button id="bl-freeze-no" class="ghost">Not yet</button>` : `<button id="bl-freeze" class="primary" title="Write the accepted set as the registers' first items. Runs once, only into empty registers.">Freeze baseline</button>`}</div></div>
+  const todo = cs.filter(c => !c.verdict).length;
+  return `<div class="toolbar"><div><h2>Baseline</h2><div class="small muted">${cs.length} candidates from ${B.pages.length} page(s) · ${n("Accept")} accepted · ${n("Merge")} merged · ${n("Reject")} rejected · ${n("Discard")} discarded · <b>${todo} to go</b>${B.dismissed ? ` · ${B.dismissed} group(s) called not duplicates` : ""}</div></div>
+    <div class="actions">${B.frozen ? `<span class="small muted">Frozen ${esc(B.frozen.on)} by ${esc(B.frozen.by)}</span>` : BF.confirmFreeze ? `<span class="small muted">Writes ${n("Accept")} items into the registers and ends baselining. </span><button id="bl-freeze-go" class="primary">Yes, freeze</button> <button id="bl-freeze-no" class="ghost">Not yet</button>` : `<button id="bl-freeze" class="primary" title="Write the accepted set as the registers' first items. Runs once, only into empty registers.">Freeze baseline</button>`}</div></div>
     ${B.frozen ? `<div class="note">The baseline is frozen. ${Object.entries(B.frozen.counts).map(([k, v]) => `${v} ${S.model.names[k].toLowerCase()}${v === 1 ? "" : "s"}`).join(", ")} were written to the registers; the id map is in <code>baseline/frozen.md</code>. Verdicts here are read only now; every change from here is a change set.</div>` : ""}
     <div class="progress"><div style="width:${Math.round(100 * cs.filter(c => c.verdict).length / Math.max(1, cs.length))}%"></div></div>
-    ${clusters.length && BF.showClusters && !B.frozen ? `<div class="section"><h3>Suggested duplicates <span class="small muted">${clusters.length} group(s)${clusters.length > 25 ? `, showing the first 25` : ""}</span></h3>
-      ${clusters.slice(0, 25).map(g => `<div class="cs"><div class="small muted">${g.filter(id => !byId[id]?.verdict).length} still to decide. Tick the rows that are the same item, then choose which one leads; the rest fold into it, keeping their sources and anything it does not already hold. Unticked rows stay undecided. <button class="ghost" data-notdup="${g.join(",")}">Not duplicates</button> <button class="ghost" data-discgroup="1" title="Not register rows: drop the ticked ones without a rejection reason">Discard ticked</button>${(() => { const done = g.filter(id => byId[id]?.verdict); if (!done.length) return ""; const t = {}; done.forEach(id => { const v = byId[id].verdict; t[v] = (t[v] || 0) + 1; }); return `<br><span class="small muted">Already decided here: ${Object.entries(t).map(([v, n]) => `${n} ${v.toLowerCase()}`).join(", ")}.</span>`; })()}</div>${g.map(id => { const c = byId[id]; const done = !!c.verdict; return `<div class="blk ${done ? "done" : ""}">${done ? `<span class="vd">${esc(c.verdict)}</span>` : `<label class="dup"><input type="checkbox" data-dup="${id}" checked> same</label>`} ${!done || c.verdict === "Accept" ? `<button class="ghost" data-survivor="${id}">This one leads</button>` : ""} <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : ""}
-    <div class="toolbar bl-filters">
+    ${B.frozen ? "" : `<div class="tabs"><button data-bltab="rows" class="${BF.tab === "rows" ? "on" : ""}">Candidates <span class="n">${cs.length}</span></button><button data-bltab="dups" class="${BF.tab === "dups" ? "on" : ""}">Suggested duplicates <span class="n">${clusters.length}</span></button></div>`}
+    ${BF.tab === "dups" && !B.frozen ? (clusters.length ? `<div class="section"><p class="small muted">Groups whose titles overlap or that share a source id. Suggestions only${clusters.length > 25 ? `; showing the first 25 of ${clusters.length}` : ""}.</p>
+      ${clusters.slice(0, 25).map(g => `<div class="cs"><div class="small muted">${g.filter(id => !byId[id]?.verdict).length} still to decide. Tick the rows that are the same item, then choose which one leads; the rest fold into it, keeping their sources and anything it does not already hold. Unticked rows stay undecided. <button class="ghost" data-notdup="${g.join(",")}">Not duplicates</button> <button class="ghost" data-discgroup="1" title="Not register rows: drop the ticked ones without a rejection reason">Discard ticked</button>${(() => { const done = g.filter(id => byId[id]?.verdict); if (!done.length) return ""; const t = {}; done.forEach(id => { const v = byId[id].verdict; t[v] = (t[v] || 0) + 1; }); return `<br><span class="small muted">Already decided here: ${Object.entries(t).map(([v, n]) => `${n} ${v.toLowerCase()}`).join(", ")}.</span>`; })()}</div>${g.map(id => { const c = byId[id]; const done = !!c.verdict; return `<div class="blk ${done ? "done" : ""}">${done ? `<span class="vd">${esc(c.verdict)}</span>` : `<label class="dup"><input type="checkbox" data-dup="${id}" checked> same</label>`} ${!done || c.verdict === "Accept" ? `<button class="ghost" data-survivor="${id}">This one leads</button>` : ""} <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : `<p class="muted">No duplicate groups left to decide.</p>`) : ""}
+    ${BF.tab === "dups" && !B.frozen ? "" : `<div class="toolbar bl-filters">
       <select id="bf-kind">${opt(KINDS, BF.kind, "all types")}</select>
       <select id="bf-page">${opt(B.pages, BF.page, "all pages")}</select>
       <select id="bf-verdict"><option value="">any verdict</option><option value="none" ${BF.verdict === "none" ? "selected" : ""}>undecided</option>${["Accept", "Merge", "Reject", "Discard"].map(v => `<option ${BF.verdict === v ? "selected" : ""}>${v}</option>`).join("")}</select>
@@ -388,7 +401,7 @@ function baselineView() {
       <td class="small">${esc(c.page)}${c.ref ? `<br><code>${esc(c.ref)}</code>` : ""}${c.source_status ? `<br><span class="muted">was ${esc(c.source_status)}</span>` : ""}</td>
       <td>${esc(c.owner)}</td><td>${esc(c.moscow)}</td><td class="small">${esc(c.confidence)}</td>
       <td class="st">${c.frozenAs ? `<span class="id" style="${COLOR(c.kind)}">${esc(c.frozenAs)}</span><br>` : c.exported ? `<span class="small muted">in ${esc(c.exported)}</span><br>` : ""}${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
-    </table></div>${BF.edit && byId[BF.edit] && !B.frozen ? blEditor(byId[BF.edit]) : ""}`;
+    </table></div>`}${BF.edit && byId[BF.edit] && !B.frozen ? blEditor(byId[BF.edit]) : ""}`;
 }
 /* The editor: a fixed panel for one candidate. Fields follow the model for its type; what you save is a
    verdict override, so nothing touches the source page and Clear verdict does not undo it. */
@@ -410,11 +423,13 @@ function blEditor(c) {
 async function blPost(body) { const y = window.scrollY; await post("/api/baseline/verdict", body); await load(); window.scrollTo(0, y); }
 function wireBaseline(m) {
   const re = () => { render(); };
-  $("#bf-kind", m).onchange = e => { BF.kind = e.target.value; re(); };
-  $("#bf-page", m).onchange = e => { BF.page = e.target.value; re(); };
-  $("#bf-verdict", m).onchange = e => { BF.verdict = e.target.value; re(); };
-  $("#bf-q", m).oninput = e => { BF.q = e.target.value; clearTimeout(BF.t); BF.t = setTimeout(re, 250); };
-  $("#bf-reason", m).onchange = e => BF.reason = e.target.value;
+  m.querySelectorAll("[data-bltab]").forEach(el => el.onclick = () => { BF.tab = el.dataset.bltab; re(); });
+  const on = (sel, ev, fn) => { const el = $(sel, m); if (el) el[ev] = fn; };
+  on("#bf-kind", "onchange", e => { BF.kind = e.target.value; re(); });
+  on("#bf-page", "onchange", e => { BF.page = e.target.value; re(); });
+  on("#bf-verdict", "onchange", e => { BF.verdict = e.target.value; re(); });
+  on("#bf-q", "oninput", e => { BF.q = e.target.value; clearTimeout(BF.t); BF.t = setTimeout(re, 250); });
+  on("#bf-reason", "onchange", e => BF.reason = e.target.value);
   m.querySelectorAll("[data-sel]").forEach(el => el.onchange = () => { el.checked ? BF.sel.add(el.dataset.sel) : BF.sel.delete(el.dataset.sel); });
   if ($("#bf-all", m)) $("#bf-all", m).onchange = e => { m.querySelectorAll("[data-sel]").forEach(el => { el.checked = e.target.checked; e.target.checked ? BF.sel.add(el.dataset.sel) : BF.sel.delete(el.dataset.sel); }); re(); };
   m.querySelectorAll("[data-bulk]").forEach(el => el.onclick = async () => {
