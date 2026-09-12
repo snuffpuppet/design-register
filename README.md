@@ -71,6 +71,7 @@ Point it at a real engagement with `make up ENG=engagements/<name>`. Everything 
 
 - **Outstanding**: the meeting view from model section 8, plus register defects and the later-phase view.
 - **Work through**: a triage queue for cleaning up a large register, one item per screen with its context and only its legal moves. Keys j, k, p.
+- **Weekly SLT report**: progress for the leadership team over a seven-day window: requirements delivered and designed, movement per register, change requests awaiting approval with estimates, high-impact risks, late dependencies, blocked items and what changed. Copy as markdown or print.
 - **Meeting report**: one printable page with calls needed, change requests and estimates, risks to review, actions by owner, and pending changes. Copy as markdown.
 - **Baseline**: appears when `baseline/` holds pulled pages. Every row is a candidate whatever it claims; duplicates are suggested; verdicts are bulk; a title opens an editor; freeze writes the item files, an id map and a rejection log.
 - **Registers and change sets**: one tab per type, with a kind filter on risks, and the change set files with their blocks.

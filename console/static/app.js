@@ -59,7 +59,7 @@ function render() {
   const group = (label, links) => `<div class="grp"><span class="grp-l">${label}</span>${links.join("")}</div>`;
   $("#nav").innerHTML = [
     B?.present ? group("Source", [link("baseline", "Baseline", B.frozen ? "frozen" : B.candidates.filter(c => !c.verdict).length, "--c:var(--cs)")]) : "",
-    group("Meeting", [link("outstanding", "Outstanding"), link("triage", "Work through", queue().length), link("report", "Meeting report")]),
+    group("Meeting", [link("outstanding", "Outstanding"), link("triage", "Work through", queue().length), link("report", "Meeting report"), link("slt", "Weekly SLT report")]),
     group("Registers", KINDS.map(k => link(k, S.model.names[k] + "s", counts(k), COLOR(k)))),
     group("Changes", [link("cs", "Change sets", pendingN, "--c:var(--cs)")]),
     `<div class="grp"><a href="guide.html" data-ext="1">Guide</a></div>`,
@@ -67,16 +67,17 @@ function render() {
   if (st === "baseline") $("#nav").querySelectorAll(".grp").forEach((g, n) => { if (n === 1) g.classList.add("dim"); });
   $("#nav").querySelectorAll("a:not([data-ext])").forEach(a => a.onclick = e => { e.preventDefault(); view = a.dataset.v; open = null; form = null; render(); });
   const m = $("#main");
-  document.body.classList.toggle("print-mode", view === "report");
+  document.body.classList.toggle("print-mode", view === "report" || view === "slt");
   if (view === "outstanding") m.innerHTML = outstanding();
   else if (view === "triage") { m.innerHTML = triage(); wire(m); }
   else if (view === "report") m.innerHTML = report();
+  else if (view === "slt") m.innerHTML = slt();
   else if (view === "baseline") { m.innerHTML = baselineView(); wireBaseline(m); }
   else if (view === "cs") m.innerHTML = changeSets();
   else m.innerHTML = register(view);
   m.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
   m.querySelectorAll("[data-new]").forEach(el => el.onclick = () => { open = null; form = {mode: "create", kind: el.dataset.new, fields: {}, links: []}; renderDetail(); });
-  $("#copy-md", m)?.addEventListener("click", () => { navigator.clipboard.writeText(reportMarkdown()).then(() => toast("Report copied as markdown")); });
+  $("#copy-md", m)?.addEventListener("click", () => { navigator.clipboard.writeText(view === "slt" ? sltMarkdown() : reportMarkdown()).then(() => toast("Report copied as markdown")); });
   $("#print", m)?.addEventListener("click", () => window.print());
   m.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => { triageMove(el.dataset.tq); });
   m.querySelectorAll("[data-rk]").forEach(el => el.onclick = () => { riskKind = el.dataset.rk; render(); });
@@ -359,6 +360,87 @@ function reportMarkdown() {
   return L.join("\n");
 }
 
+
+/* ---------- weekly SLT report ----------
+   Progress for senior leadership: where the requirements stand, what moved this week, what needs their
+   call, and what is at risk. Built from the item dates (raised-on, closed-on, updated) over a seven-day
+   window, so it needs no history beyond the files. */
+function sltData() {
+  const it = S.items, now = new Date(), dt = parseDate, term = k => S.model.terminal[k];
+  const week = new Date(now - 7 * 864e5);
+  const inWeek = d => d && d >= week && d <= now;
+  const later = i => i.phase && S.engagement.current && S.engagement.phases.indexOf(i.phase) > S.engagement.phases.indexOf(S.engagement.current);
+  const byState = k => { const o = {}; S.model.states[k].forEach(st => o[st] = 0); it.filter(i => i.kind === k).forEach(i => { o[i.status] = (o[i.status] || 0) + 1; }); return o; };
+  const rows = KINDS.map(k => { const all = it.filter(i => i.kind === k); return {k, name: S.model.names[k] + "s", total: all.length,
+    open: all.filter(i => !term(k).includes(i.status)).length, raised: all.filter(i => inWeek(dt(i["raised-on"]))).length,
+    closed: all.filter(i => inWeek(dt(i["closed-on"]))).length, moved: all.filter(i => inWeek(dt(i.updated)) && !inWeek(dt(i["raised-on"]))).length}; });
+  const req = it.filter(i => i.kind === "REQ" && !later(i));
+  const reqStates = byState("REQ");
+  const delivered = req.filter(i => ["Delivered", "Verified"].includes(i.status)).length, designed = req.filter(i => ["Designed", "Delivered", "Verified"].includes(i.status)).length;
+  return {
+    weekEnding: S.today, rows, reqStates, reqTotal: req.length, delivered, designed,
+    calls: it.filter(i => i.kind === "CR" && i.status === "For approval"),
+    shaping: it.filter(i => i.kind === "CR" && ["Proposed", "Submitted"].includes(i.status)),
+    decisionsOverdue: it.filter(i => i.kind === "DEC" && i.status === "Proposed" && dt(i["raised-on"]) && (now - dt(i["raised-on"])) / 864e5 > 14),
+    limsOpen: it.filter(i => i.kind === "LIM" && ["Identified", "Under assessment"].includes(i.status)),
+    risksHigh: it.filter(i => i.kind === "RSK" && ["Identified", "Mitigating"].includes(i.status) && i.impact === "H"),
+    realised: it.filter(i => i.kind === "RSK" && i.status === "Realised" && inWeek(dt(i["closed-on"]) || dt(i.updated))),
+    depsLate: it.filter(i => i.kind === "RSK" && i["risk-kind"] === "Dependency" && ["Identified", "Mitigating"].includes(i.status) && dt(i.due) && dt(i.due) < now),
+    blocked: it.filter(i => i.kind === "OI" && i.status === "Blocked"),
+    oiOpen: it.filter(i => i.kind === "OI" && i.status !== "Closed").length,
+    oiLate: it.filter(i => i.kind === "OI" && i.status !== "Closed" && dt(i.due) && dt(i.due) < now).length,
+    movedItems: it.filter(i => inWeek(dt(i.updated)) || inWeek(dt(i["raised-on"])) || inWeek(dt(i["closed-on"]))).sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)),
+    pending: S.change_sets.filter(c => !c.applied).reduce((n, c) => n + c.blocks.length, 0),
+    unowned: it.filter(i => !term(i.kind).includes(i.status) && !i.owner).length,
+  };
+}
+function slt() {
+  const r = sltData();
+  const more = arr => arr.length > 10 ? `<li class="muted small">and ${arr.length - 10} more in the register</li>` : "";
+  const li = (i, extra = "") => `<li><span class="id" style="${COLOR(i.kind)}">${i.id}</span> ${esc(i.title)} <span class="st">${esc(i.status)}</span>${extra}</li>`;
+  const bar = Object.entries(r.reqStates).filter(([st]) => st !== "Withdrawn").map(([st, n]) => n ? `<div class="seg" style="flex:${n}" title="${st}: ${n}"><span>${st} ${n}</span></div>` : "").join("");
+  return `<div class="toolbar no-print"><div><h2>Weekly SLT report</h2><div class="small muted">Progress and calls needed, for the leadership team. Seven-day window ending today.</div></div><div class="actions"><button id="copy-md">Copy as markdown</button><button id="print">Print</button></div></div>
+    <div class="report">
+    <div class="rhead"><span class="eyebrow">${esc(S.engagement.name)} · ${esc(S.engagement.current)}</span><h1>Weekly report, week ending ${esc(r.weekEnding)}</h1></div>
+    <div class="stat"><div><b>${r.delivered}/${r.reqTotal}</b><span>requirements delivered</span></div><div><b>${r.designed}/${r.reqTotal}</b><span>requirements designed</span></div><div><b class="${r.calls.length ? "req" : ""}">${r.calls.length}</b><span>change requests awaiting approval</span></div><div><b class="${r.risksHigh.length ? "req" : ""}">${r.risksHigh.length}</b><span>high-impact risks open</span></div><div><b>${r.oiOpen}</b><span>open items${r.oiLate ? `, ${r.oiLate} past due` : ""}</span></div></div>
+    <h3>Requirement progress</h3><div class="pbar">${bar || '<div class="muted small">no requirements in this phase</div>'}</div>
+    <h3>Movement this week</h3>
+    <div style="overflow-x:auto"><table><tr><th>Register</th><th>Total</th><th>Open</th><th>Raised this week</th><th>Moved this week</th><th>Closed this week</th></tr>
+    ${r.rows.map(x => `<tr><td>${x.name}</td><td>${x.total}</td><td>${x.open}</td><td>${x.raised || ""}</td><td>${x.moved || ""}</td><td>${x.closed || ""}</td></tr>`).join("")}</table></div>
+    <h3>Calls needed from leadership</h3><ul class="rl">${r.calls.map(i => li(i, `<div class="small">${esc(i.reason || "")}</div><div class="small muted">${i.estimate ? "Estimate: " + esc(i.estimate) : "No estimate yet"}${i.owner ? " · " + esc(i.owner) : ""}</div>`)).join("") || "<li class='muted'>none</li>"}</ul>
+    ${r.decisionsOverdue.length ? `<h4>Decisions waiting more than two weeks</h4><ul class="rl">${r.decisionsOverdue.map(i => li(i, `<div class="small muted">${esc(i.owner)} · raised ${esc(i["raised-on"])}</div>`)).join("")}</ul>` : ""}
+    <h3>Risks and dependencies</h3>
+    ${r.realised.length ? `<h4>Realised this week</h4><ul class="rl">${r.realised.map(i => li(i, `<div class="small">${esc(i.impact ? "Impact " + i.impact : "")}${i.mitigation ? " · " + esc(i.mitigation) : ""}</div>`)).join("")}</ul>` : ""}
+    <h4>High impact, open</h4><ul class="rl">${r.risksHigh.map(i => li(i, ` <span class="small">${esc(i["risk-kind"] || "Risk")} · L ${esc(i.likelihood)} · ${esc(i.owner)}${i.due ? " · review " + esc(i.due) : ""}</span>${i.mitigation ? `<div class="small muted">${esc(i.mitigation)}</div>` : ""}`)).join("") || "<li class='muted'>none</li>"}</ul>
+    ${r.depsLate.length ? `<h4>Dependencies past their date</h4><ul class="rl">${r.depsLate.map(i => li(i, ` <span class="small muted">${esc(i.owner)} · due ${esc(i.due)}</span>`)).join("")}</ul>` : ""}
+    <h3>Change requests being shaped <span class="small muted">${r.shaping.length}</span></h3><ul class="rl">${r.shaping.slice(0, 10).map(i => li(i, ` <span class="small muted">${i.estimate ? esc(i.estimate) : "no estimate yet"}${i["implemented-by"] ? " · " + esc(i["implemented-by"]) : ""}</span>`)).join("") || "<li class='muted'>none</li>"}${more(r.shaping)}</ul>
+    <h3>Limitations still open <span class="small muted">${r.limsOpen.length}</span></h3><ul class="rl">${r.limsOpen.slice(0, 10).map(i => li(i, i.options ? `<div class="small">${esc(i.options).replace(/\n/g, "<br>")}</div>` : i.impact ? `<div class="small muted">${esc(i.impact)}</div>` : "")).join("") || "<li class='muted'>none</li>"}${more(r.limsOpen)}</ul>
+    ${r.blocked.length ? `<h3>Blocked</h3><ul class="rl">${r.blocked.map(i => li(i, `<div class="small">${esc(i["next action"] || "")}</div><div class="small muted">${esc(i.owner)}</div>`)).join("")}</ul>` : ""}
+    <h3>What changed this week</h3><ul class="rl">${r.movedItems.map(i => li(i, ` <span class="small muted">${parseDate(i["closed-on"]) && parseDate(i["closed-on"]) >= new Date(Date.now() - 7 * 864e5) ? "closed" : parseDate(i["raised-on"]) && parseDate(i["raised-on"]) >= new Date(Date.now() - 7 * 864e5) ? "new" : "updated"} ${esc(i.updated || i["raised-on"] || "")}</span>`)).join("") || "<li class='muted'>nothing recorded in the last seven days</li>"}</ul>
+    <p class="small muted">Registers as proposed, including ${r.pending} pending change(s) not yet applied by the ingester.${r.unowned ? ` ${r.unowned} live item(s) have no owner.` : ""}</p>
+    </div>`;
+}
+function sltMarkdown() {
+  const r = sltData(), L = [];
+  const line = (i, extra = "") => `- **${i.id}** ${i.title} _(${i.status})_${extra}`;
+  L.push(`# Weekly report, week ending ${r.weekEnding}`, ``, `${S.engagement.name} · ${S.engagement.current}`, ``);
+  L.push(`Requirements delivered ${r.delivered}/${r.reqTotal}, designed ${r.designed}/${r.reqTotal}. Change requests awaiting approval: ${r.calls.length}. High-impact risks open: ${r.risksHigh.length}. Open items: ${r.oiOpen}${r.oiLate ? `, ${r.oiLate} past due` : ""}.`, ``);
+  L.push(`## Requirement progress`, ...Object.entries(r.reqStates).map(([st, n]) => `- ${st}: ${n}`), ``);
+  L.push(`## Movement this week`, ``, `| Register | Total | Open | Raised | Moved | Closed |`, `|---|---|---|---|---|---|`, ...r.rows.map(x => `| ${x.name} | ${x.total} | ${x.open} | ${x.raised} | ${x.moved} | ${x.closed} |`), ``);
+  L.push(`## Calls needed from leadership`, ...(r.calls.map(i => line(i, `\n    ${i.reason || ""}\n    ${i.estimate ? "Estimate: " + i.estimate : "No estimate yet"}`)).length ? r.calls.map(i => line(i, `\n    ${i.reason || ""}\n    ${i.estimate ? "Estimate: " + i.estimate : "No estimate yet"}`)) : ["- none"]), ``);
+  if (r.decisionsOverdue.length) L.push(`### Decisions waiting more than two weeks`, ...r.decisionsOverdue.map(i => line(i, ` ${i.owner}, raised ${i["raised-on"]}`)), ``);
+  L.push(`## Risks and dependencies`);
+  if (r.realised.length) L.push(`### Realised this week`, ...r.realised.map(i => line(i)));
+  L.push(`### High impact, open`, ...(r.risksHigh.length ? r.risksHigh.map(i => line(i, ` ${i["risk-kind"] || "Risk"}, L ${i.likelihood}, ${i.owner}${i.mitigation ? ". " + i.mitigation : ""}`)) : ["- none"]));
+  if (r.depsLate.length) L.push(`### Dependencies past their date`, ...r.depsLate.map(i => line(i, ` ${i.owner}, due ${i.due}`)));
+  const cap = arr => arr.length > 10 ? [`- and ${arr.length - 10} more in the register`] : [];
+  L.push(``, `## Change requests being shaped (${r.shaping.length})`, ...(r.shaping.length ? r.shaping.slice(0, 10).map(i => line(i, ` ${i.estimate || "no estimate yet"}`)) : ["- none"]), ...cap(r.shaping), ``);
+  L.push(`## Limitations still open (${r.limsOpen.length})`, ...(r.limsOpen.length ? r.limsOpen.slice(0, 10).map(i => line(i, i.options ? "\n" + i.options.split("\n").map(o => "    " + o).join("\n") : "")) : ["- none"]), ...cap(r.limsOpen), ``);
+  if (r.blocked.length) L.push(`## Blocked`, ...r.blocked.map(i => line(i, ` ${i["next action"] || ""} (${i.owner})`)), ``);
+  L.push(`## What changed this week`, ...(r.movedItems.length ? r.movedItems.map(i => line(i, ` ${i.updated || i["raised-on"] || ""}`)) : ["- nothing recorded in the last seven days"]), ``);
+  L.push(`_Registers as proposed, ${r.pending} pending change(s) not yet applied._`);
+  return L.join("\n");
+}
 
 /* ---------- baseline mode ---------- */
 let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", tab: "rows", edit: null, confirmFreeze: false};

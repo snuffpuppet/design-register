@@ -19,7 +19,7 @@ Only the Python standard library is used. Nothing is installed on the host.
 
 ## What it shows
 
-The side navigation is grouped: Source (Baseline, shown only when the engagement has pulled pages), Meeting (Outstanding, Work through, Meeting report), Registers (one per type) and Changes (Change sets). The console knows its stage: **Baselining** until the freeze, when it opens on Baseline and dims the meeting views because the registers are empty; **Live** afterwards, when it opens on Outstanding and the header shows the freeze date. The line under the header says what the current view is and what a write does at that stage.
+The side navigation is grouped: Source (Baseline, shown only when the engagement has pulled pages), Meeting (Outstanding, Work through, Meeting report, Weekly SLT report), Registers (one per type) and Changes (Change sets). The console knows its stage: **Baselining** until the freeze, when it opens on Baseline and dims the meeting views because the registers are empty; **Live** afterwards, when it opens on Outstanding and the header shows the freeze date. The line under the header says what the current view is and what a write does at that stage.
 
 - **Outstanding**: model section 8 in order, a defect list for non-terminal items with no owner or next action, and the later-phase view.
 - **One tab per register**: the frontmatter columns of section 7. Amber marks an item touched by a pending change set; a provisional id like `LIM-0002.3` means an item created in change set 2, block 3, that the ingester will number on apply.
