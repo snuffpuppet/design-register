@@ -64,7 +64,7 @@ textarea{min-height:64px;resize:vertical}
 label.dup{font-size:.72rem;color:var(--ink-2);user-select:none;margin-right:2px}
 .blk.done{opacity:.55}
 .blk .vd{font-size:.72rem;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:1px 5px;margin-right:4px}
-label.dup input{vertical-align:middle;margin-right:3px}
+label.dup input{vertical-align:middle;margin-right:3px;width:auto;padding:0}
 pre{font-family:var(--mono);font-size:.75rem;background:var(--bg);padding:10px;border-radius:4px;overflow-x:auto;white-space:pre-wrap}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:4px;font-size:.85rem;z-index:9}
 .detail .close{float:right}

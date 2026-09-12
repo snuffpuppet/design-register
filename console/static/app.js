@@ -358,13 +358,13 @@ function baselineView() {
   const n = v => cs.filter(c => c.verdict === v).length;
   const byId = Object.fromEntries(cs.map(c => [c.id, c]));
   // a group with one undecided row left holds no duplicate decision; only suggest where two or more remain
-  const clusters = B.clusters.filter(g => g.filter(id => !byId[id]?.verdict).length > 1);
+  const clusters = B.clusters.filter(g => { const und = g.filter(id => !byId[id]?.verdict).length; return und > 1 || (und === 1 && g.some(id => byId[id]?.verdict === "Accept")); });
   const opt = (arr, cur, blank) => `<option value="">${blank}</option>` + arr.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
   return `<div class="toolbar"><div><h2>Baseline</h2><span class="small muted">${cs.length} candidates from ${B.pages.length} page(s) · ${n("Accept")} accepted · ${n("Merge")} merged · ${n("Reject")} rejected · ${n("Discard")} discarded · ${cs.filter(c => !c.verdict).length} to go${B.dismissed ? ` · ${B.dismissed} group(s) called not duplicates` : ""}</span></div>
     <div><button id="bl-export" class="primary">Export change set</button></div></div>
     <div class="progress"><div style="width:${Math.round(100 * cs.filter(c => c.verdict).length / Math.max(1, cs.length))}%"></div></div>
     ${clusters.length && BF.showClusters ? `<div class="section"><h3>Suggested duplicates <span class="small muted">${clusters.length} group(s)${clusters.length > 25 ? `, showing the first 25` : ""}</span></h3>
-      ${clusters.slice(0, 25).map(g => `<div class="cs"><div class="small muted">${g.filter(id => !byId[id]?.verdict).length} still to decide. Tick the rows that are the same item, then choose which one leads; the rest fold into it, keeping their sources and anything it does not already hold. Unticked rows stay undecided. <button class="ghost" data-notdup="${g.join(",")}">Not duplicates</button> <button class="ghost" data-discgroup="1" title="Not register rows: drop the ticked ones without a rejection reason">Discard ticked</button>${(() => { const done = g.filter(id => byId[id]?.verdict); if (!done.length) return ""; const t = {}; done.forEach(id => { const v = byId[id].verdict; t[v] = (t[v] || 0) + 1; }); return `<br><span class="small muted">Already decided here: ${Object.entries(t).map(([v, n]) => `${n} ${v.toLowerCase()}`).join(", ")}.</span>`; })()}</div>${g.filter(id => !byId[id]?.verdict).map(id => { const c = byId[id]; return `<div class="blk"><label class="dup"><input type="checkbox" data-dup="${id}" checked> same</label> <button class="ghost" data-survivor="${id}">This one leads</button> <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : ""}
+      ${clusters.slice(0, 25).map(g => `<div class="cs"><div class="small muted">${g.filter(id => !byId[id]?.verdict).length} still to decide. Tick the rows that are the same item, then choose which one leads; the rest fold into it, keeping their sources and anything it does not already hold. Unticked rows stay undecided. <button class="ghost" data-notdup="${g.join(",")}">Not duplicates</button> <button class="ghost" data-discgroup="1" title="Not register rows: drop the ticked ones without a rejection reason">Discard ticked</button>${(() => { const done = g.filter(id => byId[id]?.verdict); if (!done.length) return ""; const t = {}; done.forEach(id => { const v = byId[id].verdict; t[v] = (t[v] || 0) + 1; }); return `<br><span class="small muted">Already decided here: ${Object.entries(t).map(([v, n]) => `${n} ${v.toLowerCase()}`).join(", ")}.</span>`; })()}</div>${g.map(id => { const c = byId[id]; const done = !!c.verdict; return `<div class="blk ${done ? "done" : ""}">${done ? `<span class="vd">${esc(c.verdict)}</span>` : `<label class="dup"><input type="checkbox" data-dup="${id}" checked> same</label>`} ${!done || c.verdict === "Accept" ? `<button class="ghost" data-survivor="${id}">This one leads</button>` : ""} <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : ""}
     <div class="toolbar bl-filters">
       <select id="bf-kind">${opt(KINDS, BF.kind, "all types")}</select>
       <select id="bf-page">${opt(B.pages, BF.page, "all pages")}</select>
@@ -389,7 +389,7 @@ function baselineView() {
       <td class="st">${c.exported ? `<span class="small muted">in ${esc(c.exported)}</span><br>` : ""}${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
     </table></div>`;
 }
-async function blPost(body) { await post("/api/baseline/verdict", body); await load(); }
+async function blPost(body) { const y = window.scrollY; await post("/api/baseline/verdict", body); await load(); window.scrollTo(0, y); }
 function wireBaseline(m) {
   const re = () => { render(); };
   $("#bf-kind", m).onchange = e => { BF.kind = e.target.value; re(); };
@@ -408,8 +408,8 @@ function wireBaseline(m) {
       else if (w === "Discard") await blPost({ids, verdict: "Discard"});
       else if (w === "clear") await blPost({ids, verdict: ""});
       else if (w === "owner") { const o = $("#bf-owner", m).value.trim(); if (!o) return toast("Type the new owner first"); await blPost({ids, fields: {owner: o}}); }
-      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; await blPost({ids, kind, fields}); }
-      BF.sel.clear(); toast(`${ids.length} updated`);
+      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; BF.sel.clear(); await blPost({ids, kind, fields}); }
+      BF.sel.clear(); render(); toast(`${ids.length} updated`);
     } catch (e) { toast(e.message); }
   });
   m.querySelectorAll("[data-discgroup]").forEach(el => el.onclick = async () => {
@@ -425,7 +425,7 @@ function wireBaseline(m) {
     const group = el.closest(".cs");
     const others = [...group.querySelectorAll("[data-dup]")].filter(x => x.checked && x.dataset.dup !== keep).map(x => x.dataset.dup);
     if (!others.length) { toast("Tick the rows that are the same item first"); return; }
-    try { await blPost({ids: [keep], verdict: "Accept"}); await blPost({ids: others, verdict: "Merge", mergedInto: keep}); toast(`Folded ${others.length} into it`); } catch (e) { toast(e.message); }
+    try { await post("/api/baseline/verdict", {ids: [keep], verdict: "Accept"}); await blPost({ids: others, verdict: "Merge", mergedInto: keep}); toast(`Folded ${others.length} into it`); } catch (e) { toast(e.message); }
   });
   $("#bl-export", m).onclick = async () => { try { const r = await post("/api/baseline/export", {}); toast(`${r.changeSet}: ${r.accepted} accepted, ${r.rejected} rejected`); await load(); } catch (e) { toast(e.message); } };
 }

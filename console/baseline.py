@@ -32,7 +32,8 @@ COLS = {
     "ref": ["id", "ref", "key", "#", "number", "identifier"],
     "kind": ["type", "kind", "category", "class"],
     "status": ["status", "state"],
-    "owner": ["owner", "raised by", "assignee", "responsible", "accountable", "stakeholder", "requested by", "assigned to", "from", "provider"],
+    "owner": ["owner", "assignee", "responsible", "accountable", "stakeholder", "assigned to", "from", "provider"],
+    "raised-by": ["raised by", "requested by", "reported by"],
     "approved-by": ["approved by", "decided by", "approver", "decision maker"],
     "moscow": ["moscow", "priority", "must/should"],
     "phase": ["phase", "release", "iteration", "target"],
@@ -114,6 +115,12 @@ def guess_kind(*texts):
     return None
 
 
+def ref_kind(ref):
+    """A source id written in the model's own form (REQ-012, OI-3) names its type; a bare number says nothing."""
+    m = re.match(r"\s*(REQ|DEC|LIM|RSK|OI|CR)-?\d", (ref or "").upper())
+    return m.group(1) if m else None
+
+
 def map_header(cells):
     mapping = []
     for c in cells:
@@ -161,8 +168,8 @@ def load_candidates(bdir):
                 title = rec.get("title") or rec.get("description", "").split("\n")[0][:120]
                 if not title:
                     continue
-                kind = guess_kind(rec.get("kind", "")) or page_kind or guess_kind(rec.get("ref", "")) or "REQ"
-                owner = rec.get("owner", "") or (rec.get("approved-by", "") if kind != "DEC" else "")
+                kind = guess_kind(rec.get("kind", "")) or ref_kind(rec.get("ref", "")) or page_kind or guess_kind(rec.get("ref", "")) or "REQ"
+                owner = rec.get("owner", "") or rec.get("raised-by", "") or (rec.get("approved-by", "") if kind != "DEC" else "")
                 rkind = ""
                 if kind == "RSK":
                     src = (rec.get("kind", "") + " " + heading + " " + page).lower()
@@ -173,6 +180,7 @@ def load_candidates(bdir):
                 notes = [f"Baseline import from {page}" + (f", table {heading}" if heading else "")]
                 if rec.get("ref"): notes.append(f"Source id: {rec['ref']}")
                 if rec.get("status"): notes.append(f"Source status: {rec['status']}")
+                if rec.get("raised-by") and rec.get("owner"): notes.append(f"Raised by: {rec['raised-by']}")
                 vref = rec.get("vendor-ref", "")
                 if vref and kind != "CR":  # model 4.1: Vendor ref is a change request field; elsewhere it is a note
                     notes.append(f"Vendor ref: {vref}"); vref = ""
@@ -198,7 +206,7 @@ def norm_moscow(v):
 
 def blank(v):
     """A placeholder standing for an empty cell is an empty cell."""
-    v = (v or "").strip()
+    v = re.sub(r"<br\s*/?>", "\n", v or "", flags=re.I).strip()
     return "" if v.lower() in PLACEHOLDERS else v
 
 
@@ -216,7 +224,8 @@ def norm_lmh(v):
 
 
 def tokens(s):
-    stop = {"the", "and", "for", "with", "that", "this", "from", "must", "shall", "should", "will", "can", "are", "not", "system", "solution"}
+    stop = {"the", "and", "for", "with", "that", "this", "from", "must", "shall", "should", "will", "can", "are", "not", "system", "solution",
+            "support", "supported", "change", "changes", "modify", "new", "via", "when", "any", "all", "only", "into", "per", "use", "used", "need", "needed"}
     return set(re.sub(r"(ies|es|s|ed|ing)$", "", w) or w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in stop)
 
 
@@ -267,7 +276,7 @@ def clusters(cands, dismissed=()):
             if frozenset((a["kind"], b["kind"])) in RELATED: continue
             same_ref = a["ref"] and a["ref"] == b["ref"]
             tb = tokens(b["title"]); j = len(ta & tb) / len(ta | tb) if ta | tb else 0
-            if same_ref or j >= 0.3:
+            if same_ref or (j >= 0.3 and len(ta & tb) >= 2):
                 g.append(b["id"])
         if len(g) > 1:
             seen.update(g)
