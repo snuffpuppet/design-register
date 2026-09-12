@@ -304,6 +304,11 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": True})
                 if p == "/api/baseline/export":
                     return self.send_json(self.baseline_export(req))
+                if p == "/api/baseline/freeze":
+                    who = req.get("madeBy", "").strip()
+                    if not who:
+                        raise ValueError("Say who you are first (Made by).")
+                    return self.send_json(B.freeze(ENG, B_DIR, B.load_candidates(B_DIR), B.load_verdicts(B_DIR), today(), who))
             except ValueError as e:
                 return self.send_json({"error": str(e)}, 400)
         self.send_json({"error": "unknown"}, 404)
@@ -390,11 +395,11 @@ class H(SimpleHTTPRequestHandler):
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):
-            return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS}
+            return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS, "frozen": None}
         cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
         return {"present": True, "candidates": [B.effective(c, v) for c in cands],
                 "clusters": B.clusters(cands, set(v.get(B.DISMISSED, []))),
-                "dismissed": len(v.get(B.DISMISSED, [])),
+                "dismissed": len(v.get(B.DISMISSED, [])), "frozen": B.frozen(B_DIR), "states": M.STATES,
                 "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands))}
 
     def baseline_export(self, req):

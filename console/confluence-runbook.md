@@ -49,18 +49,18 @@ The console reads every `.md` in that folder as candidates. Every row is a candi
 
 ## 2. Baseline
 
-In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. When done, Export writes one change set with every accepted candidate as a new item and `<local_copy>/rejections.md` for the knowledge base pipeline. Item files are untouched.
+In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. When done, Freeze baseline writes every accepted candidate as an item file in the engagement's registers, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. The freeze runs once and refuses if a register already has items.
 
 ## 3. Apply
 
-The ingester in `solution-register` applies the change set and assigns ids. That is its job and its gate; nothing here bypasses it. After apply, the engagement's registers are the baseline.
+Nothing to apply: the frozen item files are the baseline. From here every change is a change set, and the ingester in `solution-register` applies those through its gate as usual.
 
 ## 4. Push
 
 With `permissions.write` granted or confirmed:
 
 1. Re-read the pulled pages to confirm `page-version` still matches Confluence. If a page moved on, stop and say which.
-2. For each register subpage, in `replace-tables` mode, rewrite the register table on that page with the normalised rows: the model's columns (section 7), our ids, statuses in the model's words, and a `Source id` column carrying the knowledge base's original id so its pipeline can reconcile. Prose above and below the table is kept. If `add_note` is set, a short note goes under the heading: "Baselined <date> from change set CS-nnnn; n items accepted, n merged, n rejected. Source of truth is now the engagement register." In `new-child` mode the originals are untouched and the normalised registers are written as new subpages instead.
+2. For each register subpage, in `replace-tables` mode, rewrite the register table on that page with the normalised rows: the model's columns (section 7), our ids, statuses in the model's words, and a `Source id` column carrying the knowledge base's original id so its pipeline can reconcile. Prose above and below the table is kept. If `add_note` is set, a short note goes under the heading: "Baselined <date>; n items accepted, n merged, n rejected. Source of truth is now the engagement register." In `new-child` mode the originals are untouched and the normalised registers are written as new subpages instead.
 3. Never delete a page. Confluence keeps the previous version.
 4. Append a `push` entry to `log`.
 

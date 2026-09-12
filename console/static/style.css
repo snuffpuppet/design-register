@@ -89,3 +89,9 @@ tr.decided td{opacity:.55}
 .bulk .sep{width:1px;height:22px;background:var(--line)}
 
 #conn-banner{position:fixed;top:0;left:0;right:0;z-index:99;padding:6px 12px;font-size:.78rem;background:#7a5b00;color:#fff;text-align:center}
+
+.note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--cs);border-radius:4px;padding:8px 12px;font-size:.85rem;margin:8px 0}
+.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 12px}
+.bl-edit{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);overflow-y:auto;background:var(--surface);border-left:1px solid var(--line);padding:18px 20px;z-index:8;box-shadow:-8px 0 24px rgba(0,0,0,.25)}
+.bl-edit .close{float:right}
+td.t a[data-edit]{color:inherit;text-decoration:none;border-bottom:1px dotted var(--ink-3)}

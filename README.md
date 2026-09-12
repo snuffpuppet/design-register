@@ -9,7 +9,7 @@ This repository holds the process and the console. The ingester that writes the 
 | Path | What it is |
 |---|---|
 | `solution-register-model.md` | The register model, version 2.23. Item types, states, fields, transitions, integrity rules, the outstanding view, and section 11, change sets. The single source of truth for everything else here. |
-| `console/` | The register console: a web app that reads an engagement folder, shows the registers as proposed, and appends every edit to a change set. It never writes an item file. See `console/README.md`. |
+| `console/` | The register console: a web app that reads an engagement folder, shows the registers as proposed, and appends every edit to a change set. The one time it writes item files is the baseline freeze. See `console/README.md`. |
 | `console/confluence-runbook.md` | How Confluence registers are pulled, baselined, applied and pushed back. |
 | `confluence.json` | The Confluence source for the baseline: parent page, connector, engagements root, and read and write permissions. |
 | `.claude/skills/import-confluence/` | The `/import-confluence <engagement>` skill that pulls the Design Register subpages into `engagements/<engagement>/baseline/`. |
@@ -29,7 +29,7 @@ Confluence Design Register            transcripts
         │  /import-confluence                │  /ingest-transcript
         ▼                                    ▼
 engagements/<name>/baseline/       solution-register ingester
-        │  console, Baseline mode            ▲  applies change sets, assigns ids,
+        │  console, Baseline mode, freeze    ▲  applies change sets, assigns ids,
         ▼                                    │  runs the integrity rules
 change-sets/CS-nnnn.md  ─────────────────────┘
         ▲
@@ -37,7 +37,7 @@ change-sets/CS-nnnn.md  ──────────────────�
 engagements/<name>/{requirements,decisions,…}/   (read by the console, written only by the ingester)
 ```
 
-The console reads the engagement folder plus every change set not yet applied, and shows the registers as they would be once those are applied. Every move, edit, new item or baseline export appends a block to the current session's change set. The ingester applies the change set through its gate, which is where conflicts are settled and ids are assigned. After a baseline, the normalised registers can be pushed back to Confluence with the original ids kept as a column.
+The console reads the engagement folder plus every change set not yet applied, and shows the registers as they would be once those are applied. Every move, edit or new item appends a block to the current session's change set. The baseline freeze is the one time the console writes item files: the accepted candidates become the registers' first items. The ingester applies the change set through its gate, which is where conflicts are settled and ids are assigned. After a baseline, the normalised registers can be pushed back to Confluence with the original ids kept as a column.
 
 ## Run it
 
@@ -55,7 +55,7 @@ Point it at a real engagement with `make up ENG=engagements/<name>`. Everything 
 - **Outstanding**: the meeting view from model section 8, plus register defects and the later-phase view.
 - **Work through**: a triage queue for cleaning up a large register, one item per screen with its context and only its legal moves. Keys j, k, p.
 - **Meeting report**: one printable page with calls needed, change requests and estimates, risks to review, actions by owner, and pending changes. Copy as markdown.
-- **Baseline**: appears when `baseline/` holds pulled pages. Every row is a candidate whatever it claims; duplicates are suggested; verdicts are bulk; export writes a change set and a rejection log.
+- **Baseline**: appears when `baseline/` holds pulled pages. Every row is a candidate whatever it claims; duplicates are suggested; verdicts are bulk; a title opens an editor; freeze writes the item files, an id map and a rejection log.
 - **Registers and change sets**: one tab per type, with a kind filter on risks, and the change set files with their blocks.
 - **Guide**: the lifecycle diagrams and explanation, served inside the console.
 
@@ -63,7 +63,7 @@ Point it at a real engagement with `make up ENG=engagements/<name>`. Everything 
 
 1. Connect a Confluence connector to the session and put the Design Register parent page URL in `confluence.json`.
 2. `/import-confluence <engagement>`. The skill asks for read permission the first time, pulls only the parent's direct children, and writes them under `engagements/<engagement>/baseline/`.
-3. `make up ENG=engagements/<engagement>`, then Baseline mode. Reject, merge, retype, fix owners, accept. Export.
+3. `make up ENG=engagements/<engagement>`, then Baseline mode. Reject, merge, retype, fix owners, edit, accept. Freeze.
 4. The ingester applies the change set.
 5. Push back with the runbook's step 4, once write permission is granted.
 

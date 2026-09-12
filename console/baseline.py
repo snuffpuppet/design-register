@@ -149,7 +149,7 @@ def skip_table(heading, rows):
 def load_candidates(bdir):
     cands = []
     for path in sorted(glob.glob(os.path.join(bdir, "*"))):
-        if os.path.basename(path).startswith(("verdicts", "rejections", "README")) or os.path.isdir(path):
+        if os.path.basename(path).startswith(("verdicts", "rejections", "frozen", "README")) or os.path.isdir(path):
             continue
         page, tables = read_source(path)
         for heading, rows in tables:
@@ -303,7 +303,7 @@ def apply_verdict(bdir, ids, verdict=None, reason="", merged_into=None, fields=N
             e["mergedInto"] = merged_into if verdict == "Merge" else None
         if kind: e["kind"] = kind
         if fields:
-            e.setdefault("fields", {}).update({k: val for k, val in fields.items() if val is not None})
+            e.setdefault("fields", {}).update({k: val for k, val in fields.items() if val is not None and k in EDITABLE})
     save_verdicts(bdir, v)
     return v
 
@@ -313,9 +313,13 @@ def effective(c, v):
     e = v.get(c["id"], {}); out = dict(c)
     if e.get("kind"): out["kind"] = e["kind"]
     out.update(e.get("fields", {}))
-    out["verdict"] = e.get("verdict", ""); out["reason"] = e.get("reason", ""); out["mergedInto"] = e.get("mergedInto"); out["exported"] = e.get("exported", "")
+    out["verdict"] = e.get("verdict", ""); out["reason"] = e.get("reason", ""); out["mergedInto"] = e.get("mergedInto"); out["exported"] = e.get("exported", ""); out["frozenAs"] = e.get("frozenAs", "")
     return out
 
+
+# what the reviewer may change on a candidate before the freeze
+EDITABLE = {"title", "status", "owner", "moscow", "phase", "implemented-by", "approved-by", "consulted", "vendor-ref", "likelihood", "impact", "due", "risk-kind",
+            "description", "rationale", "trigger", "mitigation", "options", "next action", "notes", "raised-on"}
 
 FOLD_SKIP = {"title", "status", "source", "notes", "raised-on"}
 
@@ -341,24 +345,26 @@ def fold_merged(surv, merged, kind):
     return out, kept_back
 
 
-def export_blocks(cands, v, today):
-    """Return (blocks for a change set, rejection log lines). Merged candidates fold into their survivor."""
+def assemble(cands, v, today):
+    """The accepted set as it would enter the registers: one record per accepted candidate with its merged
+    rows folded in. Returns (records, rejection rows). Each record is {"kind", "fields", "gist", "cid", "refs"}
+    where refs are the source ids it carries (its own and those folded into it)."""
     eff = {c["id"]: effective(c, v) for c in cands}
     merged_into = {}
     for c in eff.values():
         if c["verdict"] == "Merge" and c["mergedInto"] in eff:
             merged_into.setdefault(c["mergedInto"], []).append(c)
-    blocks, rejects = [], []
+    records, rejects = [], []
     for c in eff.values():
-        if v.get(c["id"], {}).get("exported"):
-            continue
         if c["verdict"] == "Reject":
             rejects.append(f"| {c['page']} | {c['ref'] or ''} | {c['title']} | {c['reason']} |")
         if c["verdict"] != "Accept":
             continue
         k = c["kind"]
         c, kept_back = fold_merged(c, merged_into.get(c["id"], []), k)
-        fields = {"Title": c["title"], "Status": M.FIRST_STATE[k], "Raised on": c.get("raised-on") or today}
+        # a source status that is one of the model's own states for this type is kept; anything else starts the item at its first state
+        status = c.get("status") or next((st for st in M.STATES[k] if st.lower() == (c.get("source_status") or "").lower()), M.FIRST_STATE[k])
+        fields = {"Title": c["title"], "Status": status, "Raised on": c.get("raised-on") or today}
         for key in M.SHORT[k]:
             if key == "risk-kind":
                 fields["Kind"] = c.get("risk-kind") or "Risk"
@@ -375,8 +381,110 @@ def export_blocks(cands, v, today):
         notes = [c["notes"]] + ([f"Merged in at baseline: " + "; ".join(m["title"] for m in merged_into[c["id"]])] if c["id"] in merged_into else []) + kept_back
         if c.get("description") and k != "OI": notes.insert(0, c["description"])
         fields["Notes"] = " ⏎ ".join(n.replace("\n", " ⏎ ") for n in notes if n)
-        blocks.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"]})
-    return blocks, rejects
+        refs = [r for r in [c["ref"]] + [m["ref"] for m in merged_into.get(c["id"], [])] if r]
+        records.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"],
+                        "refs": refs, "page": c["page"], "merged_cids": [m["id"] for m in merged_into.get(c["id"], [])]})
+    return records, rejects
+
+
+def export_blocks(cands, v, today):
+    """Return (blocks for a change set, rejection log lines), skipping what an earlier export already carried."""
+    records, rejects = assemble(cands, v, today)
+    return [r for r in records if not v.get(r["cid"], {}).get("exported")], rejects
+
+
+FROZEN = "frozen.md"
+LINK_RE = re.compile(r"\b(REQ|DEC|LIM|RSK|OI|CR)-?(\d+)\b")
+
+
+def frozen(bdir):
+    """The freeze record if the baseline has been frozen: {"on", "by", "counts", "map"}."""
+    p = os.path.join(bdir, FROZEN)
+    if not os.path.exists(p):
+        return None
+    out = {"on": "", "by": "", "counts": {}, "map": {}}
+    for ln in open(p, encoding="utf-8"):
+        m = re.match(r"- Frozen on: (.*)", ln)
+        if m: out["on"] = m.group(1).strip()
+        m = re.match(r"- Frozen by: (.*)", ln)
+        if m: out["by"] = m.group(1).strip()
+        m = re.match(r"\| ([^|]+) \| ([A-Z]+-\d+) \|", ln)
+        if m and m.group(1).strip() not in ("Source id", "---"): out["map"][m.group(1).strip()] = m.group(2)
+    for nid in out["map"].values():
+        out["counts"][nid.split("-")[0]] = out["counts"].get(nid.split("-")[0], 0) + 1
+    return out
+
+
+def item_text(id, fields, links):
+    """One item file in the model's section 7 layout: frontmatter of short fields, one section per long field."""
+    kind = id.split("-")[0]
+    short = {"Kind": "kind", **{M.LABELS.get(k, k): k for k in M.SHORT[kind]}}
+    lines = ["---", f"id: {id}", f"title: {fields['Title']}", f"status: {fields['Status']}"]
+    for lab, key in short.items():
+        if key == "risk-kind": continue
+        if lab in fields: lines.append(f"{key}: {fields[lab]}")
+    lines += [f"raised-on: {fields.get('Raised on', '')}", f"closed-on: {fields.get('Closed on', '')}", f"updated: {fields.get('Raised on', '')}", "links:"]
+    lines += [f"  - {l}" for l in links]
+    lines += ["---", ""]
+    long_labs = [M.LABELS.get(k, k.capitalize()) for k in M.LONG[kind]]
+    for lab in dict.fromkeys(long_labs + ["Source", "Notes"]):
+        lines += [f"## {lab}", "", (fields.get(lab, "") or "").replace(" ⏎ ", "\n"), ""]
+    return "\n".join(lines)
+
+
+def freeze(eng, bdir, cands, v, today, who):
+    """Write the accepted set as item files, the first content of the registers. Refuses if any item file
+    exists, so a live register is never overwritten. Source ids become the model's ids in order of acceptance,
+    a Links note whose source ids all map becomes real links, and the id map is written to baseline/frozen.md."""
+    if frozen(bdir):
+        raise ValueError("The baseline is already frozen.")
+    for d in M.DIRS.values():
+        if glob.glob(os.path.join(eng, d, "*.md")):
+            raise ValueError(f"The {d} register already has items; freeze only runs into empty registers.")
+    records, rejects = assemble(cands, v, today)
+    if not records:
+        raise ValueError("Nothing accepted yet.")
+    counter, idmap, out = {}, {}, []
+    for r in records:
+        counter[r["kind"]] = counter.get(r["kind"], 0) + 1
+        nid = f"{r['kind']}-{counter[r['kind']]:04d}"
+        r["id"] = nid
+        for ref in r["refs"]:
+            # a bare number is only unique within its page; an id in the model's form is unique across the source
+            idmap[ref if LINK_RE.fullmatch(ref) else f"{r['page']} · {ref}"] = nid
+    def remap(txt):
+        return LINK_RE.sub(lambda m: idmap.get(f"{m.group(1)}-{m.group(2)}", idmap.get(f"{m.group(1)}{m.group(2)}", m.group(0))), txt)
+    # a note that came from a link column ("Links: delivers REQ-030", "Delivers: REQ-030") becomes links where the ids map
+    words = {"Links": "", "Delivers": "delivers", "Resolves into": "resolves into", "Disposition record": "disposition", "Blocked by": "blocked by", "Supersedes": "supersedes", "Addresses": "addresses"}
+    for r in records:
+        links, notes = [], []
+        for n in r["fields"].get("Notes", "").split(" ⏎ "):
+            m = re.match(r"(" + "|".join(words) + r"): (.+)", n)
+            if not (m and LINK_RE.search(m.group(2))):
+                notes.append(n); continue
+            for part in re.split(r"[;,]\s*", m.group(2)):
+                part = part.strip()
+                if not LINK_RE.search(part): continue
+                word = words[m.group(1)]
+                links.append((word + " " + remap(part)).strip() if word and not re.match(r"[a-z]", part) else remap(part))
+            notes.append(n + " (as written in the source)")
+        r["fields"]["Notes"] = " ⏎ ".join(notes)
+        os.makedirs(os.path.join(eng, M.DIRS[r["kind"]]), exist_ok=True)
+        open(os.path.join(eng, M.DIRS[r["kind"]], r["id"] + ".md"), "w", encoding="utf-8").write(item_text(r["id"], r["fields"], links))
+        out.append(r)
+    for r in out:
+        e = v.setdefault(r["cid"], {}); e["frozenAs"] = r["id"]
+        for mc in r["merged_cids"]:
+            v.setdefault(mc, {})["frozenAs"] = r["id"]
+    save_verdicts(bdir, v)
+    with open(os.path.join(bdir, "rejections.md"), "w", encoding="utf-8") as f:
+        f.write(f"# Baseline rejections\n\nWritten {today} by {who}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
+    counts = ", ".join(f"{n} {M.NAMES[k].lower()}{'s' if n != 1 else ''}" for k, n in sorted(counter.items()))
+    with open(os.path.join(bdir, FROZEN), "w", encoding="utf-8") as f:
+        f.write(f"# Baseline frozen\n\n- Frozen on: {today}\n- Frozen by: {who}\n- Items written: {counts}\n- Rejected: {len(rejects)}\n\n"
+                "The registers above this folder started from these items. Every change since is a change set.\n\n"
+                "## Id map\n\n| Source id | Item |\n|---|---|\n" + "\n".join(f"| {ref} | {nid} |" for ref, nid in idmap.items()) + "\n")
+    return {"ok": True, "written": len(out), "rejected": len(rejects), "counts": counter}
 
 
 def mark_exported(bdir, cids, cs_id):
