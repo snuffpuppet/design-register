@@ -9,6 +9,10 @@ import os, re, csv, json, glob, hashlib, io
 from html.parser import HTMLParser
 import model as M
 
+MONTHS = "January February March April May June July August September October November December".split()
+# a source writes one of these where it means the cell is empty; carrying it through would invent a value
+PLACEHOLDERS = {"—", "–", "-", "--", "n/a", "na", "tbd", "tba", "?", "none", "none set", "not set", "not yet set", "nil", "unknown"}
+
 KIND_WORDS = {
     "REQ": ["requirement", "req", "need", "shall", "user story"],
     "DEC": ["decision", "dec", "adr"],
@@ -19,7 +23,12 @@ KIND_WORDS = {
 }
 # column heuristics: model key -> words that a source header may use
 COLS = {
+    # order matters: the first key whose word matches wins, so a narrow header goes above a broad one
+    "next action": ["next action", "next step", "action required"],
+    "raised-on": ["raised on", "identified on", "created on", "logged on", "opened on"],
+    "consulted": ["consulted"],
     "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "assumption", "dependency", "action", "item", "statement", "change request"],
+    "vendor-ref": ["vendor ref", "vendor reference", "vendor id", "supplier ref", "external ref", "external id"],
     "ref": ["id", "ref", "key", "#", "number", "identifier"],
     "kind": ["type", "kind", "category", "class"],
     "status": ["status", "state"],
@@ -37,9 +46,11 @@ COLS = {
     "trigger": ["trigger"], "mitigation": ["mitigation", "treatment", "response"],
     "likelihood": ["likelihood", "probability"],
     "options": ["options", "alternatives"],
-    "next action": ["next action", "next step", "action required"],
     "due": ["due", "date", "deadline", "review", "needed by"],
 }
+# headers a model word would otherwise swallow; these belong in Notes
+NEVER_MAP = {"financial impact", "business impact", "customer impact"}
+
 REJECT_REASONS = ["duplicate", "inferred, no evidence", "verified, no longer an assumption", "delivered, no longer a dependency", "not a requirement (present tense)", "legacy practice", "out of scope",
                   "vendor detail", "too vague to act on", "already covered by design", "other"]
 
@@ -107,6 +118,8 @@ def map_header(cells):
     mapping = []
     for c in cells:
         low = c.lower().strip()
+        if low in NEVER_MAP:
+            mapping.append(c); continue
         hit = None
         for key, words in COLS.items():
             if any(low == w or low.startswith(w + " ") or low.endswith(" " + w) or low == w + "s" for w in words):
@@ -119,6 +132,13 @@ def map_header(cells):
     return mapping
 
 
+def skip_table(heading, rows):
+    """Prior-id appendices map an item's old id to its new one. They are not candidates."""
+    if re.fullmatch(r"prior ids?", heading.strip(), re.I):
+        return True
+    return [c.lower().strip() for c in rows[0]] == ["prior", "now"]
+
+
 def load_candidates(bdir):
     cands = []
     for path in sorted(glob.glob(os.path.join(bdir, "*"))):
@@ -126,11 +146,12 @@ def load_candidates(bdir):
             continue
         page, tables = read_source(path)
         for heading, rows in tables:
-            if len(rows) < 2:
+            if len(rows) < 2 or skip_table(heading, rows):
                 continue
             header = map_header(rows[0]); page_kind = guess_kind(heading, page)
             for r in rows[1:]:
-                if not any(c.strip() for c in r):
+                r = [blank(c) for c in r]
+                if not any(r):
                     continue
                 rec = {}; extra = []
                 for i, c in enumerate(r):
@@ -152,11 +173,15 @@ def load_candidates(bdir):
                 notes = [f"Baseline import from {page}" + (f", table {heading}" if heading else "")]
                 if rec.get("ref"): notes.append(f"Source id: {rec['ref']}")
                 if rec.get("status"): notes.append(f"Source status: {rec['status']}")
+                vref = rec.get("vendor-ref", "")
+                if vref and kind != "CR":  # model 4.1: Vendor ref is a change request field; elsewhere it is a note
+                    notes.append(f"Vendor ref: {vref}"); vref = ""
                 notes += extra
                 cands.append({
                     "id": cid, "page": page, "table": heading, "kind": kind, "title": title, "ref": rec.get("ref", ""),
                     "source_status": rec.get("status", ""), "owner": owner, "approved-by": rec.get("approved-by", "") if kind == "DEC" else "", "moscow": norm_moscow(rec.get("moscow", "")),
-                    "phase": rec.get("phase", ""), "implemented-by": rec.get("implemented-by", ""),
+                    "phase": rec.get("phase", ""), "implemented-by": rec.get("implemented-by", ""), "vendor-ref": vref,
+                    "raised-on": norm_date(rec.get("raised-on", "")), "consulted": rec.get("consulted", ""),
                     "rationale": rec.get("rationale", ""), "impact": norm_lmh(rec.get("impact", "")) if kind == "RSK" else rec.get("impact", ""), "description": rec.get("description", ""),
                     "source": rec.get("source", "") or f"{page}{(' / ' + heading) if heading else ''}{(' / ' + rec['ref']) if rec.get('ref') else ''}",
                     "confidence": conf, "inferred": inferred, "trigger": rec.get("trigger", ""), "mitigation": rec.get("mitigation", ""),
@@ -171,6 +196,20 @@ def norm_moscow(v):
     return {"must": "Must", "high": "Must", "critical": "Must", "should": "Should", "medium": "Should", "med": "Should", "could": "Could", "low": "Could", "nice to have": "Could", "won't": "Won't", "wont": "Won't", "out of scope": "Won't"}.get(low, v.strip().title() if low in ("must", "should", "could") else v.strip())
 
 
+def blank(v):
+    """A placeholder standing for an empty cell is an empty cell."""
+    v = (v or "").strip()
+    return "" if v.lower() in PLACEHOLDERS else v
+
+
+def norm_date(v):
+    """A source date in ISO becomes the register's own form. Anything else is left as it was written."""
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", (v or "").strip())
+    if not m: return (v or "").strip()
+    y, mo, d = (int(x) for x in m.groups())
+    return f"{d} {MONTHS[mo - 1]} {y}" if 1 <= mo <= 12 else v.strip()
+
+
 def norm_lmh(v):
     low = (v or "").strip().lower()
     return {"l": "L", "low": "L", "m": "M", "med": "M", "medium": "M", "h": "H", "high": "H"}.get(low, v.strip())
@@ -181,20 +220,58 @@ def tokens(s):
     return set(re.sub(r"(ies|es|s|ed|ing)$", "", w) or w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in stop)
 
 
-def clusters(cands):
-    """Suggested duplicate groups: same ref, or stemmed title token Jaccard >= 0.3. Suggestions only."""
+def related_kinds():
+    """Type pairs the model relates (section 5, mirrored in model.py). A CR delivers a REQ, a LIM constrains
+    one, a DEC addresses one: those read alike by design and are never each other's duplicate."""
+    pairs = set()
+    for src, words in M.LINK_WORDS.items():
+        for targets in words.values():
+            for t in targets.split("|"):
+                if t == "ANY":
+                    pairs |= {frozenset((src, k)) for k in M.LINK_WORDS if k != src}
+                elif t in M.LINK_WORDS and t != src:
+                    pairs.add(frozenset((src, t)))
+    return pairs
+
+
+RELATED = related_kinds()
+
+
+DISMISSED = "_not-duplicates"
+
+
+def cluster_key(ids):
+    """Stable name for a suggested group. Candidate ids are deterministic, so the key survives a reload."""
+    return hashlib.sha1("|".join(sorted(ids)).encode()).hexdigest()[:10]
+
+
+def dismiss_cluster(bdir, ids, undo=False):
+    v = load_verdicts(bdir)
+    keys = set(v.get(DISMISSED, []))
+    keys.discard(cluster_key(ids)) if undo else keys.add(cluster_key(ids))
+    v[DISMISSED] = sorted(keys)
+    save_verdicts(bdir, v)
+    return v
+
+
+def clusters(cands, dismissed=()):
+    """Suggested duplicate groups: same ref, or stemmed title token Jaccard >= 0.3. Suggestions only.
+    Two types the model relates are never grouped; merging one into the other would lose the relationship.
+    A group the reviewer has called not duplicates stays out until its membership changes."""
     groups, seen = [], set()
     for i, a in enumerate(cands):
         if a["id"] in seen: continue
         g = [a["id"]]; ta = tokens(a["title"])
         for b in cands[i + 1:]:
             if b["id"] in seen: continue
+            if frozenset((a["kind"], b["kind"])) in RELATED: continue
             same_ref = a["ref"] and a["ref"] == b["ref"]
             tb = tokens(b["title"]); j = len(ta & tb) / len(ta | tb) if ta | tb else 0
             if same_ref or j >= 0.3:
                 g.append(b["id"])
         if len(g) > 1:
-            seen.update(g); groups.append(g)
+            seen.update(g)
+            if cluster_key(g) not in dismissed: groups.append(g)
     return groups
 
 
@@ -231,6 +308,30 @@ def effective(c, v):
     return out
 
 
+FOLD_SKIP = {"title", "status", "source", "notes", "raised-on"}
+
+
+def fold_merged(surv, merged, kind):
+    """A merge keeps the survivor's own values and takes what only the merged rows carry, so nothing is
+    lost to the choice of survivor. Where both hold a value and they differ, the survivor wins and the
+    other is written into Notes rather than dropped. Returns (filled survivor, notes about what was not taken)."""
+    if not merged:
+        return surv, []
+    out, kept_back = dict(surv), []
+    keys = [f for f in M.SHORT[kind] + M.LONG[kind] if f not in FOLD_SKIP] + ["description", "impact", "rationale"]
+    for key in dict.fromkeys(keys):
+        mine = str(out.get(key, "") or "").strip()
+        for m in merged:
+            theirs = str(m.get(key, "") or "").strip()
+            if not theirs or theirs == mine:
+                continue
+            if not mine:
+                out[key] = theirs; mine = theirs
+            else:
+                kept_back.append(f"{M.LABELS.get(key, key)} on the merged {m['vendor-ref'] or m['ref'] or m['page']}: {theirs}")
+    return out, kept_back
+
+
 def export_blocks(cands, v, today):
     """Return (blocks for a change set, rejection log lines). Merged candidates fold into their survivor."""
     eff = {c["id"]: effective(c, v) for c in cands}
@@ -247,7 +348,8 @@ def export_blocks(cands, v, today):
         if c["verdict"] != "Accept":
             continue
         k = c["kind"]
-        fields = {"Title": c["title"], "Status": M.FIRST_STATE[k], "Raised on": today}
+        c, kept_back = fold_merged(c, merged_into.get(c["id"], []), k)
+        fields = {"Title": c["title"], "Status": M.FIRST_STATE[k], "Raised on": c.get("raised-on") or today}
         for key in M.SHORT[k]:
             if key == "risk-kind":
                 fields["Kind"] = c.get("risk-kind") or "Risk"
@@ -261,7 +363,7 @@ def export_blocks(cands, v, today):
         if k == "DEC" and c.get("approved-by"): fields["Approved by"] = c["approved-by"]
         src = [c["source"]] + [m["source"] for m in merged_into.get(c["id"], [])]
         fields["Source"] = "; ".join(dict.fromkeys(s for s in src if s))
-        notes = [c["notes"]] + ([f"Merged in at baseline: " + "; ".join(m["title"] for m in merged_into[c["id"]])] if c["id"] in merged_into else [])
+        notes = [c["notes"]] + ([f"Merged in at baseline: " + "; ".join(m["title"] for m in merged_into[c["id"]])] if c["id"] in merged_into else []) + kept_back
         if c.get("description") and k != "OI": notes.insert(0, c["description"])
         fields["Notes"] = " ⏎ ".join(n.replace("\n", " ⏎ ") for n in notes if n)
         blocks.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"]})

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""pull-page.py <raw.json> <out-dir>
+"""pull-page.py <raw.json> <out-dir> [--config confluence.json]
 
 Writes one pulled Confluence page as <out-dir>/<title>.md in the baseline page format: frontmatter with
 page id, title, version, url, parent id and pulled-on date, then the page prose as plain text and every
 table as a Markdown table, cell for cell. Nothing is renamed or dropped.
+
+A table Confluence renders with a number column gains a leading "#" column, since that number is shown to
+the reader but is not held in the storage format. A page listed under derive_columns in the config gains
+one further column built from that number, for a source whose vendor numbering is the row position; the
+page says so above the table, so a reader never mistakes it for something the source holds.
 
 raw.json is what the import skill saves from the connector:
   {"id": "401", "title": "Requirements", "version": 7, "url": "https://…", "parentId": "400", "body": "<storage html>"}
@@ -19,25 +24,27 @@ MONTHS = "January February March April May June July August September October No
 class Page(HTMLParser):
     """Linear walk: headings and paragraphs become text blocks, tables become row lists."""
     def __init__(self):
-        super().__init__(); self.blocks = []; self.table = None; self.row = None; self.cell = None; self.text = []; self.h = None
+        super().__init__(); self.blocks = []; self.table = None; self.row = None; self.cell = None; self.text = []; self.h = None; self.numbered = False
     def flush_text(self):
         t = " ".join("".join(self.text).split())
         if t: self.blocks.append(("p", t))
         self.text = []
     def handle_starttag(self, tag, a):
-        if tag == "table": self.flush_text(); self.table = []
+        if tag == "table": self.flush_text(); self.table = []; self.numbered = dict(a).get("data-number-column") == "true"
         elif tag == "tr" and self.table is not None: self.row = []
         elif tag in ("td", "th") and self.row is not None: self.cell = []
         elif tag in ("h1", "h2", "h3", "h4"): self.flush_text(); self.h = (int(tag[1]), [])
         elif tag == "br":
             if self.cell is not None: self.cell.append("<br>")
             else: self.text.append("\n")
+        elif tag == "li" and self.cell is not None and "".join(self.cell).strip():
+            self.cell.append("<br>")
         elif tag in ("p", "li", "div") and self.cell is None: self.flush_text()
     def handle_endtag(self, tag):
         if tag in ("td", "th") and self.cell is not None:
             self.row.append(" ".join("".join(self.cell).split()).replace("|", "\\|")); self.cell = None
         elif tag == "tr" and self.row is not None: self.table.append(self.row); self.row = None
-        elif tag == "table" and self.table is not None: self.blocks.append(("table", self.table)); self.table = None
+        elif tag == "table" and self.table is not None: self.blocks.append(("table", self.table, self.numbered)); self.table = None
         elif tag in ("h1", "h2", "h3", "h4") and self.h: self.blocks.append(("h", self.h[0], " ".join("".join(self.h[1]).split()))); self.h = None
         elif tag in ("p", "li", "div") and self.cell is None: self.flush_text()
     def handle_data(self, d):
@@ -50,8 +57,19 @@ def today():
     d = datetime.date.today(); return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
 
 
-def render(raw):
+def derivation(cfg, page_id):
+    """The derived column for this page, if the config names one: (header, format with {n}, note)."""
+    d = (cfg or {}).get("derive_columns", {}).get(str(page_id))
+    if not d or not d.get("column") or not d.get("format"):
+        return None
+    note = (f"{d['column']} below is derived from the rendered row number on the source page as "
+            f"{d['format'].replace('{n}', '<#>')}, not held in the page itself.")
+    return d["column"], d["format"], note
+
+
+def render(raw, cfg=None):
     p = Page(); p.feed(raw.get("body", "")); p.flush_text()
+    derive = derivation(cfg, raw["id"])
     out = ["---", f"page-id: {raw['id']}", f"page-title: {raw['title']}", f"page-version: {raw.get('version', '')}",
            f"page-url: {raw.get('url', '')}", f"parent-page-id: {raw.get('parentId', '')}", f"pulled-on: {today()}", "---", "", f"# {raw['title']}", ""]
     for n, b in enumerate(p.blocks):
@@ -62,6 +80,12 @@ def render(raw):
         else:
             rows = [r for r in b[1] if any(c.strip() for c in r)]
             if not rows: continue
+            if b[2]:  # Confluence renders a number column the storage format does not hold
+                rows = [["#"] + rows[0]] + [[str(i)] + r for i, r in enumerate(rows[1:], 1)]
+                if derive:
+                    col, fmt, note = derive
+                    rows = [[rows[0][0], col] + rows[0][1:]] + [[r[0], fmt.format(n=r[0])] + r[1:] for r in rows[1:]]
+                    out += [note, ""]
             w = max(len(r) for r in rows)
             rows = [r + [""] * (w - len(r)) for r in rows]
             out.append("| " + " | ".join(rows[0]) + " |"); out.append("|" + "---|" * w)
@@ -70,9 +94,14 @@ def render(raw):
 
 
 if __name__ == "__main__":
-    raw = json.load(open(sys.argv[1], encoding="utf-8")); outdir = sys.argv[2]
+    args = sys.argv[1:]
+    cfgpath = "confluence.json"
+    if "--config" in args:
+        i = args.index("--config"); cfgpath = args[i + 1]; del args[i:i + 2]
+    raw = json.load(open(args[0], encoding="utf-8")); outdir = args[1]
+    cfg = json.load(open(cfgpath, encoding="utf-8")) if os.path.exists(cfgpath) else None
     os.makedirs(outdir, exist_ok=True)
     name = re.sub(r"[^\w\- ]+", "", raw["title"]).strip() or raw["id"]
     path = os.path.join(outdir, name + ".md")
-    open(path, "w", encoding="utf-8").write(render(raw))
+    open(path, "w", encoding="utf-8").write(render(raw, cfg))
     print(path)

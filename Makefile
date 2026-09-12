@@ -1,55 +1,97 @@
-# Register console. Everything runs in Docker; the only host tools used are make, docker, git and python3
-# for the sample generator, which writes files and runs no server.
+# Register console. Everything runs in Docker through docker compose; the only host tools used are make,
+# docker, git and python3 for the sample generator, which writes files and runs no server.
 #
 #   make sample        write the sample engagement to test-data/puppy-gloves (resets it)
+#   make build         build the image, letting Docker resolve what has changed
+#   make rebuild       build the image from scratch, no layer cache
 #   make up            build the image and run the console on http://localhost:$(PORT)/
 #   make down          stop the console
 #   make restart       down, then up
+#   make reload        restart the server process after a python change (no rebuild)
 #   make logs          follow the container log
 #   make shell         a shell inside the running container
 #   make clean         stop the console, remove the image, and delete generated data
+#   make anonymise     write a shareable copy of an engagement (see engagements/abb-nokia/anonymise)
 #
 # Point the console at another engagement:  make up ENG=engagements/acme
+# Serve it somewhere else:                  make up PORT=8090
+# Anonymise somewhere other than test:      make anonymise DEST=engagements/demo
+
+DOCKER_HOST := unix://$(HOME)/.docker/run/docker.sock
+export DOCKER_HOST
 
 IMAGE   ?= register-console
 NAME    ?= register-console
-PORT    ?= 8080
-ENG     ?= test-data/puppy-gloves
+PORT    ?= 8085
+# Whatever is already pinned wins, so a bare "make up" brings back the engagement being worked on
+# rather than silently resetting a live session to the sample. Pass ENG= to change it deliberately.
+PINNED  := $(shell sed -n 's|.*- "\(.*\):/engagement"|\1|p' docker-compose.override.yaml 2>/dev/null)
+ENG     ?= $(if $(PINNED),$(PINNED),test-data/puppy-gloves)
 ENG_ABS := $(abspath $(ENG))
+export IMAGE NAME PORT ENG_ABS
 
-.PHONY: help build up down restart logs shell status sample clean
+COMPOSE := docker compose
+
+.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise
 
 help:
-	@sed -n '2,13p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,19p' Makefile | sed 's/^# \{0,1\}//'
+
+# Compose merges docker-compose.override.yaml on every invocation, including when Docker recreates a
+# container by itself. Writing the engagement there rather than passing it through this make process's
+# environment is what stops a recreated container falling back to the sample.
+env:
+	@test -d "$(ENG_ABS)" || { echo "no engagement at $(ENG); run 'make sample' or /import-confluence <name>"; exit 1; }
+	@printf '# written by "make up"; the engagement and port the console is pinned to.\n# console/ is mounted over /app so an edit to the server or the page needs no image rebuild:\n# static files are picked up on a browser reload, python changes by "make reload".\nservices:\n  console:\n    ports:\n      - "%s:8080"\n    volumes:\n      - "%s:/engagement"\n      - "%s/console:/app"\n' '$(PORT)' '$(ENG_ABS)' '$(CURDIR)' > docker-compose.override.yaml
+	@echo "pinned: $(ENG) on port $(PORT)"
 
 build:
-	docker build -q -t $(IMAGE) console
+	$(COMPOSE) build
 
-up: build
-	@docker rm -f $(NAME) >/dev/null 2>&1 || true
-	@test -d "$(ENG_ABS)" || { echo "no engagement at $(ENG); run 'make sample' or /import-confluence <name>"; exit 1; }
-	docker run -d --rm --name $(NAME) -p $(PORT):8080 -v "$(ENG_ABS):/engagement" $(IMAGE)
+rebuild:
+	$(COMPOSE) build --no-cache
+
+up: build env
+	$(COMPOSE) up -d
 	@echo "console: http://localhost:$(PORT)/  (engagement $(ENG))"
 
 down:
-	@docker rm -f $(NAME) >/dev/null 2>&1 && echo "stopped $(NAME)" || echo "$(NAME) was not running"
+	$(COMPOSE) down
 
 restart: down up
 
+# python changed: restart the process. Static files need nothing but a browser reload.
+reload:
+	$(COMPOSE) restart console
+	@echo "console restarted on http://localhost:$(PORT)/"
+
 logs:
-	docker logs -f $(NAME)
+	$(COMPOSE) logs -f console
 
 shell:
-	docker exec -it $(NAME) sh
+	$(COMPOSE) exec console sh
 
 status:
-	@docker ps --filter name=$(NAME) --format '{{.Names}}  {{.Status}}  {{.Ports}}' | grep . || echo "$(NAME) is not running"
+	@$(COMPOSE) ps --format '{{.Name}}  {{.Status}}  {{.Ports}}' | grep . || echo "$(NAME) is not running"
 
 sample:
 	python3 console/make-sample.py
 
-clean: down
-	@docker rmi $(IMAGE) >/dev/null 2>&1 && echo "removed image $(IMAGE)" || true
+# A shareable copy of an engagement: every company, person, product and technical term
+# replaced by a haberdashery one, and the baseline verdicts re-keyed onto it. The tool and
+# its glossary live in the source engagement; see engagements/abb-nokia/anonymise/README.md.
+SRCENG ?= engagements/abb-nokia
+DEST   ?= engagements/test
+
+anonymise: build
+	@test -d "$(SRCENG)/anonymise" || { echo "no anonymise tool in $(SRCENG)"; exit 1; }
+	rm -rf "$(DEST)"
+	$(COMPOSE) run --rm --no-deps -v "$(CURDIR):/repo" -w /repo --entrypoint sh console -c \
+	  'python3 /repo/$(SRCENG)/anonymise/translate.py /repo/$(DEST) && python3 /repo/$(SRCENG)/anonymise/verdicts.py /repo/$(DEST)'
+	@echo "anonymised $(SRCENG) -> $(DEST); serve it with 'make up ENG=$(DEST)'"
+
+clean:
+	$(COMPOSE) down --rmi local --remove-orphans
 	rm -rf test-data/puppy-gloves
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
 	@echo "cleaned; 'make sample' regenerates the test data"

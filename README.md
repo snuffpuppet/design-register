@@ -43,7 +43,7 @@ The console reads the engagement folder plus every change set not yet applied, a
 
 ```
 make sample     # write the sample engagement to test-data/puppy-gloves (resets it)
-make up         # build the image and run the console in Docker on http://localhost:8080/
+make up         # build the image and run the console in Docker on http://localhost:8085/
 make down       # stop it
 make clean      # stop, remove the image, delete the generated data
 ```

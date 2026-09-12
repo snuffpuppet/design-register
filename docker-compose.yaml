@@ -1,0 +1,12 @@
+# Register console. Driven by the Makefile; `make up ENG=engagements/abb-nokia` sets the variables below.
+# The console listens on 8080 inside the container and is published on PORT.
+services:
+  console:
+    build: ./console
+    image: ${IMAGE:-register-console}
+    container_name: ${NAME:-register-console}
+    ports:
+      - "${PORT:-8085}:8080"
+    volumes:
+      # the engagement folder, absolute; the Makefile resolves ENG to this
+      - "${ENG_ABS:-./test-data/puppy-gloves}:/engagement"

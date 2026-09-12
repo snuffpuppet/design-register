@@ -32,7 +32,17 @@ pulled-on: 11 September 2026
 | R-12 | … | Must | … | Open | … |
 ```
 
-Tables are converted cell for cell; nothing is renamed or dropped at this step. Confluence storage format is converted to Markdown, with `<br>` inside a cell kept as a line break.
+Tables are converted cell for cell; nothing is renamed or dropped at this step. Confluence storage format is converted to Markdown, with `<br>` inside a cell kept as a line break, and list items inside a cell separated the same way.
+
+Two columns the pull adds rather than copies. A table Confluence renders with a number column gains a leading `#`, because the reader sees that number but the storage format does not hold it. Where `derive_columns` in `confluence.json` names the page, one further column is built from that number and the pulled page carries a line above the table saying it is derived:
+
+```json
+"derive_columns": {
+  "1924399124": { "column": "Vendor ref", "format": "CR2-{n}", "page_title": "CRs Register" }
+}
+```
+
+Use it only where the source's own numbering is the row position. The refs shift if someone inserts a row upstream, so a re-pull after an edit to the source table is worth reading before it is baselined. Never hand-edit a pulled page to add the column; the next pull would overwrite it.
 3. Append `{ "date", "action": "pull", "pages": n, "by": "Claude" }` to `log` in `confluence.json`.
 
 The console reads every `.md` in that folder as candidates. Every row is a candidate whatever id or status it claims; the id is kept as a reference, the status is kept in Notes.

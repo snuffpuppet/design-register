@@ -29,7 +29,7 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 
 ## Testing the console
 
-Chrome via the Claude in Chrome extension refuses `localhost` and `127.0.0.1`. Use `http://localtest.me:8080/`, which resolves to the machine. After a rebuild wait two seconds before loading, or the first fetch races the container start and the page renders blank. The API is quicker to check than the page: `curl localhost:8080/api/state` and `curl localhost:8080/api/baseline`.
+Chrome via the Claude in Chrome extension refuses `localhost` and `127.0.0.1`. Use `http://localtest.me:8085/`, which resolves to the machine. After a rebuild wait two seconds before loading, or the first fetch races the container start and the page renders blank. The API is quicker to check than the page: `curl localhost:8085/api/state` and `curl localhost:8085/api/baseline`.
 
 ## Conventions
 

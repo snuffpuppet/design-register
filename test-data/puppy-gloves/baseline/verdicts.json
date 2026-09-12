@@ -1,0 +1,32 @@
+{
+ "cc1be070a": {
+  "verdict": "Accept",
+  "reason": "",
+  "mergedInto": null
+ },
+ "cf68288c5": {
+  "verdict": "Merge",
+  "reason": "",
+  "mergedInto": "cc1be070a"
+ },
+ "c04f2fe27": {
+  "verdict": "Discard",
+  "reason": "",
+  "mergedInto": null
+ },
+ "c8496afa6": {
+  "verdict": "Discard",
+  "reason": "",
+  "mergedInto": null
+ },
+ "cce1996af": {
+  "verdict": "Discard",
+  "reason": "",
+  "mergedInto": null
+ },
+ "c844467ca": {
+  "verdict": "Discard",
+  "reason": "",
+  "mergedInto": null
+ }
+}

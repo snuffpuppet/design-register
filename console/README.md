@@ -8,7 +8,7 @@ A lifecycle console for the registers in `solution-register-model.md` (2.23). It
 
 ```
 make sample                        # writes test-data/puppy-gloves (re-run to reset)
-make up                            # build and run in Docker; http://localhost:8080/
+make up                            # build and run in Docker; http://localhost:8085/
 make up ENG=engagements/acme PORT=8090
 make down | restart | logs | status | clean
 ```

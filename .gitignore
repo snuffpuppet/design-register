@@ -1,3 +1,8 @@
 .obsidian/workspace.json
 .DS_Store
 __pycache__/
+docker-compose.override.yaml
+
+# Real client material, and the anonymise glossary that names it. engagements/test is the
+# shareable copy and is tracked; regenerate it with "make anonymise".
+engagements/abb-nokia/

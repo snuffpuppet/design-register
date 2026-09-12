@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.23, 11 September 2026. Owner: Adam Moyes.
+Version 2.24, 12 September 2026. Owner: Adam Moyes.
+
+Version 2.24 narrows Vendor ref to the change request. It was the one field on a requirement or a limitation that pointed at a vendor document rather than describing our own item, and the vendor's own numbering for those lives in their specifications, which Source already cites. A change request keeps it because the vendor assigns a number to the change itself and we chase it by that number. A vendor reference on any other type goes in Source, as it already did for risks and open items.
 
 Version 2.23 gives the risk a Kind: Risk, Assumption or Dependency. All three share the risk lifecycle and fields, so a programme manager can list the dependencies and assumptions from one register while nothing new needs working. No new types or states.
 
@@ -79,7 +81,7 @@ Every item carries these. The person field and the date fields have one name eac
 | Status | One of the values for the type (4.2). |
 | Owner | The one person field. On a requirement it is who stated the need and can say it is met. On an open item it is who does the work. On a decision, limitation, risk or change request it is who raised it, and the work that moves the item lives on an open item whose Owner is the worker. A named person on our side, "Vendor: <name>", "Joint", or a Forum row from the stakeholder register. Required while the item is not in a terminal state. |
 | Implemented by | Vendor, Internal or Both. Whose build the item lands in. Required on requirements, decisions, limitations and change requests. Not used on risks or open items. |
-| Vendor ref | The vendor's id for the corresponding item, if one exists. Used on requirements, limitations and change requests only. A vendor document reference on any other type goes in Source. |
+| Vendor ref | The vendor's number for the change itself, once they assign one. Used on change requests only. A vendor document reference on any other type goes in Source. |
 | Links | Ids of related items, each with its relationship word (5). Links carries every relationship, including the disposition of a limitation and the resolution of an open item, so no type has a second column that repeats a link. |
 | Raised on | Date the item was created, on every type. Replaces Identified on. |
 | Closed on | Date the item entered its approved or terminal state, on every type. Replaces Decided on, Approved on and the open item's Closed on. Blank until then. |
@@ -182,9 +184,9 @@ Frontmatter per type, in this order:
 
 | Type | Frontmatter keys |
 |---|---|
-| REQ | id, title, status, moscow, phase, owner, implemented-by, vendor-ref, links, raised-on, closed-on, updated |
+| REQ | id, title, status, moscow, phase, owner, implemented-by, links, raised-on, closed-on, updated |
 | DEC | id, title, status, owner, consulted, approved-by, implemented-by, links, raised-on, closed-on, updated |
-| LIM | id, title, status, owner, chosen-option, implemented-by, vendor-ref, links, raised-on, closed-on, updated |
+| LIM | id, title, status, owner, chosen-option, implemented-by, links, raised-on, closed-on, updated |
 | RSK | id, title, status, kind, owner, likelihood, impact, due, links, raised-on, closed-on, updated |
 | OI | id, title, status, owner, due, links, raised-on, closed-on, updated |
 | CR | id, title, status, owner, chosen-option, estimate, approved-by, phase, implemented-by, vendor-ref, links, raised-on, closed-on, updated |

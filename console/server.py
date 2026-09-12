@@ -10,7 +10,7 @@ never written.
 Usage: server.py <engagement-dir> [port]
 """
 import json, os, re, sys, glob, datetime, threading
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 import model as M
 import baseline as B
@@ -299,6 +299,9 @@ class H(SimpleHTTPRequestHandler):
                 if p == "/api/baseline/verdict":
                     B.apply_verdict(B_DIR, req["ids"], req.get("verdict"), req.get("reason", ""), req.get("mergedInto"), req.get("fields"), req.get("kind"))
                     return self.send_json({"ok": True})
+                if p == "/api/baseline/not-duplicates":
+                    B.dismiss_cluster(B_DIR, req["ids"], req.get("undo", False))
+                    return self.send_json({"ok": True})
                 if p == "/api/baseline/export":
                     return self.send_json(self.baseline_export(req))
             except ValueError as e:
@@ -389,7 +392,9 @@ class H(SimpleHTTPRequestHandler):
         if not os.path.isdir(B_DIR):
             return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS}
         cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
-        return {"present": True, "candidates": [B.effective(c, v) for c in cands], "clusters": B.clusters(cands),
+        return {"present": True, "candidates": [B.effective(c, v) for c in cands],
+                "clusters": B.clusters(cands, set(v.get(B.DISMISSED, []))),
+                "dismissed": len(v.get(B.DISMISSED, [])),
                 "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands))}
 
     def baseline_export(self, req):
@@ -417,4 +422,6 @@ class H(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     os.makedirs(CS_DIR, exist_ok=True)
     print(f"console: engagement {ENG}\nconsole: http://localhost:{PORT}/")
-    HTTPServer(("0.0.0.0", PORT), H).serve_forever()
+    # threaded: one slow or stuck client must not freeze the console for everyone.
+    # Writes stay serialised on LOCK in do_POST, so only reads actually run concurrently.
+    ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

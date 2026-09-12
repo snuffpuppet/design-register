@@ -33,6 +33,7 @@ docker run --rm -v "$PWD:/work" -w /work register-console \
 If the image is missing, build it first: `docker build -q -t register-console console`. If Docker is not running, say so and stop; do not fall back to host python.
 
 4. A child that has no table is still written; the console ignores pages without tables.
+5. A table Confluence renders with a number column gains a leading `#` column, since the reader sees that number but the storage format does not hold it. Where `derive_columns` in `confluence.json` names the page, the pull adds one further column built from that number and writes a line above the table saying it is derived. Use it only where the source's own numbering is the row position, and know the refs shift if someone inserts a row upstream.
 
 When every child is written, append to `log` in `confluence.json`: `{date, action: "pull", engagement, pages: n, by: "Claude"}`.
 
@@ -62,5 +63,6 @@ console/run.sh engagements/<engagement>
 | `read: ask` | Ask, wait, record `granted` and a log entry, continue |
 | Page has prose and two tables | Write prose as text, both tables in full |
 | Re-run on an existing engagement | Overwrite the page files and raw copies; leave `verdicts.json` alone |
+| Source numbers its rows and you need those numbers | Add the page to `derive_columns` in `confluence.json`; never hand-edit a pulled page |
 
 Background: `console/confluence-runbook.md` for how pull, baseline, apply and push fit together.

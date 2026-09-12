@@ -1,13 +1,13 @@
 {
   "_about": "Confluence source for the baseline. Claude reads this file before touching Confluence. Fill parent_page_url; leave permissions as 'ask' and Claude will confirm with you in chat before each read and each write, or set 'granted' to allow it for the named parent page only. Nothing outside the parent page and its subpages is ever read or written.",
-  "parent_page_url": "",
-  "parent_page_title": "Design Register",
-  "mcp_server": "",
+  "parent_page_url": "https://aussiebb.atlassian.net/wiki/spaces/Replatform/pages/2001272833/TSA+SD-009+Design+Register",
+  "parent_page_title": "TSA SD-009 Design Register",
+  "mcp_server": "mcp__claude_ai_Atlassian",
   "_mcp_server": "Name of the Confluence MCP connector as it appears in this session (for example mcp__atlassian or mcp__claude_ai_Confluence). Blank means none is connected yet: connect one, then Claude fills this in after a successful read.",
   "local_copy": "baseline",
   "_local_copy": "Folder under the engagement where each subpage is written as <page-title>.md with a frontmatter block (page id, version, url, pulled on) and the page's tables as Markdown tables. The console baselines this folder. The pull never edits item files.",
   "permissions": {
-    "read": "ask",
+    "read": "granted",
     "write": "ask",
     "_values": "ask | granted | denied. Write means: update the subpages under the parent with the normalised registers and add a 'Baseline applied' note; never delete a page; the previous page version stays in Confluence history."
   },
@@ -16,7 +16,36 @@
     "_mode": "replace-tables rewrites only the register table on each subpage, keeping any prose above and below; new-child writes the normalised registers as new subpages named '<register> (baselined)' and leaves the originals untouched.",
     "add_note": true
   },
-  "log": [],
+  "log": [
+    {
+      "date": "2026-09-12",
+      "action": "read permission",
+      "by": "Adam Moyes"
+    },
+    {
+      "date": "2026-09-12",
+      "action": "pull",
+      "engagement": "abb-nokia",
+      "pages": 10,
+      "by": "Claude"
+    },
+    {
+      "date": "2026-09-12",
+      "action": "pull",
+      "engagement": "abb-nokia",
+      "pages": 1,
+      "by": "Claude",
+      "note": "CRs Register (1924399124), outside the parent page, read on Adam's explicit instruction; vendor refs CR2-1..CR2-19 derived from the rendered row number"
+    }
+  ],
   "engagements_root": "engagements",
-  "_engagements_root": "Folder holding one subfolder per engagement name; the import skill writes <engagements_root>/<engagement>/baseline/."
+  "_engagements_root": "Folder holding one subfolder per engagement name; the import skill writes <engagements_root>/<engagement>/baseline/.",
+  "derive_columns": {
+    "_about": "Per page id, a column the pull builds from Confluence's rendered row number, which the storage format does not hold. format takes {n}. Use it only where the source's own numbering is the row position; the pulled page says above the table that the column is derived. The refs shift if a row is inserted in the source table.",
+    "1924399124": {
+      "column": "Vendor ref",
+      "format": "CR2-{n}",
+      "page_title": "CRs Register"
+    }
+  }
 }

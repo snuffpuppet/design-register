@@ -58,9 +58,9 @@ TRANSITIONS = {
 
 # Short (frontmatter) and long (body) fields per type, in file order.
 SHORT = {
-    "REQ": ["moscow", "phase", "owner", "implemented-by", "vendor-ref"],
+    "REQ": ["moscow", "phase", "owner", "implemented-by"],
     "DEC": ["owner", "consulted", "approved-by", "implemented-by"],
-    "LIM": ["owner", "chosen-option", "implemented-by", "vendor-ref"],
+    "LIM": ["owner", "chosen-option", "implemented-by"],
     "RSK": ["risk-kind", "owner", "likelihood", "impact", "due"],
     "OI":  ["owner", "due"],
     "CR":  ["owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
