@@ -57,16 +57,17 @@ Nothing to apply: the frozen item files are the baseline. From here every change
 
 ## 4. Push
 
-With `permissions.write` granted or confirmed:
+`/push-confluence <engagement>`. The skill runs in two halves, and the first sends nothing.
 
-1. Re-read the pulled pages to confirm `page-version` still matches Confluence. If a page moved on, stop and say which.
-2. For each register subpage, in `replace-tables` mode, rewrite the register table on that page with the normalised rows: the model's columns (section 7), our ids, statuses in the model's words, and a `Source id` column carrying the knowledge base's original id so its pipeline can reconcile. Prose above and below the table is kept. If `add_note` is set, a short note goes under the heading: "Baselined <date>; n items accepted, n merged, n rejected. Source of truth is now the engagement register." In `new-child` mode the originals are untouched and the normalised registers are written as new subpages instead.
-3. Never delete a page. Confluence keeps the previous version.
-4. Append a `push` entry to `log`.
+1. **Build.** `make push-pages ENG=engagements/<engagement>` runs `console/push-pages.py` in the console image. It refuses unless the engagement is the one named in `confluence.json` under `push.engagement`, every pulled page came from the configured parent page, a pull for that engagement is in `log`, and `baseline/frozen.md` exists. It then writes `<engagement>/push/`: a `manifest.json` and one `<page-id>.json` per register page holding the storage-format body to send. Each item goes back to the page it was pulled from, with the model's columns for its type, our ids, statuses in the model's words, links, and a `Source id` column carrying the knowledge base's own id so its pipeline can reconcile. In `replace-tables` mode the body is the page's own body with the register table swapped and the note added; when the `.raw` audit copy of the page is missing the body is rebuilt from the pulled markdown and the manifest says so. In `new-child` mode the body is a fresh page named `<title> (baselined)`. Pages that gave no items (summaries, conventions) are listed as untouched and are not sent. Rejections become a `Baseline rejections` child page if any were rejected.
+2. **Read the manifest** and say in chat what would be sent: each page, its pulled version, item count, and any warning.
+3. **Gate.** `permissions.write` must be `granted`, or `ask` answered yes in chat and then recorded. Re-read each page's current version through the connector; if it is past the pulled `page-version`, stop and say which page moved on.
+4. **Send**, one page at a time, through the connector's update-page call with the body from the file, and the create-page call for new children. Never delete a page; Confluence keeps the previous version. After each page, note its new version in the manifest entry.
+5. Append a `push` entry to `log`: date, engagement, pages sent, by.
 
 ## What normalising means
 
 - One table per register subpage, columns exactly as model section 7 for that type, plus `Source id`.
 - Status values are the model's strings. Anything the source had is in Notes, not in Status.
 - Dates in `D Month YYYY`.
-- Rejected candidates do not appear in the pushed tables. They appear in `rejections.md`, which can be pushed as a child page called "Baseline rejections" if wanted.
+- Rejected candidates do not appear in the pushed tables. They go to the `Baseline rejections` child page built from `rejections.md`.

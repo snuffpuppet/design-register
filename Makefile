@@ -12,6 +12,7 @@
 #   make shell         a shell inside the running container
 #   make clean         stop the console, remove the image, and delete generated data
 #   make anonymise     write a shareable copy of an engagement (see engagements/abb-nokia/anonymise)
+#   make push-pages    build the Confluence push files for a frozen engagement into <ENG>/push/ (sends nothing)
 #
 # Point the console at another engagement:  make up ENG=engagements/acme
 # Serve it somewhere else:                  make up PORT=8090
@@ -32,10 +33,10 @@ export IMAGE NAME PORT ENG_ABS
 
 COMPOSE := docker compose
 
-.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise
+.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise push-pages
 
 help:
-	@sed -n '2,19p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '2,20p' Makefile | sed 's/^# \{0,1\}//'
 
 # Compose merges docker-compose.override.yaml on every invocation, including when Docker recreates a
 # container by itself. Writing the engagement there rather than passing it through this make process's
@@ -95,3 +96,8 @@ clean:
 	rm -rf test-data/puppy-gloves
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
 	@echo "cleaned; 'make sample' regenerates the test data"
+
+# Build what /push-confluence will send: one storage-format body per register page, plus a manifest.
+# Refuses any engagement but the one named in confluence.json push.engagement.
+push-pages: build
+	docker run --rm -v "$(CURDIR):/work" -w /work $(IMAGE) python /app/push-pages.py $(ENG)

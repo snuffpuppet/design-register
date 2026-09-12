@@ -23,6 +23,7 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 | `console/server.py` | Standard library only. Reads items and change sets, overlays them, serves the API, appends blocks. An item's `kind` in the API is its type; the risk's Kind field is exposed as `risk-kind`. |
 | `console/baseline.py` | Tolerant table import, duplicate suggestions, verdicts and edits in `baseline/verdicts.json`, freeze. Column heuristics are the `COLS` table at the top; add words there when a real page uses a header the mapping misses. `EDITABLE` lists what the editor may change. |
 | `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
+| `console/push-pages.py` | Builds the Confluence push from a frozen engagement into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
 | `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, report, baseline, one per register, change sets. `guide.html` is the lifecycle explanation served alongside. |
 | `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
 | `engagements/` | Real engagements, one folder each, created only by `/import-confluence`. |
@@ -43,5 +44,5 @@ The model document's version notes at the top say why each change was made. The 
 
 - Connect a Confluence connector and set `parent_page_url`, then run `/import-confluence <engagement>` for the first real pull. Expect to add column words to `COLS` in `baseline.py` on the first real page.
 - The ingester still parses model 2.20. Porting 2.23 (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage) is Adam's call and happens in the other repository.
-- The push back to Confluence (runbook step 4) is described but not built. It should read the frozen item files, not the candidates.
+- The push back to Confluence is built (`push-pages.py` and `/push-confluence`) but has never run against a live connector. The first real run will show whether the connector's update call wants the body in storage format as written, and whether the version check reads as expected.
 - The Outstanding and Next Phase pages in the test engagement are views of the register pages and produce hundreds of same-id duplicates that have to be discarded by hand. A per-engagement list of pages to skip would remove that.

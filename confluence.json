@@ -12,8 +12,10 @@
     "_values": "ask | granted | denied. Write means: update the subpages under the parent with the normalised registers and add a 'Baseline applied' note; never delete a page; the previous page version stays in Confluence history."
   },
   "push": {
+    "engagement": "abb-nokia",
+    "_engagement": "The one engagement folder push-pages.py will build a push for. Anything else is refused, so a test copy or a transposed set can never go back to Confluence.",
     "mode": "replace-tables",
-    "_mode": "replace-tables rewrites only the register table on each subpage, keeping any prose above and below; new-child writes the normalised registers as new subpages named '<register> (baselined)' and leaves the originals untouched.",
+    "_mode": "replace-tables rewrites only the register table on each subpage, keeping any prose above and below; new-child writes the normalised registers as new subpages named '<register> (baselined)' and leaves the originals untouched. In both modes the pages are built first by push-pages.py into <engagement>/push/ and read before anything is sent.",
     "add_note": true
   },
   "log": [
