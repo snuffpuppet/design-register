@@ -4,7 +4,7 @@ Read `README.md` first for what is here and how the pieces fit. This file is wha
 
 ## What this repository is for
 
-The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.23), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
+The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.24), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
 
 The sibling repository `../solution-register` holds the ingester that writes register item files from transcripts. It is at model 2.20 and is **never edited from here**. Adam ports the model to it when he chooses. The two repositories share nothing but the model document and the change set file format (model section 11).
 

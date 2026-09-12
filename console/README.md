@@ -2,7 +2,7 @@
 
 Version 0.1, 11 September 2026.
 
-A lifecycle console for the registers in `solution-register-model.md` (2.23). It reads an engagement folder and shows the registers as they would be once every unapplied change set is applied. Every move, edit or new item made in it is appended as one item block to the current session's change set under `<engagement>/change-sets/`. It writes item files only once, at the baseline freeze. The ingester in `solution-register` applies change sets as its second pathway (model section 11) and resolves conflicts there.
+A lifecycle console for the registers in `solution-register-model.md` (2.24). It reads an engagement folder and shows the registers as they would be once every unapplied change set is applied. Every move, edit or new item made in it is appended as one item block to the current session's change set under `<engagement>/change-sets/`. It writes item files only once, at the baseline freeze. The ingester in `solution-register` applies change sets as its second pathway (model section 11) and resolves conflicts there.
 
 ## Run
 
