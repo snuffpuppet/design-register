@@ -1,15 +1,14 @@
 <!doctype html>
 <html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guide · Register console</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root{
   --bg:#f2f4f7; --surface:#ffffff; --ink:#1c2230; --ink-2:#4a5468; --ink-3:#7b8497; --line:#d5dae3; --line-2:#e6e9ef;
   --req:#2b5fb3; --lim:#8a3fa6; --dec:#2c7a4b; --rsk:#b8412f; --oi:#b97412; --cr:#1a7f86; --doc:#5b6478;
   --req-bg:#e6edf9; --lim-bg:#f1e6f6; --dec-bg:#e3f2e9; --rsk-bg:#f9e6e2; --oi-bg:#fbeed8; --cr-bg:#dff2f3; --doc-bg:#eceef2;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -26,9 +25,9 @@
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;padding-block:40px 80px;padding-inline:20px}
 main{max-width:980px;margin:0 auto}
-h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;text-wrap:balance;margin:0}
-h1{font-size:2.2rem;letter-spacing:-.01em}
-h2{font-size:1.5rem;margin-top:3.2rem;margin-bottom:.6rem;padding-top:1.2rem;border-top:1px solid var(--line)}
+h1,h2,h3{font-family:var(--sans);font-weight:600;line-height:1.2;text-wrap:balance;margin:0;letter-spacing:-.015em}
+h1{font-size:2rem;letter-spacing:-.02em}
+h2{font-size:1.35rem;margin-top:3.2rem;margin-bottom:.6rem;padding-top:1.2rem;border-top:1px solid var(--line)}
 h3{font-size:1.1rem;margin-top:1.8rem;margin-bottom:.4rem}
 p{max-width:70ch;margin:.6rem 0}
 .lede{font-size:1.1rem;color:var(--ink-2);max-width:62ch;margin-top:.8rem}
@@ -60,7 +59,7 @@ li{margin:.3rem 0}
 .callout p{margin:.3rem 0}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:1rem 0}
 .two > div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
-.two h4{margin:0 0 .4rem;font-family:var(--serif);font-size:1rem;font-weight:600}
+.two h4{margin:0 0 .4rem;font-family:var(--sans);font-size:1rem;font-weight:600}
 .two p,.two li{font-size:.92rem}
 @media (max-width:520px){.story{grid-template-columns:1fr}.story .when{border-top:none;padding-bottom:0}.story .what{border-top:none;padding-top:0}}
 .back{font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-decoration:none;display:inline-block;margin-bottom:1.2rem}
@@ -128,13 +127,13 @@ li{margin:.3rem 0}
   <g font-family="IBM Plex Mono,monospace" font-size="10">
     <rect x="200" y="205" width="140" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
     <text x="270" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0030</text>
-    <text x="270" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">agree scope, MoSCoW</text>
+    <text x="270" y="235" text-anchor="middle" fill="var(--oi)" font-family="Inter,sans-serif">agree scope, MoSCoW</text>
     <rect x="380" y="205" width="150" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
     <text x="455" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0031</text>
-    <text x="455" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">write design section</text>
+    <text x="455" y="235" text-anchor="middle" fill="var(--oi)" font-family="Inter,sans-serif">write design section</text>
     <rect x="740" y="205" width="140" height="40" rx="3" fill="var(--oi-bg)" stroke="var(--oi)"/>
     <text x="810" y="221" text-anchor="middle" fill="var(--oi)" font-weight="500">OI-0058</text>
-    <text x="810" y="235" text-anchor="middle" fill="var(--oi)" font-family="IBM Plex Sans,sans-serif">verify with owner</text>
+    <text x="810" y="235" text-anchor="middle" fill="var(--oi)" font-family="Inter,sans-serif">verify with owner</text>
   </g>
   <line x1="270" y1="205" x2="270" y2="142" stroke="var(--oi)" stroke-dasharray="3 3"/>
   <line x1="455" y1="205" x2="455" y2="142" stroke="var(--oi)" stroke-dasharray="3 3"/>
@@ -338,7 +337,7 @@ li{margin:.3rem 0}
   <line x1="360" y1="60" x2="398" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
   <line x1="550" y1="60" x2="588" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
   <line x1="740" y1="60" x2="778" y2="60" stroke="currentColor" marker-end="url(#a3)"/>
-  <g font-family="IBM Plex Sans,sans-serif" fill="var(--ink-2)">
+  <g font-family="Inter,sans-serif" fill="var(--ink-2)">
     <text x="95" y="104" text-anchor="middle">Reason, Chosen option,</text><text x="95" y="117" text-anchor="middle">Estimate obtained</text>
     <text x="285" y="104" text-anchor="middle">with the business:</text><text x="285" y="117" text-anchor="middle">cost and justification</text>
     <text x="475" y="104" text-anchor="middle">Approved by, Phase,</text><text x="475" y="117" text-anchor="middle">Closed on</text>
@@ -351,7 +350,7 @@ li{margin:.3rem 0}
   <rect x="780" y="136" width="160" height="32" rx="3" fill="var(--doc-bg)" stroke="var(--doc)"/>
   <text x="860" y="156" text-anchor="middle" fill="var(--doc)">Design doc §4.2 updated</text>
   <line x1="860" y1="136" x2="860" y2="122" stroke="var(--doc)" stroke-dasharray="3 3"/>
-  <text x="480" y="196" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" fill="var(--ink-3)">Deferred sits beside this track for a named later phase. Withdrawn or Rejected sends the limitation back to Under assessment.</text>
+  <text x="480" y="196" text-anchor="middle" font-family="Inter,sans-serif" fill="var(--ink-3)">Deferred sits beside this track for a named later phase. Withdrawn or Rejected sends the limitation back to Under assessment.</text>
 </g>
 </svg>
 <figcaption>The CR track. For approval is the state the business sees on the outstanding view, and the approval recorded there is the stakeholder's call, so no decision row is written for a change.</figcaption>
