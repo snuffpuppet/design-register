@@ -1,0 +1,6 @@
+# Pages under this folder that restate register rows (summaries, outstanding views, conventions).
+# They are still pulled and kept, but produce no baseline candidates. One page title per line.
+HAB PD-004 Outstanding
+HAB PD-004 Next Phase
+HAB PD-004 Register Conventions
+HAB PD-004 Scope Taxonomy

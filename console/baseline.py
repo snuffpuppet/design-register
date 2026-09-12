@@ -146,12 +146,45 @@ def skip_table(heading, rows):
     return [c.lower().strip() for c in rows[0]] == ["prior", "now"]
 
 
+SKIP_FILE = "skip-pages.txt"
+
+
+def load_skips(bdir):
+    """Pages named as views of the registers rather than registers. One title per line; # starts a comment.
+    A named list is a person saying so, once; the console never guesses which pages are views."""
+    p = os.path.join(bdir, SKIP_FILE)
+    if not os.path.exists(p): return []
+    return [ln.strip() for ln in open(p, encoding="utf-8") if ln.strip() and not ln.startswith("#")]
+
+
+def set_skip(bdir, page, undo=False):
+    skips = [x for x in load_skips(bdir) if x != page]
+    if not undo: skips.append(page)
+    with open(os.path.join(bdir, SKIP_FILE), "w", encoding="utf-8") as f:
+        f.write("# Pages under this folder that restate register rows (summaries, outstanding views, conventions).\n"
+                "# They are still pulled and kept, but produce no baseline candidates. One page title per line.\n" + "\n".join(skips) + ("\n" if skips else ""))
+    return skips
+
+
+def page_titles(bdir):
+    """Every pulled page title, skipped or not."""
+    out = []
+    for path in sorted(glob.glob(os.path.join(bdir, "*"))):
+        if os.path.basename(path).startswith(("verdicts", "rejections", "frozen", "README", "skip-pages")) or os.path.isdir(path):
+            continue
+        out.append(read_source(path)[0])
+    return out
+
+
 def load_candidates(bdir):
     cands = []
+    skips = set(load_skips(bdir))
     for path in sorted(glob.glob(os.path.join(bdir, "*"))):
-        if os.path.basename(path).startswith(("verdicts", "rejections", "frozen", "README")) or os.path.isdir(path):
+        if os.path.basename(path).startswith(("verdicts", "rejections", "frozen", "README", "skip-pages")) or os.path.isdir(path):
             continue
         page, tables = read_source(path)
+        if page in skips:
+            continue
         for heading, rows in tables:
             if len(rows) < 2 or skip_table(heading, rows):
                 continue

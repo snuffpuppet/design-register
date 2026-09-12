@@ -299,6 +299,9 @@ class H(SimpleHTTPRequestHandler):
                 if p == "/api/baseline/verdict":
                     B.apply_verdict(B_DIR, req["ids"], req.get("verdict"), req.get("reason", ""), req.get("mergedInto"), req.get("fields"), req.get("kind"))
                     return self.send_json({"ok": True})
+                if p == "/api/baseline/skip-page":
+                    B.set_skip(B_DIR, req["page"], req.get("undo", False))
+                    return self.send_json({"ok": True})
                 if p == "/api/baseline/not-duplicates":
                     B.dismiss_cluster(B_DIR, req["ids"], req.get("undo", False))
                     return self.send_json({"ok": True})
@@ -400,7 +403,8 @@ class H(SimpleHTTPRequestHandler):
         return {"present": True, "candidates": [B.effective(c, v) for c in cands],
                 "clusters": B.clusters(cands, set(v.get(B.DISMISSED, []))),
                 "dismissed": len(v.get(B.DISMISSED, [])), "frozen": B.frozen(B_DIR), "states": M.STATES,
-                "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands))}
+                "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands)),
+                "skipped": B.load_skips(B_DIR), "allPages": B.page_titles(B_DIR)}
 
     def baseline_export(self, req):
         cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)

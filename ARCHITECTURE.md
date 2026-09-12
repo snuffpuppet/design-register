@@ -37,6 +37,7 @@ engagements/<name>/
   baseline/
     <page>.md                   pulled Confluence pages, tables cell for cell
     .raw/<page-id>.json         the connector's response, the audit copy
+    skip-pages.txt              pages that are views of the registers and produce no candidates
     verdicts.json               verdicts and edits on candidates
     frozen.md                   written by the freeze: date, counts, source id to item id map
     rejections.md               written by the freeze, for the knowledge base pipeline
@@ -90,6 +91,7 @@ This is the table a reviewer should check first. Anything not in it is a defect.
 | Item files | The ingester (sibling) | Applying change sets and transcripts | The ingester's gate; never from this repository |
 | Change set blocks | The console | Every move, edit, new item | Model transitions and required fields (`model.py`); Made by given |
 | `baseline/verdicts.json` | The console | Every verdict or edit | Fields limited to `EDITABLE` in `baseline.py` |
+| `baseline/skip-pages.txt` | The console | Treat as a view, or restore | A page title only; the page stays pulled and is never sent by the push |
 | `baseline/<page>.md`, `.raw/` | Import skill via the converter | On pull | `permissions.read`; parent page and direct children only |
 | `push/` | Push builder | On `make push-pages` | `push.engagement` name; parent page id; pull logged; frozen |
 | Confluence pages | Push skill | On `/push-confluence` | `permissions.write`; manifest read and reported; page version unchanged since pull; never delete |
@@ -124,7 +126,6 @@ Each of these was a choice with a rejected alternative. A review should reopen o
 
 - The push has never run against a live connector. Whether the connector's update call accepts the storage body as built, and how it reports versions, will be learned on the first real run.
 - Pages pulled without a `.raw` audit copy are rebuilt from the pulled markdown on push, which carries the pull's flattening of formatting into the page. The manifest says so per page and the skill asks before continuing.
-- Summary pages in a source (an Outstanding view, a Next Phase view) restate register rows and generate same-id duplicate suggestions that have to be discarded by hand. A per-engagement list of pages to skip is the fix and is not built.
 - Column heuristics in `baseline.py` are a word table. A real page with a header the table misses lands that column in Notes. The fix is a word added to the table, and the first pull of a new source should expect one or two.
 - The console has no authentication. It is a local tool bound to a port on one machine and is not to be exposed.
 - Duplicate suggestion is title-token overlap and same source id. It is deliberately conservative after the first pass produced noise; a suggestion missed is a row the reviewer finds by search.
