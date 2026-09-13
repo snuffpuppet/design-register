@@ -96,7 +96,7 @@ item("LIM-0024", "Vendor invoicing engine cannot itemise charges per site for mu
      {"owner": "Tom Okafor", "chosen-option": "1", "implemented-by": "Vendor", "vendor-ref": "", "raised-on": "6 September 2026", "closed-on": "", "updated": "6 September 2026"},
      {"Impact": "Multi-site orders are billed on the primary site only; the second site's usage is unaccounted for.",
       "Options": "1. Accept and reconcile manually each month; impact: 1 day a month, Tom's team; phase: Day one\n2. Vendor splits the charge by site; impact: vendor estimate 4 weeks; phase: Later",
-      "Source": "Billing workshop, 6 September 2026", "Notes": "Accepted without a decision on record; gap left for the demo data."}, ["constrains REQ-0002"])
+      "Source": "Billing workshop, 6 September 2026", "Notes": "Accepted without a decision on record; gap left for the demo data."}, ["constrains REQ-0017"])
 
 # --- Decisions ---
 item("DEC-0009", "Represent a customer service as two linked services, not a bundle", "Accepted",
