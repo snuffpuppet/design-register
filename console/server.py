@@ -14,12 +14,14 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 import model as M
 import baseline as B
+import integrity as I
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENG = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "test-data/puppy-gloves")
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
 CS_DIR = os.path.join(ENG, "change-sets")
 B_DIR = os.path.join(ENG, "baseline")
+DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
 TOOL = "solution-workflows console 0.1"
 LOCK = threading.Lock()
 
@@ -234,17 +236,35 @@ def append_block(cs, kind, target, fields, links, evidence, gist, frm=None, base
     lines.append(f"- Gist: {gist}")
     with open(os.path.join(CS_DIR, cs["file"]), "a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n\n")
+    # keep the parsed change set in step with the file, so a second block in the same request
+    # takes the next number rather than repeating this one.
+    cs["blocks"].append({"n": n, "kind": kind, "fields": dict(fields, Target=target), "links": list(links), "evidence": list(evidence)})
     return n
 
 
 def state():
     items = overlay(load_registers(), load_change_sets())
     return {"engagement": load_engagement(), "items": list(items.values()), "stakeholders": load_stakeholders(),
+            "integrity": integrity_of(items),
             "change_sets": load_change_sets(), "today": today(),
             "model": {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
                       "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
                       "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": M.REQUIRED_ON_CREATE,
                       "first": M.FIRST_STATE, "names": M.NAMES, "linkWords": M.LINK_WORDS, "closes": {k: sorted(v) for k, v in M.CLOSES.items()}}}
+
+
+def load_dismissed():
+    return json.load(open(DISMISSED_PATH, encoding="utf-8")) if os.path.exists(DISMISSED_PATH) else {}
+
+
+def integrity_of(items):
+    """Section 9 and the SUPPORTS table over the overlaid items, less the suggestions already dismissed."""
+    eng = load_engagement()
+    res = I.check(list(items.values()), phases=eng["phases"] or None, stakeholders=load_stakeholders() or None, today=today())
+    gone = load_dismissed()
+    res["suggestions"] = [s for s in res["suggestions"] if s["key"] not in gone]
+    res["dismissed"] = len(gone)
+    return res
 
 
 def label_of(key):
@@ -305,6 +325,20 @@ class H(SimpleHTTPRequestHandler):
                 if p == "/api/baseline/not-duplicates":
                     B.dismiss_cluster(B_DIR, req["ids"], req.get("undo", False))
                     return self.send_json({"ok": True})
+                if p == "/api/baseline/support":
+                    sugg = next((x for x in B.suggestions(B.load_candidates(B_DIR), B.load_verdicts(B_DIR))["suggestions"] if x["key"] == req["key"]), None)
+                    if req["verdict"] != "Dismiss" and not sugg:
+                        raise ValueError("That suggestion is no longer current; reload.")
+                    if req["verdict"] == "Reassess" and (not sugg or sugg["rule"] not in ("S5", "S6")):
+                        raise ValueError("Reassess applies only to a limitation the source calls Accepted or Change requested.")
+                    B.support_verdict(B_DIR, req["key"], req["verdict"], req.get("reason", ""), req.get("fields"), sugg)
+                    return self.send_json({"ok": True})
+                if p == "/api/supports":
+                    return self.send_json(self.supports_preview(req))
+                if p == "/api/support/accept":
+                    return self.send_json(self.support_accept(req))
+                if p == "/api/support/dismiss":
+                    return self.send_json(self.support_dismiss(req))
                 if p == "/api/baseline/export":
                     return self.send_json(self.baseline_export(req))
                 if p == "/api/baseline/freeze":
@@ -324,6 +358,39 @@ class H(SimpleHTTPRequestHandler):
         note = req.get("evidence", "").strip() or "console session"
         return [f"{today()} | {who} | {note}"]
 
+    def supports_preview(self, req):
+        """The suggestions the item would raise once the given move, fields and links are in place."""
+        items = overlay(load_registers(), load_change_sets())
+        it = items.get(req["id"])
+        if not it:
+            raise ValueError("No such item.")
+        merged = dict(it); merged.update({field_key(k): v for k, v in req.get("fields", {}).items()})
+        merged["links"] = it["links"] + req.get("links", [])
+        merged["status"] = req.get("to") or it["status"]
+        items[it["id"]] = merged
+        res = integrity_of(items)
+        return {"suggestions": [s for s in res["suggestions"] if s["id"] == it["id"]]}
+
+    def offer_fields(self, sugg, overrides):
+        """The offer's fields with the reviewer's overrides, refused when it needs an owner and has none."""
+        f = dict(sugg["fields"]); f.update({field_key(k): v for k, v in (overrides or {}).items() if v is not None})
+        if sugg["needsOwner"] and not str(f.get("owner", "")).strip():
+            raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
+        return f
+
+    def write_offer(self, cs, req, sugg, overrides):
+        """One create block for an offer. Returns its block number."""
+        f = self.offer_fields(sugg, overrides)
+        kind = sugg["kind"]
+        fields = {"Title": f.get("title", ""), "Status": sugg["status"], "Raised on": today()}
+        for k in M.SHORT[kind] + M.LONG[kind]:
+            if f.get(k):
+                fields[label_of(k)] = f[k]
+        if kind == "RSK":
+            fields["Kind"] = f.get("risk-kind", "Risk")
+        links = [sugg["reverse"]] if sugg["reverse"] else []
+        return append_block(cs, kind, "new", fields, links, self.evidence(req), f"{sugg['rule']}: implied by {sugg['id']}")
+
     def transition(self, req):
         items = overlay(load_registers(), load_change_sets())
         it = items.get(req["id"])
@@ -332,8 +399,19 @@ class H(SimpleHTTPRequestHandler):
         kind, frm, to = it["kind"], it["status"], req["to"]
         if to not in M.TRANSITIONS.get(kind, {}).get(frm, []):
             raise ValueError(f"{frm} → {to} is not an allowed move for a {M.NAMES[kind]} (I20).")
+        chosen = []
+        wanted = req.get("supports") or []
+        if wanted:
+            preview = {s["key"]: s for s in self.supports_preview({**req, "to": to})["suggestions"]}
+            for w in wanted:
+                s = preview.get(w["key"])
+                if not s:
+                    raise ValueError("A chosen support is no longer current; reload and try again.")
+                self.offer_fields(s, w.get("fields"))   # refuse early, before anything is written
+                chosen.append((s, w.get("fields")))
+        self.evidence(req)   # the maker must be named before a change set is opened
         merged = dict(it); merged.update({field_key(k): v for k, v in req.get("fields", {}).items()})
-        merged["links"] = it["links"] + req.get("links", [])
+        merged["links"] = it["links"] + req.get("links", []) + [s["link"] + "item ?" for s, _ in chosen]
         missing = M.missing_for(kind, to, merged)
         if kind == "OI" and to == "Blocked" and not merged.get("next action", "").startswith("Blocked:"):
             missing.append('Next action starting "Blocked: "')
@@ -341,14 +419,46 @@ class H(SimpleHTTPRequestHandler):
             missing.append("Vendor ref")
         if missing:
             raise ValueError("Before " + to + " you need: " + "; ".join(missing))
+        cs = current_change_set(req["madeBy"])
+        support_links = []
+        for s, f in chosen:
+            n = self.write_offer(cs, req, s, f)
+            support_links.append(f"{s['link']}item {n}")
         fields = {"Status": to}
         for k, v in req.get("fields", {}).items():
             fields[label_of(field_key(k))] = v
         if to in M.CLOSES[kind]:
             fields["Closed on"] = today()
+        n = append_block(cs, kind, it["id"], fields, req.get("links", []) + support_links, self.evidence(req), req.get("gist", "") or f"{frm} to {to}", frm=frm, based_on=it.get("updated", ""))
+        return {"ok": True, "changeSet": cs["id"], "item": n, "supports": len(support_links)}
+
+    def support_accept(self, req):
+        """Write one offer the live registers are missing and link the trigger to it."""
+        items = overlay(load_registers(), load_change_sets())
+        it = items.get(req["id"])
+        if not it:
+            raise ValueError("No such item.")
+        s = next((x for x in integrity_of(items)["suggestions"] if x["key"] == req["key"]), None)
+        if not s:
+            raise ValueError("That suggestion is no longer current; reload.")
+        self.offer_fields(s, req.get("fields"))   # refuse early, before anything is written
+        self.evidence(req)
         cs = current_change_set(req["madeBy"])
-        n = append_block(cs, kind, it["id"], fields, req.get("links", []), self.evidence(req), req.get("gist", "") or f"{frm} to {to}", frm=frm, based_on=it.get("updated", ""))
-        return {"ok": True, "changeSet": cs["id"], "item": n}
+        n = self.write_offer(cs, req, s, req.get("fields"))
+        m = append_block(cs, it["kind"], it["id"], {}, [f"{s['link']}item {n}"], self.evidence(req), f"{s['rule']}: linked to the implied {s['kind']}", frm=None, based_on=it.get("updated", ""))
+        return {"ok": True, "changeSet": cs["id"], "item": n, "linkBlock": m}
+
+    def support_dismiss(self, req):
+        who = req.get("madeBy", "").strip()
+        if not who:
+            raise ValueError("Say who you are first (Made by).")
+        reason = req.get("reason", "").strip()
+        if not reason:
+            raise ValueError("Give a reason; it is kept beside the register.")
+        gone = load_dismissed()
+        gone[req["key"]] = {"id": req.get("id", ""), "rule": req.get("rule", ""), "reason": reason, "by": who, "on": today()}
+        json.dump(gone, open(DISMISSED_PATH, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+        return {"ok": True}
 
     def create(self, req):
         kind = req["kind"]
@@ -398,10 +508,12 @@ class H(SimpleHTTPRequestHandler):
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):
-            return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS, "frozen": None}
+            return {"present": False, "candidates": [], "clusters": [], "reasons": B.REJECT_REASONS, "frozen": None,
+                    "suggestions": {"suggestions": [], "prompts": [], "failures": [], "warnings": [], "dismissed": 0}}
         cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
         return {"present": True, "candidates": [B.effective(c, v) for c in cands],
-                "clusters": B.clusters(cands, set(v.get(B.DISMISSED, []))),
+                "clusters": B.clusters([c for c in cands if not c.get("implied")], set(v.get(B.DISMISSED, []))),
+                "suggestions": B.suggestions(cands, v),
                 "dismissed": len(v.get(B.DISMISSED, [])), "frozen": B.frozen(B_DIR), "states": M.STATES,
                 "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands)),
                 "skipped": B.load_skips(B_DIR), "allPages": B.page_titles(B_DIR)}
