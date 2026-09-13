@@ -13,6 +13,7 @@
 #   make clean         stop the console, remove the image, and delete generated data
 #   make anonymise     write a shareable copy of an engagement (see engagements/abb-nokia/anonymise)
 #   make push-pages    build the Confluence push files for a frozen engagement into <ENG>/push/ (sends nothing)
+#   make test          run the console's unit tests inside the python image
 #
 # Point the console at another engagement:  make up ENG=engagements/acme
 # Serve it somewhere else:                  make up PORT=8090
@@ -33,7 +34,7 @@ export IMAGE NAME PORT ENG_ABS
 
 COMPOSE := docker compose
 
-.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise push-pages
+.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise push-pages test
 
 help:
 	@sed -n '2,20p' Makefile | sed 's/^# \{0,1\}//'
@@ -77,6 +78,10 @@ status:
 
 sample:
 	python3 console/make-sample.py
+
+# Unit tests for the console, run in the official python image. No host python.
+test:
+	docker run --rm -v "$(CURDIR)/console:/app" -w /app python:3.12-slim python -m unittest discover -s tests -v
 
 # A shareable copy of an engagement: every company, person, product and technical term
 # replaced by a haberdashery one, and the baseline verdicts re-keyed onto it. The tool and
