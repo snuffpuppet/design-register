@@ -82,14 +82,19 @@ One rule beside I5 at line 218, taking `scopes` the way `check()` and `rules()` 
 
 **The supports engine** sets `scope` on an offered item from its trigger, in the same place it sets the other templated fields. Scope is copied rather than templated, since the trigger's value is the answer in every case.
 
+## console/push-pages.py
+
+`columns()` builds from `M.SHORT`, so it would gain a Scope column for every engagement, including one that declares no scopes. That would push an empty column onto a client's Confluence pages for an engagement that opted out, so `columns(kind, scopes)` takes the declared list and omits Scope when it is empty. The script reads `## Scopes` with its own small reader, as it already does for the rest of `engagement.md` rather than importing the server.
+
 ## console/static/app.js
 
-Four changes, each following an existing pattern:
+Five changes, each following an existing pattern:
 
 - The field editor at line 259 special-cases `scope` the way it special-cases `phase`, rendering a select from `S.engagement.scopes` with a blank option.
 - The baseline bulk bar at line 623 gains a "set Scope…" select beside "set MoSCoW…", and its handler at line 746 adds `scope` alongside `owner`, `moscow` and `implemented-by`.
 - The candidate editor at line 653 shows Scope, and the candidates table at line 631 shows it as a column.
 - The register views gain a scope filter beside the existing filters, shown only when the engagement declares scopes.
+- `register()` at line 101 builds its columns from `S.model.short[k]`, so it picks up a Scope column on its own. It drops that column again when the engagement declares no scopes, the same guard the push needs and for the same reason.
 
 Every one of these is hidden when `S.engagement.scopes` is empty, so the page for an engagement without scopes is the page as it stands today.
 
