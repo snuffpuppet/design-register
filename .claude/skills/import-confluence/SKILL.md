@@ -1,6 +1,7 @@
 ---
 name: import-confluence
 description: Use when asked to import, pull, fetch or refresh the Confluence Design Register pages for a named engagement into this repository, or when a baseline needs the Confluence registers brought local first.
+usage: /import-confluence <engagement>: pull the Design Register pages into engagements/<name>/baseline/
 ---
 
 # Import Confluence registers

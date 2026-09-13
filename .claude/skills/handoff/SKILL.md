@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Use at the end of a working session, or when asked to hand off, wrap up, pause, or leave notes for the next session. Writes a handoff keyed on the objective being pursued, at an altitude that stays useful if the next session is days or weeks later.
+usage: /handoff [guide]: write handoffs/<objective>.md for the next session, keyed on the objective
 ---
 
 # Hand off to the next session

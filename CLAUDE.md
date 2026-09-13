@@ -25,6 +25,7 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 | `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
 | `console/push-pages.py` | Builds the Confluence push from a frozen engagement into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
 | `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, meeting report, weekly SLT report, baseline (tabs: candidates, duplicates, row by row), one per register, change sets. `stage()` decides Baselining or Live and the opening view. `guide.html` is the lifecycle explanation served alongside and shares the theme choice. |
+| `.claude/settings.json`, `.claude/hooks/` | A SessionStart hook prints the project's slash commands at the start of every session, read from each skill's `usage:` line. Add a `usage:` line to any new skill. |
 | `handoffs/` | One file per objective written by `/handoff`, read by `/resume`, which checks relevance against the commit, anchors and date before acting. Start a session with `/resume` when a handoff is active. |
 | `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
 | `engagements/` | Real engagements, one folder each, created only by `/import-confluence`. |
