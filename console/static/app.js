@@ -203,7 +203,6 @@ function wire(d) {
   d.querySelectorAll("[data-sdis]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sdis, rule: el.dataset.rule, dismiss: true, fields: {}, links: []}; renderDetail(); });
   d.querySelectorAll("[data-son]").forEach(el => el.onchange = () => { const s = form.supports[+el.dataset.son]; s.pick = el.checked; s.on = sOn(s); renderDetail(); });
   d.querySelectorAll("[data-sedit]").forEach(el => el.oninput = () => { const n = +el.dataset.sedit, s = form.supports[n]; s.edits[el.dataset.sk] = el.value; s.on = sOn(s); const cb = d.querySelector(`[data-son="${n}"]`); if (cb) cb.checked = s.on; });
-  if (form?.mode === "move") d.querySelectorAll("[data-f]").forEach(el => el.onchange = () => refreshSupports());
   d.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
   d.querySelectorAll("[data-move]").forEach(el => el.onclick = () => { form = {mode: "move", to: el.dataset.move, fields: {}, links: [], supports: null}; renderDetail(); refreshSupports(true); });
   $("#edit-btn", d)?.addEventListener("click", () => { form = {mode: "edit", fields: {}, links: []}; renderDetail(); });
@@ -215,8 +214,20 @@ function wire(d) {
   $("#new-link-word", d)?.addEventListener("change", e => form.linkWord = e.target.value);
   $("#evidence", d)?.addEventListener("input", e => form.evidence = e.target.value);
   $("#gist", d)?.addEventListener("input", e => form.gist = e.target.value);
+  // last, so the handlers above have already written the field, the link word and the link text
+  if (form?.mode === "move") {
+    d.querySelectorAll("[data-f]").forEach(el => el.addEventListener("change", () => refreshSupports()));
+    $("#new-link", d)?.addEventListener("change", () => refreshSupports());
+    $("#new-link-word", d)?.addEventListener("change", () => refreshSupports());
+  }
 }
-const stkList = () => `<datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">${esc(s.role)}</option>`).join("")}<option value="Joint"><option value="Vendor: "></datalist>`;
+const stkList = (id = "stk") => `<datalist id="${id}">${S.stakeholders.map(s => `<option value="${esc(s.name)}">${esc(s.role)}</option>`).join("")}<option value="Joint"><option value="Vendor: "></datalist>`;
+/* The link the reviewer has half typed counts as part of the move: the preview and the submit both read it. */
+const pendingLinks = () => {
+  const links = [...(form.links || [])];
+  if (form.linkText && form.linkText.trim()) links.push(`${form.linkWord || Object.keys(S.model.linkWords[form.kind || S.byId[open].kind])[0]} ${form.linkText.trim()}`);
+  return links;
+};
 const input = (key, val = "", req = false, kind = null) => {
   const c = (key === "impact" && kind !== "RSK") ? null : S.model.choices[key];
   const lab = `<label>${esc(S.model.labels[key] || key)}${req ? ' <span class="req">required</span>' : ""}</label>`;
@@ -249,11 +260,11 @@ function moveForm(i) {
 function supportsChooser() {
   if (form.supports === null) return '<p class="small muted">Checking what this move implies…</p>';
   if (!form.supports.length) return "";
-  const names = form.supports.some(s => s.needsOwner) ? stkList() : "";
+  const names = form.supports.some(s => s.needsOwner) ? stkList("stk-s") : "";
   const one = (s, n) => {
     const gaps = sGaps(s), hint = sReady(s) ? "" : ` · fill the ${gaps.filter(g => !sVal(s, g)).map(g => (S.model.labels[g] || g).toLowerCase()).join(" and ")} to include`;
     return `<label class="dup" title="${esc(s.check)} · ${esc(sVal(s, "source"))}"><input type="checkbox" data-son="${n}" ${s.on ? "checked" : ""}> <span class="id" style="${COLOR(s.kind)}">${s.kind}</span> ${esc(sVal(s, "title") || "untitled")} <span class="small muted">${esc(s.rule)} · ${s.level === "fail" ? "needed" : "suggested"}${hint}</span></label>
-      ${gaps.map(g => `<input data-sedit="${n}" data-sk="${g}" ${g === "owner" ? 'list="stk"' : ""} placeholder="${esc(S.model.labels[g] || g)}" value="${esc(s.edits[g] || "")}">`).join("")}`;
+      ${gaps.map(g => `<input data-sedit="${n}" data-sk="${g}" ${g === "owner" ? 'list="stk-s"' : ""} placeholder="${esc(S.model.labels[g] || g)}" value="${esc(s.edits[g] || "")}">`).join("")}`;
   };
   return `<div class="supports">${names}<h3>This move implies</h3>${form.supports.map(one).join("")}
     <p class="small muted">Ticked items are written to the change set before the move and linked to it.</p></div>`;
@@ -264,20 +275,24 @@ const sVal = (s, k) => String(s.edits[k] ?? s.fields[k] ?? "").trim();
 const sGaps = s => [...(s.needsOwner ? ["owner"] : []), ...(sVal(s, "title") ? [] : ["title"])];
 const sReady = s => !sGaps(s).some(g => !sVal(s, g));
 const sOn = s => (s.pick === undefined ? s.level === "fail" : s.pick) && sReady(s);
-/* The offers depend on the fields being typed into the move, so ask the server again as they change.
-   The reviewer's own ticks and edits survive; the panel is only redrawn when the implication moved. */
+/* The offers depend on the fields and links being typed into the move, so ask the server again as they
+   change. Replies can land out of order, so only the latest request may install a list: every ask takes
+   the next number on this form and a reply whose number has been overtaken is dropped. The reviewer's
+   own ticks and edits survive; the panel is only redrawn when the implication moved. */
 async function refreshSupports(first) {
   if (!form || form.mode !== "move") return;
-  const to = form.to, on = open, was = form.supports, prev = Object.fromEntries((was || []).map(s => [s.key, s]));
+  const f = form, to = f.to, on = open, was = f.supports, prev = Object.fromEntries((was || []).map(s => [s.key, s]));
+  const seq = f.seq = (f.seq || 0) + 1;
+  const current = () => form === f && form.mode === "move" && form.to === to && open === on && f.seq === seq;
   const sig = list => (list || []).map(s => `${s.key}|${sVal(s, "title")}|${s.on}`).join("~");
   let r;
-  try { r = await post("/api/supports", {id: on, to, fields: form.fields, links: []}); }
-  catch (e) { if (first && form?.mode === "move" && form.to === to && open === on) { form.supports = []; renderDetail(); } toast(e.message); return; }
-  if (!(form?.mode === "move" && form.to === to && open === on)) return;
+  try { r = await post("/api/supports", {id: on, to, fields: f.fields, links: pendingLinks()}); }
+  catch (e) { if (first && current()) { f.supports = []; renderDetail(); } toast(e.message); return; }
+  if (!current()) return;
   const next = r.suggestions.map(s => { const p = prev[s.key], e = {...s, edits: p ? p.edits : {}, pick: p ? p.pick : undefined}; e.on = sOn(e); return e; });
-  if (was && sig(was) === sig(next)) { form.supports = next; return; }
+  if (was && sig(was) === sig(next)) { f.supports = next; return; }
   const a = document.activeElement, key = a && a.dataset ? a.dataset.f : null, at = a && a.selectionStart;
-  form.supports = next;
+  f.supports = next;
   renderDetail();
   if (key) { const el = $(`#detail [data-f="${CSS.escape(key)}"]`); if (el) { el.focus(); try { el.setSelectionRange(at, at); } catch {} } }
 }
@@ -298,9 +313,7 @@ async function submit() {
   const err = $("#err");
   try {
     if (!madeBy()) throw new Error("Type your name in Made by first.");
-    const links = [...form.links];
-    if (form.linkText) links.push(`${form.linkWord || Object.keys(S.model.linkWords[form.kind || S.byId[open].kind])[0]} ${form.linkText.trim()}`);
-    const body = {fields: form.fields, links, evidence: form.evidence || "", gist: form.gist || ""};
+    const body = {fields: form.fields, links: pendingLinks(), evidence: form.evidence || "", gist: form.gist || ""};
     let r;
     if (form.mode === "support") {
       if (form.dismiss) { if (!form.fields.__reason) throw new Error("Give a reason to dismiss."); r = await post("/api/support/dismiss", {id: open, key: form.key, rule: form.rule, reason: form.fields.__reason}); toast("Dismissed; kept in supports-dismissed.json"); }
