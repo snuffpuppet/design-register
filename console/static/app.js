@@ -278,7 +278,8 @@ function supportsChooser() {
 const sVal = (s, k) => String(s.edits[k] ?? s.fields[k] ?? "").trim();
 const sGaps = s => {
   const keys = Object.keys(s.fields);
-  if (s.needsOwner && !keys.includes("owner")) keys.unshift("owner");
+  if (!keys.includes("title")) keys.unshift("title");
+  if (s.needsOwner && !keys.includes("owner")) keys.splice(1, 0, "owner");
   return keys.filter(k => !sVal(s, k));
 };
 const sReady = s => !sGaps(s).some(g => !sVal(s, g));
