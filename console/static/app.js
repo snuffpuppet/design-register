@@ -184,7 +184,7 @@ function itemPanel(i, closable) {
     ${supportsPanel(i)}
     ${moves.length ? `<h3>Move to</h3><div class="moves" style="${COLOR(k)}">${moves.map(m => `<button data-move="${m}" class="${form?.to === m ? "on" : ""}">${m}</button>`).join("")}</div>` : ""}
     ${form && form.mode === "move" ? moveForm(i) : ""}
-    ${S.model.short[k].map(f => fld(f, i[f])).join("")}
+    ${S.model.short[k].filter(f => f !== "scope" || (S.engagement.scopes || []).length).map(f => fld(f, i[f])).join("")}
     <div class="field ${changed.has("links") ? "changed" : ""}"><label>Links</label><ul class="links">${i.links.map(l => { const m = l.match(/([A-Z]+-\d{4}(?:\.\d+)?)/); return `<li>${m && S.byId[m[1]] ? esc(l.replace(m[1], "")) + `<a href="#" data-open="${m[1]}">${m[1]}</a>` : esc(l)}</li>`; }).join("") || '<li class="muted">none</li>'}</ul></div>
     ${S.model.long[k].map(f => fld(f, i[f])).join("")}
     ${fld("raised-on", i["raised-on"])}${fld("closed-on", i["closed-on"])}
@@ -263,7 +263,7 @@ const input = (key, val = "", req = false, kind = null) => {
   const lab = `<label>${esc(S.model.labels[key] || key)}${req ? ' <span class="req">required</span>' : ""}</label>`;
   if (c) return `<div class="field">${lab}<select data-f="${key}"><option value="">—</option>${c.map(o => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select></div>`;
   if (key === "owner" || key === "approved-by") return `<div class="field">${lab}<input data-f="${key}" list="stk" value="${esc(val)}">${stkList()}</div>`;
-  if (key === "scope") return `<div class="field">${lab}<select data-f="scope"><option value="">—</option>${(S.engagement.scopes || []).map(s => `<option ${s === val ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>`;
+  if (key === "scope") return (S.engagement.scopes || []).length ? `<div class="field">${lab}<select data-f="scope"><option value="">—</option>${(S.engagement.scopes || []).map(s => `<option ${s === val ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>` : "";
   if (key === "phase") return `<div class="field">${lab}<select data-f="phase"><option value="">—</option>${S.engagement.phases.map(p => `<option ${p === val ? "selected" : ""}>${p}</option>`).join("")}</select></div>`;
   if (S.model.long.REQ.concat(S.model.long.DEC, S.model.long.LIM, S.model.long.RSK, S.model.long.OI, S.model.long.CR).includes(key)) return `<div class="field">${lab}<textarea data-f="${key}">${esc(val)}</textarea></div>`;
   return `<div class="field">${lab}<input data-f="${key}" value="${esc(val)}"></div>`;
