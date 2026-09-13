@@ -181,6 +181,14 @@ function itemPanel(i, closable) {
 }
 /* What section 9 and the SUPPORTS table say this item still needs. Accepting writes the offer as a new
    provisional item and links the two; dismissing keeps the reason beside the register. */
+/* Link existing: the records of the offered type the trigger could point at instead of creating one.
+   Ranked matches share a title word; the datalist holds every record of that type for the rest. */
+function linkRow(s, all, attr) {
+  const opt = c => `<option value="${esc(c.id)}">${esc(c.title)}</option>`;
+  return `<div class="small muted" style="margin:6px 0 2px">Or link an existing <span class="id" style="${COLOR(s.kind)}">${s.kind}</span>:</div>
+    <div class="moves" style="${COLOR(s.kind)}">${s.matches.map(m => `<button ${attr}="${esc(s.key)}" data-target="${esc(m.id)}" title="${esc(m.id)} · ${esc(m.status)}${m.page ? " · " + esc(m.page) : ""}">${esc(m.title)}</button>`).join("")}
+    <input list="lk-${esc(s.key)}" data-lkin="${esc(s.key)}" placeholder="${s.matches.length ? "or another id" : "id or title"}" style="width:220px"><datalist id="lk-${esc(s.key)}">${all.map(opt).join("")}</datalist><button class="ghost" ${attr}="${esc(s.key)}">Link</button></div>`;
+}
 function supportsPanel(i) {
   const R = S.integrity || {suggestions: [], prompts: [], failures: []};
   const mine = R.suggestions.filter(s => s.id === i.id), prompts = R.prompts.filter(p => p.id === i.id);
@@ -188,6 +196,7 @@ function supportsPanel(i) {
   return `<div class="supports"><h3>Supports needed</h3>
     ${mine.map(s => `<div class="blk"><span class="id" style="${COLOR(s.kind)}">${s.kind}</span> ${esc(s.fields.title || "untitled")} <span class="small muted">${esc(s.rule)} · ${s.level === "fail" ? "needed" : "suggested"}${s.needsOwner ? " · owner needed" : ""}</span>
       <div class="moves" style="${COLOR(s.kind)}"><button data-sacc="${esc(s.key)}">Accept</button> <button class="ghost" data-sdis="${esc(s.key)}" data-rule="${esc(s.rule)}">Dismiss</button></div>
+      ${linkRow(s, S.items.filter(x => x.kind === s.kind && x.id !== i.id), "data-slink")}
       ${form?.mode === "support" && form.key === s.key ? supportForm(s) : ""}</div>`).join("")}
     ${prompts.map(p => `<div class="blk small muted">${esc(p.rule)}: ${esc(p.text)}</div>`).join("")}</div>`;
 }
@@ -203,6 +212,11 @@ function supportForm(s) {
 function wire(d) {
   $("#close-detail", d)?.addEventListener("click", () => { open = null; form = null; renderDetail(); });
   d.querySelectorAll("[data-sacc]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sacc, fields: {}, links: []}; renderDetail(); });
+  d.querySelectorAll("[data-slink]").forEach(el => el.onclick = async () => {
+    const key = el.dataset.slink, target = el.dataset.target || d.querySelector(`[data-lkin="${key}"]`)?.value.trim();
+    if (!target) return toast("Pick the record to link");
+    try { const r = await post("/api/support/link", {id: open, key, target, evidence: ""}); toast(`${r.changeSet} item ${r.item}: linked to ${target}`); await load(); renderDetail(); } catch (e) { toast(e.message); }
+  });
   d.querySelectorAll("[data-sdis]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sdis, rule: el.dataset.rule, dismiss: true, fields: {}, links: []}; renderDetail(); });
   d.querySelectorAll("[data-son]").forEach(el => el.onchange = () => { const s = form.supports[+el.dataset.son]; s.pick = el.checked; s.on = sOn(s); renderDetail(); });
   d.querySelectorAll("[data-sedit]").forEach(el => el.oninput = () => { const n = +el.dataset.sedit, s = form.supports[n]; s.edits[el.dataset.sk] = el.value; s.on = sOn(s); const cb = d.querySelector(`[data-son="${n}"]`); if (cb) cb.checked = s.on; });
@@ -578,7 +592,7 @@ function baselineView() {
       <li><b>Drop the pages that are views.</b> Filter by page. A summary, outstanding or conventions page restates rows that are already on a register page. Choose it and press <i>Treat as a view</i>; it produces no candidates from then on, on every pull.</li>
       <li><b>Resolve the duplicates tab.</b> Untick any row that is not the same item, then <i>This one leads</i> on the one to keep. The rest fold into it. Wrong group: <i>Not duplicates</i>.</li>
       <li><b>Pass through each register page</b> on the Row by row tab: one row at a time, keys <kbd>a</kbd> accept, <kbd>r</kbd> reject with the chosen reason, <kbd>x</kbd> discard, <kbd>e</kbd> edit, <kbd>j</kbd>/<kbd>k</kbd> next and previous.</li>
-      <li><b>Fill the missing supports.</b> Every accepted row whose state implies another record, a decision behind an accepted limitation, a change request behind one marked Change requested, the open item that carries a draft, is offered here prefilled. Accept, edit then accept, or dismiss with a reason. A limitation the source calls Accepted with nothing behind it can instead be sent back to Under assessment. The freeze waits until this list is empty of failures.</li>
+      <li><b>Fill the missing supports.</b> Every accepted row whose state implies another record, a decision behind an accepted limitation, a change request behind one marked Change requested, the open item that carries a draft, is offered here prefilled. Accept, edit then accept, link a record already in the set, or dismiss with a reason. A limitation the source calls Accepted with nothing behind it can instead be sent back to Under assessment. The freeze waits until this list is empty of failures.</li>
       <li><b>Fix fields in bulk</b> on the Candidates tab where a page has a pattern: no owner, wrong MoSCoW, wrong type.</li>
       <li><b>Freeze</b> when nothing is left to decide.</li></ol></details>`}
     ${B.frozen ? `<div class="note">The baseline is frozen. ${Object.entries(B.frozen.counts).map(([k, v]) => `${v} ${S.model.names[k].toLowerCase()}${v === 1 ? "" : "s"}`).join(", ")} were written to the registers; the id map is in <code>baseline/frozen.md</code>. Verdicts here are read only now; every change from here is a change set.</div>` : ""}
@@ -657,7 +671,7 @@ function blSupports() {
         ${s.recommend === "Reassess" ? `<button class="primary" data-sv="Reassess" data-key="${s.key}" title="Send the limitation back to Under assessment; its open item is offered next">Reassess (recommended)</button> <button data-sv="Accept" data-key="${s.key}">Reconstruct</button>` : `<button class="primary" data-sv="Accept" data-key="${s.key}">${s.recommend === "Reconstruct" ? "Reconstruct (recommended)" : "Accept"}</button>${s.recommend ? ` <button data-sv="Reassess" data-key="${s.key}">Reassess</button>` : ""}`}
         <button data-sv="edit" data-key="${s.key}">${editing ? "Stop editing" : "Edit"}</button>
         <input data-sreason="${s.key}" placeholder="reason to dismiss" style="width:220px"><button class="ghost" data-sv="Dismiss" data-key="${s.key}">Dismiss</button>
-      </div></div>`;
+      </div>${linkRow(s, B.candidates.filter(c => c.kind === s.kind && c.verdict === "Accept" && c.id !== s.id), "data-blink")}</div>`;
   };
   const prompts = R.prompts.filter(p => byId[p.id]);
   // the stakeholder list lives in the bulk toolbar, which this tab does not render; the owner boxes need it here
@@ -743,6 +757,11 @@ function wireBaseline(m) {
     try { await post("/api/baseline/verdict", {ids: [keep], verdict: "Accept"}); await blPost({ids: others, verdict: "Merge", mergedInto: keep}); toast(`Folded ${others.length} into it`); } catch (e) { toast(e.message); }
   });
   m.querySelectorAll("[data-sf]").forEach(el => el.oninput = () => { BF.sfields[el.dataset.sf] = el.value; });
+  m.querySelectorAll("[data-blink]").forEach(el => el.onclick = async () => {
+    const key = el.dataset.blink, target = el.dataset.target || m.querySelector(`[data-lkin="${key}"]`)?.value.trim();
+    if (!target) return toast("Pick the record to link");
+    try { const y = window.scrollY; await post("/api/baseline/support", {key, verdict: "Link", target}); await load(); window.scrollTo(0, y); toast(`Linked to ${target}; nothing created`); } catch (e) { toast(e.message); }
+  });
   m.querySelectorAll("[data-sv]").forEach(el => el.onclick = async () => {
     const key = el.dataset.key, what = el.dataset.sv;
     if (what === "edit") { if (BF.sedit === key) { BF.sedit = null; BF.sfields = {}; } else { BF.sedit = key; BF.sfields = {}; } render(); return; }

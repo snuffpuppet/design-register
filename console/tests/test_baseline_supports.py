@@ -156,3 +156,86 @@ class BaselineSupports(unittest.TestCase):
         dec = {"id": "cdeadbeef", "page": "Limitations", "ref": "DEC-001"}
         lim = {"page": "Limitations", "notes": "Baseline import from Limitations\nDisposition record: DEC-001"}
         self.assertEqual(B.source_links(lim, B.refmap_of([dec])), ["dispositioned by cdeadbeef"])
+
+
+DECS = """---
+page-id: 3
+page-title: Decisions
+---
+
+# Decisions
+
+| Ref | Decision | Status | Owner | Rationale |
+|---|---|---|---|---|
+| DEC-001 | Accept one channel per customer | Accepted | Priya Nair | Volume is low |
+| DEC-002 | Retire the legacy portal | Proposed | Tom Okafor | Old |
+"""
+
+
+class LinkExisting(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.b = os.path.join(self.d, "baseline"); os.makedirs(self.b)
+        open(os.path.join(self.b, "Limitations.md"), "w").write(PAGE)
+        open(os.path.join(self.b, "Requirements.md"), "w").write(REQS)
+        open(os.path.join(self.b, "Decisions.md"), "w").write(DECS)
+        self.cands = B.load_candidates(self.b)
+        B.apply_verdict(self.b, [c["id"] for c in self.cands], "Accept")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def cid(self, ref):
+        return next(c["id"] for c in B.load_candidates(self.b) if c["ref"] == ref)
+
+    def sugg(self, rule):
+        s = B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"]
+        return next(x for x in s if x["rule"] == rule)
+
+    def test_offer_lists_accepted_candidates_of_its_kind(self):
+        x = self.sugg("S5")
+        self.assertEqual([m["id"] for m in x["matches"]], [self.cid("DEC-001")])
+        self.assertEqual(x["matches"][0]["page"], "Decisions")
+
+    def test_offer_omits_candidates_not_accepted(self):
+        B.apply_verdict(self.b, [self.cid("DEC-001")], "Reject", reason="other")
+        self.assertEqual(self.sugg("S5")["matches"], [])
+
+    def test_link_writes_the_link_and_the_offer_goes(self):
+        x = self.sugg("S5"); dec = self.cid("DEC-001")
+        B.support_verdict(self.b, x["key"], "Link", sugg=x, target=dec)
+        v = B.load_verdicts(self.b)
+        self.assertIn("dispositioned by " + dec, v[x["id"]]["links"])
+        self.assertNotIn("links", v.get(dec, {}))
+        self.assertEqual(v[B.SUPPORTS_KEY][x["key"]], {"verdict": "Link", "target": dec})
+        again = B.suggestions(B.load_candidates(self.b), v)["suggestions"]
+        self.assertFalse(any(y["rule"] == "S5" for y in again))
+        self.assertFalse(v.get(B.IMPLIED_KEY))
+
+    def test_link_writes_the_reverse_where_the_model_names_one(self):
+        # S6 offers a CR with the reverse word triggered by; make an accepted CR candidate to link
+        open(os.path.join(self.b, "Changes.md"), "w").write("---\npage-id: 4\npage-title: Change requests\n---\n\n# Change requests\n\n| Ref | Change request | Status | Owner | Reason |\n|---|---|---|---|---|\n| CR-001 | Vendor adds bulk port | Proposed | Tom Okafor | Ops |\n")
+        B.apply_verdict(self.b, [self.cid("CR-001")], "Accept")
+        x = self.sugg("S6"); cr = self.cid("CR-001")
+        self.assertIn(cr, [m["id"] for m in x["matches"]])
+        B.support_verdict(self.b, x["key"], "Link", sugg=x, target=cr)
+        v = B.load_verdicts(self.b)
+        self.assertIn("dispositioned by " + cr, v[x["id"]]["links"])
+        self.assertIn("triggered by " + x["id"], v[cr]["links"])
+
+    def test_link_refuses_wrong_kind_unaccepted_and_self(self):
+        x = self.sugg("S5")
+        with self.assertRaises(ValueError): B.support_verdict(self.b, x["key"], "Link", sugg=x, target=self.cid("REQ-001"))
+        with self.assertRaises(ValueError): B.support_verdict(self.b, x["key"], "Link", sugg=x, target=x["id"])
+        B.apply_verdict(self.b, [self.cid("DEC-002")], "Discard")
+        with self.assertRaises(ValueError): B.support_verdict(self.b, x["key"], "Link", sugg=x, target=self.cid("DEC-002"))
+        with self.assertRaises(ValueError): B.support_verdict(self.b, x["key"], "Link", sugg=x, target="")
+
+    def test_freeze_carries_the_link_through_the_id_map(self):
+        x = self.sugg("S5"); B.support_verdict(self.b, x["key"], "Link", sugg=x, target=self.cid("DEC-001"))
+        for y in B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"]:
+            if y["level"] == "fail": B.support_verdict(self.b, y["key"], "Dismiss", reason="test")
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "14 September 2026", "Adam")
+        lim = open(os.path.join(eng, "limitations", "LIM-0001.md"), encoding="utf-8").read()
+        self.assertIn("dispositioned by DEC-0001", lim)
+        self.assertNotIn("Implied at baseline", open(os.path.join(self.b, "frozen.md"), encoding="utf-8").read())

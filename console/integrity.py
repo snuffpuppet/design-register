@@ -21,6 +21,31 @@ TOOLING = re.compile(r"\b(build|built|report|tool|tooling|script|extract|dashboa
 UNMET = re.compile(r"\b(defer|deferred|later phase|out of scope|won't|will not|drop|dropped|not in this phase)\b", re.I)
 
 
+STOP = {"the", "and", "for", "with", "that", "this", "from", "must", "shall", "should", "will", "can", "are", "not", "system", "solution",
+        "support", "supported", "change", "changes", "modify", "new", "via", "when", "any", "all", "only", "into", "per", "use", "used", "need", "needed"}
+
+
+def tokens(s):
+    """Stemmed title words, less the ones every row shares. The duplicates tab and Link existing use the same set."""
+    return set(re.sub(r"(ies|es|s|ed|ing)$", "", w) or w for w in re.findall(r"[a-z0-9]+", str(s or "").lower()) if len(w) > 2 and w not in STOP)
+
+
+def matches(trigger, kind, items, limit=5):
+    """Existing records of the offered kind the trigger could link instead of creating one: those whose
+    title shares a word with the trigger's, best Jaccard first. A lookup only; no model call."""
+    ta = tokens(trigger.get("title", ""))
+    scored = []
+    for it in items:
+        if it["kind"] != kind or it["id"] == trigger["id"]:
+            continue
+        tb = tokens(it.get("title", ""))
+        shared = len(ta & tb)
+        if shared:
+            scored.append((-(shared / len(ta | tb)), it["id"], it))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [{"id": it["id"], "title": it.get("title", ""), "status": it.get("status", ""), "page": it.get("page", "")} for _, _, it in scored[:limit]]
+
+
 def suggestion_key(rule, trigger_id):
     return "s" + hashlib.sha1(f"{rule}|{trigger_id}".encode()).hexdigest()[:10]
 
@@ -132,7 +157,7 @@ def suggestions(items, by_id):
             word, oword = row["link"]
             sugs.append({"key": suggestion_key(row["rule"], it["id"]), "rule": row["rule"], "check": row["check"], "level": row["level"],
                          "id": it["id"], "kind": okind, "status": ostate, "fields": fields,
-                         "link": word + " ", "reverse": f"{oword} {it['id']}" if oword else None,
+                         "link": word + " ", "reverse": f"{oword} {it['id']}" if oword else None, "matches": matches(it, okind, items),
                          "needsOwner": "owner" in M.REQUIRED_ON_CREATE[okind] and not fields.get("owner")})
     return sugs, prompts
 

@@ -311,3 +311,30 @@ class Rules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LinkExisting(unittest.TestCase):
+    """An offer lists existing records of its type the trigger could link instead of creating one."""
+    def test_matches_rank_by_shared_title_tokens_and_skip_other_kinds(self):
+        lim = item("LIM-0001", "Accepted", title="One channel per customer", impact="x", options="1. Live; 2. SMS", **{"chosen-option": "1"})
+        close = item("DEC-0001", "Proposed", title="Accept one channel per customer", rationale="r")
+        far = item("DEC-0002", "Proposed", title="Retire the legacy portal", rationale="r")
+        mid = item("DEC-0003", "Proposed", title="Customer channel policy", rationale="r")
+        cr = item("CR-0001", "Proposed", title="One channel per customer", reason="r")
+        r = I.check([lim, far, close, mid, cr])
+        s = sug(r, "S5", "LIM-0001")[0]
+        self.assertEqual([m["id"] for m in s["matches"]], ["DEC-0001", "DEC-0003"])
+        self.assertEqual(s["matches"][0]["title"], "Accept one channel per customer")
+        self.assertEqual(s["matches"][0]["status"], "Proposed")
+
+    def test_matches_never_include_the_trigger_and_are_empty_without_shared_words(self):
+        dec = item("DEC-0001", "Superseded", title="Retire the portal", rationale="r")
+        other = item("DEC-0002", "Proposed", title="Buy the widget", rationale="r")
+        r = I.check([dec, other])
+        self.assertEqual(sug(r, "S11", "DEC-0001")[0]["matches"], [])
+
+    def test_matches_capped_at_five(self):
+        lim = item("LIM-0001", "Accepted", title="One channel per customer", impact="x", options="1. Live; 2. SMS", **{"chosen-option": "1"})
+        decs = [item(f"DEC-{n:04d}", "Proposed", title=f"Channel decision {n}", rationale="r") for n in range(1, 8)]
+        r = I.check([lim] + decs)
+        self.assertEqual(len(sug(r, "S5", "LIM-0001")[0]["matches"]), 5)

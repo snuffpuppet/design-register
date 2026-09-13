@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.2, 13 September 2026. Owner: Adam Moyes.
+Version 1.3, 14 September 2026. Owner: Adam Moyes.
 
 This document describes the system in this repository well enough for a gated architecture review: what the parts are, what each one is allowed to write, where the gates sit, and which decisions were taken on purpose. It is the reviewer's map. The model document says what the registers mean; the console README says what each screen does; the runbook says how the Confluence path is operated. This document says how they fit and why.
 
@@ -84,7 +84,7 @@ The baseline never trusts its input. A row's claimed id becomes a reference in N
 
 Every move, edit or new item made in the console appends one block to the current session's change set. A block names the target item, the fields changed, the state moved from and to, the evidence, and the maker. The console shows the registers as they would be once every unapplied change set is applied, so a meeting sees the proposed state while the files hold the approved one. The ingester applies change sets through its own gate and assigns ids to new items. Until then a new item carries a provisional id such as `LIM-0002.3`, meaning change set 2, block 3.
 
-The integrity engine runs over that overlaid view. Each item whose state implies a record it lacks gets an offer, prefilled from the item, in the record's first state. Accepting one from the item's panel writes a create block and a link block; ticking one in the move dialog writes the create block before the transition block so the move's links can name it. Dismissing one is recorded in `supports-dismissed.json` beside the registers, never in a change set, so the ingester only ever sees blocks it knows.
+The integrity engine runs over that overlaid view. Each item whose state implies a record it lacks gets an offer, prefilled from the item, in the record's first state. Accepting one from the item's panel writes a create block and a link block; linking an existing record instead writes a link block on the item and, where the model names a reverse word, one on the target; ticking one in the move dialog writes the create block before the transition block so the move's links can name it. Dismissing one is recorded in `supports-dismissed.json` beside the registers, never in a change set, so the ingester only ever sees blocks it knows.
 
 ## 5. Write paths and who owns them
 

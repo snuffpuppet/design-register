@@ -260,10 +260,7 @@ def norm_lmh(v):
     return {"l": "L", "low": "L", "m": "M", "med": "M", "medium": "M", "h": "H", "high": "H"}.get(low, v.strip())
 
 
-def tokens(s):
-    stop = {"the", "and", "for", "with", "that", "this", "from", "must", "shall", "should", "will", "can", "are", "not", "system", "solution",
-            "support", "supported", "change", "changes", "modify", "new", "via", "when", "any", "all", "only", "into", "per", "use", "used", "need", "needed"}
-    return set(re.sub(r"(ies|es|s|ed|ing)$", "", w) or w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2 and w not in stop)
+tokens = I.tokens
 
 
 def related_kinds():
@@ -489,12 +486,31 @@ def suggestions(cands, v):
     return res
 
 
-def support_verdict(bdir, key, verdict, reason="", fields=None, sugg=None):
+def support_verdict(bdir, key, verdict, reason="", fields=None, sugg=None, target=None):
     """A reviewer's answer to one missing support. Accept writes the offered item as an implied candidate
-    and links it both ways; Reassess drops the trigger back to Under assessment; Dismiss hides the row."""
+    and links it both ways; Link points the trigger at an accepted candidate that already exists, with the reverse
+    where the model names one, and creates nothing; Reassess drops the trigger back to Under assessment;
+    Dismiss hides the row."""
     v = load_verdicts(bdir)
     fields = fields or {}
-    if verdict == "Dismiss":
+    if verdict == "Link":
+        if not sugg:
+            raise ValueError("Link needs the suggestion.")
+        if not target or target == sugg["id"]:
+            raise ValueError("Pick the record to link.")
+        t = next((c for c in load_candidates(bdir) if c["id"] == target), None)
+        te = effective(t, v) if t else None
+        if not te or te["verdict"] != "Accept":
+            raise ValueError("Link existing only points at an accepted candidate.")
+        if te["kind"] != sugg["kind"]:
+            raise ValueError(f"That candidate is a {M.NAMES[te['kind']]}; this offer needs a {M.NAMES[sugg['kind']]}.")
+        trig = v.setdefault(sugg["id"], {})
+        trig["links"] = list(dict.fromkeys(trig.get("links", []) + [sugg["link"] + target]))
+        if sugg["reverse"]:
+            tv = v.setdefault(target, {})
+            tv["links"] = list(dict.fromkeys(tv.get("links", []) + [sugg["reverse"]]))
+        v.setdefault(SUPPORTS_KEY, {})[key] = {"verdict": "Link", "target": target}
+    elif verdict == "Dismiss":
         v.setdefault(SUPPORTS_KEY, {})[key] = {"verdict": "Dismiss", "reason": reason}
     elif verdict == "Reassess":
         if not sugg:

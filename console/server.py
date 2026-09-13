@@ -18,7 +18,7 @@ import integrity as I
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENG = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "test-data/puppy-gloves")
-PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
+PORT = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 8080
 CS_DIR = os.path.join(ENG, "change-sets")
 B_DIR = os.path.join(ENG, "baseline")
 DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
@@ -339,7 +339,7 @@ class H(SimpleHTTPRequestHandler):
                         raise ValueError("That suggestion is no longer current; reload.")
                     if req["verdict"] == "Reassess" and (not sugg or sugg["rule"] not in ("S5", "S6")):
                         raise ValueError("Reassess applies only to a limitation the source calls Accepted or Change requested.")
-                    B.support_verdict(B_DIR, req["key"], req["verdict"], req.get("reason", ""), req.get("fields"), sugg)
+                    B.support_verdict(B_DIR, req["key"], req["verdict"], req.get("reason", ""), req.get("fields"), sugg, target=req.get("target"))
                     return self.send_json({"ok": True})
                 if p == "/api/supports":
                     return self.send_json(self.supports_preview(req))
@@ -347,6 +347,8 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.support_accept(req))
                 if p == "/api/support/dismiss":
                     return self.send_json(self.support_dismiss(req))
+                if p == "/api/support/link":
+                    return self.send_json(self.support_link(req))
                 if p == "/api/baseline/export":
                     return self.send_json(self.baseline_export(req))
                 if p == "/api/baseline/freeze":
@@ -459,6 +461,29 @@ class H(SimpleHTTPRequestHandler):
         n = self.write_offer(cs, req, s, req.get("fields"))
         m = append_block(cs, it["kind"], it["id"], {}, [f"{s['link']}item {n}"], self.evidence(req), f"{s['rule']}: linked to the implied {s['kind']}", frm=None, based_on=it.get("updated", ""))
         return {"ok": True, "changeSet": cs["id"], "item": n, "linkBlock": m}
+
+    def support_link(self, req):
+        """Point the trigger at a record the registers already hold instead of creating one: an edit block
+        with the link on the trigger, and one with the reverse on the target where the model names one."""
+        items = overlay(load_registers(), load_change_sets())
+        it = items.get(req["id"])
+        if not it:
+            raise ValueError("No such item.")
+        s = next((x for x in integrity_of(items)["suggestions"] if x["key"] == req["key"]), None)
+        if not s:
+            raise ValueError("That suggestion is no longer current; reload.")
+        target = items.get(str(req.get("target", "")).strip())
+        if not target or target["id"] == it["id"]:
+            raise ValueError("Pick the record to link.")
+        if target["kind"] != s["kind"]:
+            raise ValueError(f"{target['id']} is a {M.NAMES[target['kind']]}; this offer needs a {M.NAMES[s['kind']]}.")
+        ev = self.evidence(req)
+        cs = current_change_set(req["madeBy"])
+        n = append_block(cs, it["kind"], it["id"], {}, [f"{s['link']}{target['id']}"], ev, f"{s['rule']}: linked to the existing {target['id']}", frm=None, based_on=it.get("updated", ""))
+        m = None
+        if s["reverse"]:
+            m = append_block(cs, target["kind"], target["id"], {}, [s["reverse"]], ev, f"{s['rule']}: reverse link from {it['id']}", frm=None, based_on=target.get("updated", ""))
+        return {"ok": True, "changeSet": cs["id"], "item": n, "reverseBlock": m}
 
     def support_dismiss(self, req):
         who = req.get("madeBy", "").strip()
