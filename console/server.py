@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 import model as M
 import baseline as B
 import integrity as I
+from items import parse_item, render_item, item_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENG = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "test-data/puppy-gloves")
@@ -41,52 +42,6 @@ def parse_date(s):
 
 
 # ---------- item files (section 7) ----------
-
-def parse_item(path):
-    text = open(path, encoding="utf-8").read()
-    item, links = {}, []
-    lines = text.split("\n")
-    i = 0
-    if lines and lines[0] == "---":
-        i = 1
-        cur_list = None
-        while i < len(lines) and lines[i] != "---":
-            ln = lines[i]
-            if ln.startswith("  - ") and cur_list is not None:
-                item[cur_list].append(ln[4:].strip())
-            elif re.match(r"^[a-z-]+:", ln):
-                k, _, v = ln.partition(":")
-                v = v.strip()
-                if v == "" and i + 1 < len(lines) and lines[i + 1].startswith("  - "):
-                    cur_list = k
-                    item[k] = []
-                elif v == "":
-                    cur_list = None
-                    item[k] = ""
-                else:
-                    cur_list = None
-                    item[k] = v
-            i += 1
-        i += 1
-    sec, buf = None, []
-    def flush():
-        if sec is not None:
-            item[sec] = "\n".join(buf).strip()
-    for ln in lines[i:]:
-        if ln.startswith("## "):
-            flush(); sec = ln[3:].strip().lower(); buf = []
-        elif sec is not None:
-            buf.append(ln)
-    flush()
-    if isinstance(item.get("links"), str):
-        item["links"] = [item["links"]]
-    item["links"] = [l for l in item.get("links", []) if str(l).strip()]
-    if "kind" in item:
-        item["risk-kind"] = item.pop("kind")   # the RSK Kind field; "kind" on an item means its type in the console
-    item["kind"] = item["id"].split("-")[0]
-    item["pending"] = []
-    return item
-
 
 def load_registers():
     items = {}
