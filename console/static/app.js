@@ -704,13 +704,15 @@ function blEditor(c) {
   const B = S.baseline, fld = (k, lab, inner) => `<div class="field"><label>${lab}</label>${inner}</div>`;
   const text = k => fld(k, S.model.labels[k] || k, `<input data-f="${k}" value="${esc(c[k] || "")}">`);
   const choice = (k, arr) => fld(k, S.model.labels[k] || k, `<select data-f="${k}"><option value=""></option>${arr.map(x => `<option ${c[k] === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>`);
-  const short = S.model.short[c.kind].filter(k => !["chosen-option", "estimate"].includes(k));
+  const scopes = S.engagement.scopes || [];
+  const scopeArr = c.scope && !scopes.includes(c.scope) ? scopes.concat(c.scope) : scopes;
+  const short = S.model.short[c.kind].filter(k => !["chosen-option", "estimate"].includes(k) && (k !== "scope" || scopes.length));
   const status = c.status || B.states[c.kind].find(x => x.toLowerCase() === (c.source_status || "").toLowerCase()) || S.model.first[c.kind];
   return `<div class="bl-edit" style="--c:var(--cs);--cb:var(--cs-bg)"><button class="close ghost" id="ble-close">Close</button><h3><span class="id" style="${COLOR(c.kind)}">${c.kind}</span> Edit candidate <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></h3>
     ${fld("title", "Title", `<input data-f="title" value="${esc(c.title)}">`)}
     <div class="cols">${fld("kind", "Type", `<select id="ble-kind">${KINDS.map(k => `<option value="${k}" ${c.kind === k ? "selected" : ""}>${S.model.names[k]}</option>`).join("")}</select>`)}
     ${fld("status", "Status at freeze", `<select data-f="status">${B.states[c.kind].map(x => `<option ${status === x ? "selected" : ""}>${x}</option>`).join("")}</select>`)}
-    ${short.map(k => S.model.choices[k] ? choice(k, S.model.choices[k]) : text(k)).join("")}${text("raised-on")}</div>
+    ${short.map(k => k === "scope" ? choice(k, scopeArr) : S.model.choices[k] ? choice(k, S.model.choices[k]) : text(k)).join("")}${text("raised-on")}</div>
     ${Object.entries(BL_LONG).filter(([k]) => k === "description" || k === "notes" || S.model.long[c.kind].includes(k) || (c.kind === "CR" && k === "rationale")).map(([k, lab]) => fld(k, c.kind === "CR" && k === "rationale" ? "Reason" : lab, `<textarea data-f="${k}">${esc(c[k] || "")}</textarea>`)).join("")}
     <div class="moves"><button class="primary" id="ble-save">Save</button> <button id="ble-save-accept">Save and accept</button> <span class="small muted">Changing the type re-reads the fields for the new type after saving.</span></div></div>`;
 }
