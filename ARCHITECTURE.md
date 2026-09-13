@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.3, 14 September 2026. Owner: Adam Moyes.
+Version 1.4, 14 September 2026. Owner: Adam Moyes.
 
 This document describes the system in this repository well enough for a gated architecture review: what the parts are, what each one is allowed to write, where the gates sit, and which decisions were taken on purpose. It is the reviewer's map. The model document says what the registers mean; the console README says what each screen does; the runbook says how the Confluence path is operated. This document says how they fit and why.
 
@@ -92,19 +92,20 @@ This is the table a reviewer should check first. Anything not in it is a defect.
 
 | Target | Written by | When | Guard |
 |---|---|---|---|
-| Item files | The freeze, once | Baseline mode, on Freeze | Every register empty; not already frozen; Made by given; no failure-level support undecided |
+| Item files | The freeze | Baseline mode, on Freeze | Every register empty; not already frozen; Made by given; no failure-level support undecided |
+| Item files | The console, direct mode | Every move, edit, new item | Model transitions and required fields (`model.py`); Made by given; `commit()` in `server.py` is the only writer |
 | Item files | The ingester (sibling) | Applying change sets and transcripts | The ingester's gate; never from this repository |
-| Change set blocks | The console | Every move, edit, new item | Model transitions and required fields (`model.py`); Made by given |
+| Change set blocks | The console, change-sets mode | Every move, edit, new item | Model transitions and required fields (`model.py`); Made by given |
 | `baseline/verdicts.json` | The console | Every verdict, edit or support verdict | Fields limited to `EDITABLE` in `baseline.py`; an offered requirement needs an owner before Accept |
 | `supports-dismissed.json` | The console | Dismissing a live support | Reason and Made by required |
 | `baseline/skip-pages.txt` | The console | Treat as a view, or restore | A page title only; the page stays pulled and is never sent by the push |
 | `baseline/<page>.md`, `.raw/` | Import skill via the converter | On pull | `permissions.read`; parent page and direct children only |
-| `push/` | Push builder | On `make push-pages` | `push.engagement` name; parent page id; pull logged; frozen |
+| `push/` | Push builder | On `make push-pages` | `push.engagement` name; parent page id; pull logged |
 | Confluence pages | Push skill | On `/push-confluence` | `permissions.write`; manifest read and reported; page version unchanged since pull; never delete |
 | `confluence.json` | Both skills | Permission answers and log entries | The skills may not edit `push.engagement` or `parent_page_url` to pass a refusal |
 | `handoffs/` | The handoff skill | Session end | Context only; `/resume` classifies it fresh, moved on, needs rechecking or superseded before acting |
 
-The one-time freeze is the deliberate exception to "the console never writes an item file". The rule as now stated: the console writes item files once, at the baseline freeze, and never again.
+Which of the two item-file writers is active is a per-engagement choice, `- Writes:` in `engagement.md`, direct by default. The freeze runs the same in both modes and is the only way registers are created from a pull.
 
 ## 6. Gates
 

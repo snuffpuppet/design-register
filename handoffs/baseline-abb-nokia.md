@@ -5,7 +5,7 @@ written: 14 September 2026
 commit: 5b0cdf1
 branch: main
 status: active
-model-version: 2.25
+model-version: 2.26
 ---
 
 ## Objective
@@ -31,9 +31,11 @@ Turn the registers already held in the oss-kb Confluence Design Register, part p
 5. Done: Link existing is built and verified on the sample, unit tested, and in the docs.
 6. Work Missing supports to zero failures. Expect S8 to fire for every vendor CR without a trigger and S5 for every limitation the source calls Accepted with no decision behind it; Reconstruct where the row carries a rationale, Reassess where it carries nothing. Set owners on offered requirements from the stakeholder register. Freeze. Done when `baseline/frozen.md` exists with its Implied at baseline table and the register tabs show items.
 7. `make push-pages ENG=engagements/abb-nokia`, read the manifest, then `/push-confluence abb-nokia`. The first real send will show whether the connector's update call takes the storage body as built and how it reports versions; expect to adjust the skill's send step. Done when the log in `confluence.json` has a push entry.
-8. Start running the engagement: Made by set, meetings from Outstanding and Work through, weekly SLT report. Change sets accumulate for the ingester; the Supports needed panel and the move dialog keep the chain of records complete as items move.
+8. Start running the engagement: Made by set, meetings from Outstanding and Work through, weekly SLT report. Changes are written in place and go back with `/push-confluence`; the Supports needed panel and the move dialog keep the chain of records complete as items move.
 
 ## Decisions taken on purpose
+
+- Direct writes are the default (14 September 2026): the console rewrites item files in place with a History line, and change sets stay as a per-engagement mode (`- Writes: change-sets`) for when the ingester is ported. The push builds from the registers as they stand. Freeze is kept as the one way registers are created from a pull.
 
 - The baseline produces a register (item files at the freeze), not a change set. Rejected: exporting the accepted set as one change set for the ingester to apply, which left the engagement empty until another machine ran the ingester and pushed 300 items through a path built for a meeting's worth of changes.
 - The push builds to files first and only the named engagement can be pushed. Rejected: guessing the engagement from the folder, which would let a test copy reach Confluence.

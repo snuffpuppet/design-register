@@ -1,4 +1,4 @@
-"""Register model 2.25 as data: types, states, transitions, the fields each move demands, and the supports each state implies.
+"""Register model 2.26 as data: types, states, transitions, the fields each move demands, and the supports each state implies.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the

@@ -4,7 +4,7 @@ Version 0.4, 11 September 2026.
 
 - Client: puppy-gloves (sanitised name)
 - Domain: order and provisioning
-- Model version: 2.22
+- Model version: 2.26
 
 ## Phases
 

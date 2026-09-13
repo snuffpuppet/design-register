@@ -1,8 +1,8 @@
 # Register console
 
-Version 0.2, 14 September 2026.
+Version 0.3, 14 September 2026.
 
-A lifecycle console for the registers in `solution-register-model.md` (2.25). It reads an engagement folder and shows the registers as they would be once every unapplied change set is applied. Every move, edit or new item made in it is appended as one item block to the current session's change set under `<engagement>/change-sets/`. It writes item files only once, at the baseline freeze. The ingester in `solution-register` applies change sets as its second pathway (model section 11) and resolves conflicts there.
+A lifecycle console for the registers in `solution-register-model.md` (2.26). It reads an engagement folder, overlays any unapplied change sets, and writes every move, edit or new item in the engagement's mode. `- Writes: direct` in `engagement.md`, the default when the line is absent, rewrites the item file, stamps `updated` and appends a line to its History section; git is the record. `- Writes: change-sets` appends one item block to the current session's change set under `<engagement>/change-sets/` for the ingester in `solution-register` to apply (model section 11). The baseline freeze writes the registers' first item files in either mode.
 
 ## Run
 
@@ -41,7 +41,8 @@ One file per maker per session, `CS-nnnn.md`. Header per section 11; blocks in t
 |---|---|
 | `model.py` | The model as data: states, transitions, required fields, link words, the `SUPPORTS` table. The only place the console knows the model. |
 | `integrity.py` | Section 9 and the `SUPPORTS` table over item dicts. Pure; used by baseline and live. Rules read from `model.py` only. |
-| `server.py` | Reads items and change sets, overlays them, serves the API, appends blocks. |
+| `server.py` | Reads items and change sets, overlays them, serves the API, writes through `commit()` in the engagement's mode. |
+| `items.py` | The item file layout: `parse_item` and `render_item`, shared by the server and the freeze. |
 | `static/` | The page. Vanilla HTML, CSS and JS. |
 | `baseline.py` | Baseline mode: tolerant table import, duplicate suggestions, verdicts, edits, freeze. |
 | `confluence-runbook.md` | How Claude pulls the Confluence registers into `baseline/` and pushes the normalised result back, governed by `../confluence.json`. |

@@ -12,9 +12,9 @@ An engagement starts in one of two ways. Meeting transcripts go through the inge
 
 1. `/import-confluence <engagement>` pulls the Design Register pages into `engagements/<engagement>/baseline/`, cell for cell, under a read permission recorded in `confluence.json`.
 2. The console's Baseline mode shows every table row as a candidate, whatever it claims to be. You reject with a reason, discard what is not a register row, merge duplicates into a survivor, retype, edit fields, and accept. Nothing trusts the source's ids or statuses; they are kept as references.
-3. **Freeze baseline** writes the accepted set as the registers' first item files, assigns ids, and records the map from source id to our id. This is the one time the console writes item files. From here the engagement is live.
-4. Every later move, edit or new item in the console appends a block to a **change set**, a dated file naming who made the change and on what evidence. The ingester applies change sets and assigns ids to new items.
-5. `/push-confluence <engagement>` sends the frozen registers back to the same Confluence pages, tables replaced and the source ids kept as a column, under a write permission and an engagement guard so only the named engagement can ever be pushed.
+3. **Freeze baseline** writes the accepted set as the registers' first item files, assigns ids, and records the map from source id to our id. From here the engagement is live.
+4. Every later move, edit or new item in the console is written in the engagement's mode. `direct`, the default, rewrites the item file and appends a History line, with git as the record. `change-sets` appends a block to a dated **change set** naming who made the change and on what evidence, for the ingester to apply.
+5. `/push-confluence <engagement>` sends the registers as they stand back to the same Confluence pages, tables replaced and the source ids kept as a column, under a write permission and an engagement guard so only the named engagement can ever be pushed.
 
 `ARCHITECTURE.md` is the reviewer's map: components, write paths, gates, and the decisions taken on purpose. `CLAUDE.md` is what a coding session must keep.
 
@@ -24,7 +24,7 @@ An engagement starts in one of two ways. Meeting transcripts go through the inge
 |---|---|
 | `ARCHITECTURE.md` | Components, data flows, write paths, gates, decisions and the checklist for a gated architecture review. |
 | `solution-register-model.md` | The register model, version 2.25. Item types, states, fields, transitions, integrity rules, the outstanding view, and section 11, change sets. The single source of truth for everything else here. |
-| `console/` | The register console: a web app that reads an engagement folder, shows the registers as proposed, and appends every edit to a change set. The one time it writes item files is the baseline freeze. See `console/README.md`. |
+| `console/` | The register console: a web app that reads an engagement folder, and writes every edit in the engagement's mode: in place by default, or as change set blocks. See `console/README.md`. |
 | `console/confluence-runbook.md` | How Confluence registers are pulled, baselined, frozen and pushed back, as an operator runs it. |
 | `confluence.json` | The Confluence source for the baseline: parent page, connector, engagements root, and read and write permissions. |
 | `.claude/skills/import-confluence/` | The `/import-confluence <engagement>` skill that pulls the Design Register subpages into `engagements/<engagement>/baseline/`. |
@@ -45,10 +45,11 @@ Confluence Design Register                         transcripts
 engagements/<name>/baseline/                 solution-register ingester
         │  console, Baseline mode: verdicts,       ▲  applies change sets,
         │  missing supports offered and accepted   │
-        │  Freeze: writes item files once          │  assigns ids, runs the
+        │  Freeze: writes the first item files      │  assigns ids, runs the
         ▼                                          │  integrity rules
 engagements/<name>/{requirements,decisions,…}/     │
-        │  console: moves, edits, new items        │
+        │  console: moves, edits, new items,       │
+        │  in place (default) or as change sets   │
         ▼                                          │
 change-sets/CS-nnnn.md  ───────────────────────────┘
         │
@@ -96,4 +97,4 @@ Point it at a real engagement with `make up ENG=engagements/<name>`. Everything 
 
 ## Conventions
 
-Australian English. No em dashes. Versioned documents with a date near the top. Item files carry `updated` and rely on git for history. The ingester is never edited from this repository.
+Australian English. No em dashes. Versioned documents with a date near the top. Item files carry `updated` and a History section and rely on git for history. The ingester is never edited from this repository.

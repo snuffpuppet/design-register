@@ -1,6 +1,6 @@
 # Confluence baseline runbook
 
-Version 0.1, 11 September 2026.
+Version 0.2, 14 September 2026.
 
 How generated registers held in Confluence become a baselined engagement, and how the result goes back. Claude Code does the Confluence side through an MCP connector; the console does the baseline; the ingester in `solution-register` applies the change set. The three never share anything but files.
 
@@ -53,15 +53,15 @@ In the console, Baseline mode. Work through the candidates: reject with a reason
 
 ## 3. Apply
 
-Nothing to apply: the frozen item files are the baseline. From here every change is a change set, and the ingester in `solution-register` applies those through its gate as usual.
+Nothing to apply: the frozen item files are the baseline. From here the console writes in the engagement's mode: in place by default, or as change sets the ingester in `solution-register` applies through its gate.
 
 ## 4. Push
 
 `/push-confluence <engagement>`. The skill runs in two halves, and the first sends nothing.
 
-1. **Build.** `make push-pages ENG=engagements/<engagement>` runs `console/push-pages.py` in the console image. It refuses unless the engagement is the one named in `confluence.json` under `push.engagement`, every pulled page came from the configured parent page, a pull for that engagement is in `log`, and `baseline/frozen.md` exists. It then writes `<engagement>/push/`: a `manifest.json` and one `<page-id>.json` per register page holding the storage-format body to send. Each item goes back to the page it was pulled from, with the model's columns for its type, our ids, statuses in the model's words, links, and a `Source id` column carrying the knowledge base's own id so its pipeline can reconcile. In `replace-tables` mode the body is the page's own body with the register table swapped and the note added; when the `.raw` audit copy of the page is missing the body is rebuilt from the pulled markdown and the manifest says so. In `new-child` mode the body is a fresh page named `<title> (baselined)`. Pages that gave no items (summaries, conventions) are listed as untouched and are not sent. Rejections become a `Baseline rejections` child page if any were rejected.
+1. **Build.** `make push-pages ENG=engagements/<engagement>` runs `console/push-pages.py` in the console image. It refuses unless the engagement is the one named in `confluence.json` under `push.engagement`, every pulled page came from the configured parent page, and a pull for that engagement is in `log`. The pages carry the registers as they stand; `baseline/frozen.md`, when present, fills the Source id column. It then writes `<engagement>/push/`: a `manifest.json` and one `<page-id>.json` per register page holding the storage-format body to send. Each item goes back to the page it was pulled from, with the model's columns for its type, our ids, statuses in the model's words, links, and a `Source id` column carrying the knowledge base's own id so its pipeline can reconcile. In `replace-tables` mode the body is the page's own body with the register table swapped and the note added; when the `.raw` audit copy of the page is missing the body is rebuilt from the pulled markdown and the manifest says so. In `new-child` mode the body is a fresh page named `<title> (baselined)`. Pages that gave no items (summaries, conventions) are listed as untouched and are not sent. Rejections become a `Baseline rejections` child page if any were rejected.
 2. **Read the manifest** and say in chat what would be sent: each page, its pulled version, item count, and any warning.
-3. **Gate.** `permissions.write` must be `granted`, or `ask` answered yes in chat and then recorded. Re-read each page's current version through the connector; if it is past the pulled `page-version`, stop and say which page moved on.
+3. **Gate.** `permissions.write` must be `granted`, or `ask` answered yes in chat and then recorded. Re-read each page's current version through the connector; if it is past the pulled `page-version`, stop and say which page moved on. After a successful send the skill writes the new version into that line, so a later push compares against what the console last sent.
 4. **Send**, one page at a time, through the connector's update-page call with the body from the file, and the create-page call for new children. Never delete a page; Confluence keeps the previous version. After each page, note its new version in the manifest entry.
 5. Append a `push` entry to `log`: date, engagement, pages sent, by.
 

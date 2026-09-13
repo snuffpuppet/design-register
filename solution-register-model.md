@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.25, 13 September 2026. Owner: Adam Moyes.
+Version 2.26, 14 September 2026. Owner: Adam Moyes.
+
+Version 2.26 lets a tool write item files directly. Section 7 adds an optional History section, one line per write, and section 11 says change sets are one of two ways a tool may write, chosen per engagement. The ingester's apply stage is unchanged and serves the change set mode.
 
 Version 2.25 adds the supports rules. Sections 4.4 and 5 already say what must exist beside an item in a given state; a tool may read them as implications and offer the missing record prefilled, in its first state, with Approved by empty. Two link words are added for cases the sections implied without naming: a risk's mitigation actions are open items linked "mitigated by", and an accepted workaround that needs something built raises a requirement linked "needs". Rules I21 to I23 check them. Nothing changes for an item that already meets 4.4.
 
@@ -182,7 +184,7 @@ Removed in 2.17. Items carry no Scope. A way of filtering the registers by servi
 
 ## 7. Register layout
 
-One file per item, named by its id, in a folder per type: `requirements/REQ-0004.md`, `decisions/`, `limitations/`, `risks/`, `open-items/`, `change-requests/`. The file opens with a YAML frontmatter block holding the header fields in 4.1 and the short type-specific fields, in kebab-case (`raised-on`, `closed-on`, `implemented-by`, `vendor-ref`, `links` as a list). Long fields sit in the body under fixed headings: Source (one citation or reference per line), Rationale, Impact, Options, Reason, Trigger, Mitigation, Next action, Notes. A change to one item is a change to one file, and the item's history is the file's history in version control.
+One file per item, named by its id, in a folder per type: `requirements/REQ-0004.md`, `decisions/`, `limitations/`, `risks/`, `open-items/`, `change-requests/`. The file opens with a YAML frontmatter block holding the header fields in 4.1 and the short type-specific fields, in kebab-case (`raised-on`, `closed-on`, `implemented-by`, `vendor-ref`, `links` as a list). Long fields sit in the body under fixed headings: Source (one citation or reference per line), Rationale, Impact, Options, Reason, Trigger, Mitigation, Next action, Notes, and optionally History, one line per write made by a tool in the form `date | person | move | gist | evidence`. A change to one item is a change to one file, and the item's history is that section together with the file's history in version control.
 
 Frontmatter per type, in this order:
 
@@ -266,7 +268,7 @@ A tool that runs these rules should offer the missing record for each failing it
 
 ## 11. Change sets: the second ingestion pathway
 
-Item files are written by one mechanism, the ingester in `solution-register`, through a gated stage. Transcripts are its first pathway. A change set is its second. Any tool that lets a person run the lifecycle, a web console or a script, never writes an item file. It writes a change set, and the ingester applies it.
+The ingester in `solution-register` writes item files through a gated stage. Transcripts are its first pathway. A change set is its second. A tool that lets a person run the lifecycle, a web console or a script, writes in one of two ways chosen per engagement: directly, rewriting the item file, stamping Updated and appending a History line, with version control as the record; or as a change set the ingester applies through the stage below. The direct way suits an engagement the ingester is not yet part of; the change set way keeps the ingester as the single point of change.
 
 **What a change set is.** One file per working session of the tool, `change-sets/CS-nnnn.md`, dated and signed, holding the changes the session made in the same item block shape a dossier uses (ingester format F4). Its header carries:
 
