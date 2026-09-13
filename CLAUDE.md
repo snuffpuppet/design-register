@@ -1,4 +1,4 @@
-# solution-workflows
+# design-register
 
 Read `README.md` first for what is here and how the pieces fit. This file is what a session needs that the README does not say.
 

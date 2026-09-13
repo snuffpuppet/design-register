@@ -1,4 +1,4 @@
-# solution-workflows
+# design-register
 
 The solution architecture process for a vendor build, and the tools that make it cheap to run: the register model, the lifecycle console, and the path that brings registers in from Confluence, lets a person rationalise them into a starting point, and feeds every later change through one approved gate.
 

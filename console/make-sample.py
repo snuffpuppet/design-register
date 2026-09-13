@@ -158,7 +158,7 @@ item("CR-0002", "Single invoice line for split-site orders", "Deferred",
 open(os.path.join(ROOT, "change-sets", "CS-0001.md"), "w", encoding="utf-8").write("""# Change set: CS-0001
 
 - Change set: CS-0001
-- Session: solution-workflows console 0.1
+- Session: design-register console 0.1
 - Session date: 10 September 2026
 - Made by: Priya Nair
 - Meeting: operations weekly

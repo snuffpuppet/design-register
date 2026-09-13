@@ -22,7 +22,7 @@ PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
 CS_DIR = os.path.join(ENG, "change-sets")
 B_DIR = os.path.join(ENG, "baseline")
 DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
-TOOL = "solution-workflows console 0.1"
+TOOL = "design-register console 0.1"
 LOCK = threading.Lock()
 
 MONTHS = "January February March April May June July August September October November December".split()
