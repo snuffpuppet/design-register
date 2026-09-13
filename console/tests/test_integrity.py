@@ -5,7 +5,8 @@ import integrity as I
 def item(id, status, **f):
     kind = id.split("-")[0]
     base = {"id": id, "kind": kind, "status": status, "title": f.pop("title", id + " title"), "links": f.pop("links", []),
-            "owner": f.pop("owner", "Priya Nair"), "implemented-by": f.pop("implemented-by", "Vendor"), "source": f.pop("source", "workshop")}
+            "owner": f.pop("owner", "Priya Nair"), "implemented-by": f.pop("implemented-by", "Vendor"), "source": f.pop("source", "workshop"),
+            "raised-on": f.pop("raised-on", "1 September 2026")}
     base.update(f)
     return base
 

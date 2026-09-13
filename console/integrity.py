@@ -163,6 +163,8 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None):
             missing = M.missing_for(k, st, it)
             if missing:
                 fail("I2", it, "missing for " + st + ": " + "; ".join(missing))
+        if not str(it.get("raised-on", "")).strip():
+            fail("I2", it, "no Raised on")
         if st in M.CLOSES.get(k, set()) and not str(it.get("closed-on", "")).strip():
             fail("I2", it, "no Closed on")
         # I3
