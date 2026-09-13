@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.1, 13 September 2026. Owner: Adam Moyes.
+Version 1.2, 13 September 2026. Owner: Adam Moyes.
 
 This document describes the system in this repository well enough for a gated architecture review: what the parts are, what each one is allowed to write, where the gates sit, and which decisions were taken on purpose. It is the reviewer's map. The model document says what the registers mean; the console README says what each screen does; the runbook says how the Confluence path is operated. This document says how they fit and why.
 
@@ -15,7 +15,8 @@ Two things feed the registers. Transcripts of meetings are read by an ingester i
 | Component | Where | Runs | Writes |
 |---|---|---|---|
 | Register model | `solution-register-model.md` | Read by people and by `console/model.py` | Nothing |
-| Register console | `console/` | Docker only, `make up` | Change set blocks; item files once, at the freeze |
+| Register console | `console/` | Docker only, `make up`; unit tests with `make test` | Change set blocks; item files once, at the freeze; `supports-dismissed.json` |
+| Integrity engine | `console/integrity.py` | Inside the console, pure | Nothing; returns failures, warnings, prompts and prefilled offers from `model.py`'s `SUPPORTS` table |
 | Baseline module | `console/baseline.py` | Inside the console | `baseline/verdicts.json`, `frozen.md`, `rejections.md`, item files at the freeze |
 | Page converter | `console/pull-page.py` | One-shot in the console image | `baseline/<page>.md` |
 | Push builder | `console/push-pages.py` | One-shot in the console image, `make push-pages` | `<engagement>/push/*.json` |
@@ -63,9 +64,10 @@ Confluence parent page and its direct children
       ▼
 baseline/.raw/*.json  →  pull-page.py  →  baseline/<page>.md
       │  console, Baseline mode: every row a candidate; reject, discard, merge, retype, edit, accept
+      │  Missing supports: offers the records the accepted rows imply; accepted offers become implied candidates
       ▼
-baseline/verdicts.json
-      │  Freeze baseline               guard: registers empty, not already frozen, Made by given
+baseline/verdicts.json  (verdicts, edits, _implied, _supports)
+      │  Freeze baseline               guard: registers empty, not already frozen, Made by given, no required support undecided
       ▼
 item files + baseline/frozen.md + baseline/rejections.md
       │  make push-pages                guard: push.engagement, parent page, pull logged, frozen
@@ -82,16 +84,19 @@ The baseline never trusts its input. A row's claimed id becomes a reference in N
 
 Every move, edit or new item made in the console appends one block to the current session's change set. A block names the target item, the fields changed, the state moved from and to, the evidence, and the maker. The console shows the registers as they would be once every unapplied change set is applied, so a meeting sees the proposed state while the files hold the approved one. The ingester applies change sets through its own gate and assigns ids to new items. Until then a new item carries a provisional id such as `LIM-0002.3`, meaning change set 2, block 3.
 
+The integrity engine runs over that overlaid view. Each item whose state implies a record it lacks gets an offer, prefilled from the item, in the record's first state. Accepting one from the item's panel writes a create block and a link block; ticking one in the move dialog writes the create block before the transition block so the move's links can name it. Dismissing one is recorded in `supports-dismissed.json` beside the registers, never in a change set, so the ingester only ever sees blocks it knows.
+
 ## 5. Write paths and who owns them
 
 This is the table a reviewer should check first. Anything not in it is a defect.
 
 | Target | Written by | When | Guard |
 |---|---|---|---|
-| Item files | The freeze, once | Baseline mode, on Freeze | Every register empty; not already frozen; Made by given |
+| Item files | The freeze, once | Baseline mode, on Freeze | Every register empty; not already frozen; Made by given; no failure-level support undecided |
 | Item files | The ingester (sibling) | Applying change sets and transcripts | The ingester's gate; never from this repository |
 | Change set blocks | The console | Every move, edit, new item | Model transitions and required fields (`model.py`); Made by given |
-| `baseline/verdicts.json` | The console | Every verdict or edit | Fields limited to `EDITABLE` in `baseline.py` |
+| `baseline/verdicts.json` | The console | Every verdict, edit or support verdict | Fields limited to `EDITABLE` in `baseline.py`; an offered requirement needs an owner before Accept |
+| `supports-dismissed.json` | The console | Dismissing a live support | Reason and Made by required |
 | `baseline/skip-pages.txt` | The console | Treat as a view, or restore | A page title only; the page stays pulled and is never sent by the push |
 | `baseline/<page>.md`, `.raw/` | Import skill via the converter | On pull | `permissions.read`; parent page and direct children only |
 | `push/` | Push builder | On `make push-pages` | `push.engagement` name; parent page id; pull logged; frozen |
@@ -106,7 +111,7 @@ The one-time freeze is the deliberate exception to "the console never writes an 
 A gate is a place where a person's answer, recorded in a file, decides whether something happens.
 
 - **Read gate.** `permissions.read` in `confluence.json`: `ask`, `granted` or `denied`. An `ask` is answered in chat and the answer is written back with a log entry. Only the configured parent page and its direct children are ever read.
-- **Freeze.** A two-step button in the console. It writes item files and ends baselining; the view goes read only. It refuses if any register already has an item, so a live engagement cannot be overwritten by a second freeze.
+- **Freeze.** A two-step button in the console. It writes item files and ends baselining; the view goes read only. It refuses if any register already has an item, so a live engagement cannot be overwritten by a second freeze, and it refuses while the Missing supports tab still holds an undecided failure-level offer, so the first registers pass the integrity rules on day one.
 - **Engagement guard on the push.** `push.engagement` names the one folder that may be pushed, currently `abb-nokia`. A test copy, a transposed set or a stale folder is refused before any page is built. The pulled pages must also carry the configured parent page id, and a pull for that engagement must be in the log.
 - **Write gate.** `permissions.write`, same shape as read. The push skill also fetches each page's current version and stops if it moved past the pulled version, since someone has edited the page since the pull.
 - **Change set apply.** In the sibling repository, not here. This repository only produces change sets.
@@ -122,7 +127,9 @@ Each of these was a choice with a rejected alternative. A review should reopen o
 5. **The push builds first and sends second.** What will be written to Confluence is a file on disk that a person reads before the connector is touched. The build and the send are separate tools with separate guards.
 6. **Source ids are references, never ours.** A pulled id lives in Notes and in the id map, and goes back to Confluence as a Source id column. Our ids are assigned at the freeze in acceptance order, four digits, per type.
 7. **Confluence pages are replaced in place by default.** Replace-tables mode swaps the register table and keeps the prose, and Confluence keeps the previous version. New-child mode exists for a source that must not be touched. Nothing is ever deleted.
-8. **The ingester is never edited from here.** It is at model 2.20 and is ported deliberately. The two repositories share the model document and the change set format and nothing else.
+8. **The engine drafts, a person approves.** Offers arrive in a record's first state with Approved by empty and no guessed owner; a decision reaches Accepted only by a person's move. Rejected: creating Accepted decisions from a source row's Approved by column at the baseline. The reconstruction choice for a limitation the source calls Accepted is Reconstruct (a Proposed decision drafted from the row) or Reassess (back to Under assessment), defaulting on whether the row carries a rationale.
+9. **An accepted limitation still needs a decision; a change-requested one needs only the change request.** The CR carries its own Reason, Estimate and Approved by, so a decision beside it would restate it. The DEC behind an accepted limitation is the one place that records who signed off on living with the shortfall. Rejected: putting Approved by and Rationale on the limitation and dropping the DEC.
+10. **The ingester is never edited from here.** It is at model 2.20 and is ported deliberately. The two repositories share the model document and the change set format and nothing else.
 
 ## 8. Known limits and open risks
 
@@ -130,6 +137,7 @@ Each of these was a choice with a rejected alternative. A review should reopen o
 - Pages pulled without a `.raw` audit copy are rebuilt from the pulled markdown on push, which carries the pull's flattening of formatting into the page. The manifest says so per page and the skill asks before continuing.
 - Column heuristics in `baseline.py` are a word table. A real page with a header the table misses lands that column in Notes. The fix is a word added to the table, and the first pull of a new source should expect one or two.
 - The console has no authentication. It is a local tool bound to a port on one machine and is not to be exposed.
+- The integrity engine has no current-phase input, so I17 checks only that a deferred change request names a phase. A dismissed live support has no undo in the console; the entry is removed from `supports-dismissed.json` by hand.
 - Duplicate suggestion is title-token overlap and same source id. It is deliberately conservative after the first pass produced noise; a suggestion missed is a row the reviewer finds by search.
 
 ## 9. Review checklist
