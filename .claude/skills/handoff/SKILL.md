@@ -7,7 +7,13 @@ description: Use at the end of a working session, or when asked to hand off, wra
 
 Write `handoffs/<objective-slug>.md`, one file per objective, replacing any earlier handoff for the same objective. The file is committed with the work, so it travels to any machine that pulls the repository.
 
-**Invocation:** `/handoff [objective]`. Without an argument, take the objective from the session: the thing the user has been driving at, in their words, not the last task done. If the session served two objectives, write two files.
+**Invocation:** `/handoff [guide]`. The argument is free text and is a guide to the objective, not a file name: `/handoff baseline abb-nokia`, `/handoff getting the push working`, `/handoff the SLT report`. Use it to decide which objective this handoff is about:
+
+1. Read `handoffs/README.md`. If an existing handoff's title or slug matches the guide, this handoff replaces it and keeps its slug.
+2. If none matches, this is a new objective. Write its title from the guide in the user's terms, and derive a short slug from it.
+3. If the guide is ambiguous between two existing handoffs, ask which.
+
+With no argument, re-establish the objective from the session itself: what the user has been driving at across the conversation, in their words, not the last task done. Check it against `handoffs/README.md` the same way. If the session served two objectives, write two files and say so. If you cannot name the objective with confidence, ask in one line rather than guessing.
 
 ## Altitude
 
