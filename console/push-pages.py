@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """push-pages.py <engagement-dir> [--config confluence.json] [--out <dir>]
 
-Builds what goes back to Confluence after a baseline freeze, one file per register page, and writes
-nothing to Confluence itself. The import skill pushes the files through the connector under the write
+Builds what goes back to Confluence from the registers as they stand, one file per register page, and
+writes nothing to Confluence itself. The import skill pushes the files through the connector under the write
 gate in confluence.json; this script only prepares them, so what will be written can be read first.
 
-Input is the frozen engagement: its item files, baseline/frozen.md (the id map), baseline/verdicts.json
-and the pulled pages under baseline/. Each item knows the page it came from (the "Baseline import from"
+Input is the engagement: its item files, the pulled pages under baseline/, and when the baseline was
+frozen, baseline/frozen.md (the id map) and baseline/verdicts.json. Each item knows the page it came from (the "Baseline import from"
 line in its Notes), so a page gets back the items that came from it, now with the model's ids, columns
 and status words, plus a Source id column carrying the knowledge base's own id for its pipeline.
 
@@ -67,10 +67,10 @@ def load_items(eng):
 
 
 def id_map(bdir):
-    """Source id -> our id, from frozen.md. Returns (map, frozen-on)."""
+    """Source id -> our id, from frozen.md. Returns (map, frozen-on); both empty when the baseline was never frozen."""
     p = os.path.join(bdir, "frozen.md")
     if not os.path.exists(p):
-        sys.exit("no baseline/frozen.md: the baseline has not been frozen, so there is nothing to push")
+        return {}, ""
     m, on = {}, ""
     for ln in open(p, encoding="utf-8"):
         d = re.match(r"- Frozen on: (.*)", ln)
@@ -223,14 +223,14 @@ def build(eng, cfg, outdir):
     merged = sum(1 for e in verdicts.values() if isinstance(e, dict) and e.get("verdict") == "Merge")
     rejected = sum(1 for e in verdicts.values() if isinstance(e, dict) and e.get("verdict") == "Reject")
     os.makedirs(outdir, exist_ok=True)
-    manifest = {"engagement": os.path.basename(os.path.abspath(eng)), "built": today(), "frozen": frozen_on, "mode": mode, "pages": [], "unplaced": unplaced,
+    manifest = {"engagement": os.path.basename(os.path.abspath(eng)), "built": today(), "as_of": today(), **({"frozen": frozen_on} if frozen_on else {}), "mode": mode, "pages": [], "unplaced": unplaced,
                 "untouched": [p["title"] for p in pages if p["id"] not in placed]}
     for page in pages:
         its = placed.get(page["id"])
         if not its: continue
         kinds = sorted(set(i["kind"] for i in its))
-        note = (f"Baselined {frozen_on or today()} from this page; {len(its)} items carried into the engagement register"
-                f"{', ' + str(merged) + ' merged' if merged else ''}{', ' + str(rejected) + ' rejected across the baseline' if rejected else ''}. "
+        note = (f"Register as at {today()} from this page; {len(its)} items in the engagement register"
+                f"{', baselined ' + frozen_on if frozen_on else ''}{', ' + str(merged) + ' merged' if merged else ''}{', ' + str(rejected) + ' rejected across the baseline' if rejected else ''}. "
                 "Source of truth is now the engagement register; ids are the register's, Source id is the id this page had.") if add_note else ""
         tables = "\n".join(table_html(k, [i for i in its if i["kind"] == k], refs) for k in kinds)
         entry = {"id": page["id"], "title": page["title"], "version": page["version"], "parentId": page["parentId"], "url": page["url"], "items": len(its), "kinds": kinds}

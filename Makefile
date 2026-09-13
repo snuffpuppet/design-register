@@ -12,7 +12,7 @@
 #   make shell         a shell inside the running container
 #   make clean         stop the console, remove the image, and delete generated data
 #   make anonymise     write a shareable copy of an engagement (see engagements/abb-nokia/anonymise)
-#   make push-pages    build the Confluence push files for a frozen engagement into <ENG>/push/ (sends nothing)
+#   make push-pages    build the Confluence push files for an engagement into <ENG>/push/ (sends nothing)
 #   make test          run the console's unit tests inside the python image
 #
 # Point the console at another engagement:  make up ENG=engagements/acme
