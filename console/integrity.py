@@ -153,6 +153,9 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None):
     if stakeholders is not None:
         names = {s["name"] for s in stakeholders}
         mentioned = {s["name"] for s in stakeholders if str(s.get("role", "")).lower() == "mentioned"}
+
+        def known(name):
+            return not name or name in names or name.startswith("Vendor:") or name == "Joint"
     for it in items:
         k, st = it["kind"], it["status"]
         term = st in M.TERMINAL.get(k, set())
@@ -253,9 +256,17 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None):
         if names is not None:
             for key in ("owner", "approved-by"):
                 v = str(it.get(key, "")).strip()
-                ok = not v or v in names or v.startswith("Vendor:") or v == "Joint"
-                if not ok:
+                if not known(v):
                     fail("I19", it, f"{M.LABELS.get(key, key)} {v!r} is not a known stakeholder")
                 if key == "owner" and v in mentioned:
                     fail("I19", it, f"Owner {v!r} has role Mentioned")
+            for name in re.split(r"[,;]", str(it.get("consulted", "") or "")):
+                name = name.strip()
+                if not known(name):
+                    fail("I19", it, f"Consulted {name!r} is not a known stakeholder")
+        # I4 (Due, warning)
+        if k == "OI" and st != "Closed" and not str(it.get("due", "")).strip():
+            warn("I4", it, "no Due")
+        if k == "RSK" and st in ("Identified", "Mitigating") and not str(it.get("due", "")).strip():
+            warn("I4", it, "no Due")
     return F, W

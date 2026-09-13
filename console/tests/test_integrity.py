@@ -185,6 +185,28 @@ class Rules(unittest.TestCase):
         r = I.check([item("REQ-0001", "Agreed", moscow="Must", owner="Vendor: Nokia")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
         self.assertEqual(fails(r, "I19"), [])
 
+    def test_i19_consulted(self):
+        r = I.check([item("DEC-0001", "Proposed", rationale="x", consulted="Nobody Known")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
+        self.assertEqual(fails(r, "I19"), ["DEC-0001"])
+        r = I.check([item("DEC-0001", "Proposed", rationale="x", consulted="Vendor: Nokia; Priya Nair")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
+        self.assertEqual(fails(r, "I19"), [])
+
+    def test_i4_due_warning_open_item(self):
+        r = I.check([item("OI-0001", "Open", **{"next action": "x", "due": ""})])
+        self.assertEqual(warns(r, "I4"), ["OI-0001"])
+        r = I.check([item("OI-0001", "Open", **{"next action": "x", "due": "1 October 2026"})])
+        self.assertEqual(warns(r, "I4"), [])
+
+    def test_i4_due_warning_risk(self):
+        r = I.check([item("RSK-0001", "Mitigating", **{"risk-kind": "Risk"}, trigger="t", mitigation="m", due="")])
+        self.assertEqual(warns(r, "I4"), ["RSK-0001"])
+        r = I.check([item("RSK-0001", "Mitigating", **{"risk-kind": "Risk"}, trigger="t", mitigation="m", due="1 October 2026")])
+        self.assertEqual(warns(r, "I4"), [])
+
+    def test_i2_raised_on_required(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", **{"raised-on": ""})])
+        self.assertIn("REQ-0001", fails(r, "I2"))
+
 
 if __name__ == "__main__":
     unittest.main()
