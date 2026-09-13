@@ -86,6 +86,7 @@ function render() {
   $("#print", m)?.addEventListener("click", () => window.print());
   m.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => { triageMove(el.dataset.tq); });
   m.querySelectorAll("[data-rk]").forEach(el => el.onclick = () => { riskKind = el.dataset.rk; render(); });
+  $("#flt-scope", m)?.addEventListener("change", e => { scopeFilter = e.target.value; render(); });
   m.querySelectorAll("[data-raw]").forEach(el => el.onclick = async e => { e.preventDefault(); const t = await (await fetch("/api/change-set/" + el.dataset.raw)).text(); $("#raw-" + el.dataset.raw).innerHTML = `<pre>${esc(t)}</pre>`; });
   // Work through carries the open item in the queue panel itself, so the drawer stays hidden there.
   // Calling renderDetail() in that view would call back into render() and recurse.
@@ -99,14 +100,20 @@ const row = (i, cols) => `<tr class="row ${i.pending.length ? "pending" : ""}" d
 const table = (items, cols) => `<div style="overflow-x:auto"><table><tr><th>ID</th><th>Title</th>${cols.map(c => `<th>${esc(S.model.labels[c] || c)}</th>`).join("")}</tr>${items.map(i => row(i, cols)).join("") || `<tr><td colspan="${cols.length + 2}" class="muted">none</td></tr>`}</table></div>`;
 
 let riskKind = "";
+let scopeFilter = "";
 function register(k) {
   let items = S.items.filter(i => i.kind === k);
+  const scopes = S.engagement.scopes || [];
   let chips = "";
   if (k === "RSK") {
     if (riskKind) items = items.filter(i => i["risk-kind"] === riskKind);
     chips = `<div class="moves" style="--c:var(--rsk)">${["", "Risk", "Assumption", "Dependency"].map(v => `<button data-rk="${v}" class="${riskKind === v ? "on" : ""}">${v || "All"}</button>`).join("")}</div>`;
   }
-  const cols = ["status", ...S.model.short[k].filter(f => f !== "owner"), "owner", "raised-on", "closed-on"];
+  if (scopes.length) {
+    if (scopeFilter) items = items.filter(i => i.scope === scopeFilter);
+    chips += `<select id="flt-scope"><option value="">All scopes</option>${scopes.map(s => `<option ${s === scopeFilter ? "selected" : ""}>${esc(s)}</option>`).join("")}</select>`;
+  }
+  const cols = ["status", ...S.model.short[k].filter(f => f !== "owner" && (f !== "scope" || scopes.length)), "owner", "raised-on", "closed-on"];
   return head(`${S.model.names[k]}s`, `${items.length} item${items.length === 1 ? "" : "s"}. Click a row to open it.`, `${chips}<button class="primary" data-new="${k}">New ${S.model.names[k].toLowerCase()}</button>`) + table(items, cols);
 }
 
@@ -256,6 +263,7 @@ const input = (key, val = "", req = false, kind = null) => {
   const lab = `<label>${esc(S.model.labels[key] || key)}${req ? ' <span class="req">required</span>' : ""}</label>`;
   if (c) return `<div class="field">${lab}<select data-f="${key}"><option value="">—</option>${c.map(o => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select></div>`;
   if (key === "owner" || key === "approved-by") return `<div class="field">${lab}<input data-f="${key}" list="stk" value="${esc(val)}">${stkList()}</div>`;
+  if (key === "scope") return `<div class="field">${lab}<select data-f="scope"><option value="">—</option>${(S.engagement.scopes || []).map(s => `<option ${s === val ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>`;
   if (key === "phase") return `<div class="field">${lab}<select data-f="phase"><option value="">—</option>${S.engagement.phases.map(p => `<option ${p === val ? "selected" : ""}>${p}</option>`).join("")}</select></div>`;
   if (S.model.long.REQ.concat(S.model.long.DEC, S.model.long.LIM, S.model.long.RSK, S.model.long.OI, S.model.long.CR).includes(key)) return `<div class="field">${lab}<textarea data-f="${key}">${esc(val)}</textarea></div>`;
   return `<div class="field">${lab}<input data-f="${key}" value="${esc(val)}"></div>`;
@@ -583,6 +591,7 @@ function sltMarkdown() {
 let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", tab: "rows", edit: null, confirmFreeze: false, pos: 0, help: false, sedit: null, sfields: {}};
 function baselineView() {
   const B = S.baseline, cs = B.candidates;
+  const hasScopes = (S.engagement.scopes || []).length > 0;
   const f = cs.filter(c => (!BF.kind || c.kind === BF.kind) && (!BF.page || c.page === BF.page) && (BF.verdict === "" ? true : BF.verdict === "none" ? !c.verdict : c.verdict === BF.verdict) && (!BF.q || (c.title + " " + c.description).toLowerCase().includes(BF.q.toLowerCase())));
   f.sort((a, b) => (a.verdict ? 1 : 0) - (b.verdict ? 1 : 0) || (b.inferred ? 1 : 0) - (a.inferred ? 1 : 0));
   const n = v => cs.filter(c => c.verdict === v).length;
@@ -621,15 +630,16 @@ function baselineView() {
       <select id="bf-kindset"><option value="">retype as…</option>${KINDS.map(k => `<option value="${k}">${S.model.names[k]}</option>`).join("")}</select>
       <span class="sep"></span><input id="bf-owner" placeholder="new owner" list="stk" style="width:170px"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">`).join("")}<option value="Joint"><option value="Vendor: "></datalist><button data-bulk="owner">Reassign owner</button><span class="sep"></span>
       <select id="bf-moscow"><option value="">set MoSCoW…</option>${S.model.choices.moscow.map(m => `<option>${m}</option>`).join("")}</select>
+      ${hasScopes ? `<select id="bf-scope"><option value="">set Scope…</option>${S.engagement.scopes.map(s => `<option>${esc(s)}</option>`).join("")}</select>` : ""}
       <select id="bf-impl"><option value="">set implemented by…</option>${S.model.choices["implemented-by"].map(m => `<option>${m}</option>`).join("")}</select>
       <button data-bulk="fields">Apply fields</button><button data-bulk="clear" class="ghost">Clear verdict</button></div>`}
-    <div style="overflow-x:auto"><table><tr><th></th><th>Type</th><th>Title</th><th>Page · source id</th><th>Owner</th><th>MoSCoW</th><th>Confidence</th><th>Verdict</th></tr>
+    <div style="overflow-x:auto"><table><tr><th></th><th>Type</th><th>Title</th><th>Page · source id</th><th>Owner</th>${hasScopes ? "<th>Scope</th>" : ""}<th>MoSCoW</th><th>Confidence</th><th>Verdict</th></tr>
     ${f.map(c => `<tr class="row ${c.verdict ? "decided" : ""}"><td>${B.frozen ? "" : `<input type="checkbox" data-sel="${c.id}" ${BF.sel.has(c.id) ? "checked" : ""}>`}</td>
       <td><span class="id" style="${COLOR(c.kind)}">${c.kind}</span></td>
       <td class="t"><div>${B.frozen ? esc(c.title) : `<a href="#" data-edit="${c.id}" title="Edit before the freeze">${esc(c.title)}</a>`}${c.inferred ? '<span class="tag">inferred</span>' : ""}${c.status ? `<span class="tag">${esc(c.status)}</span>` : ""}</div>${c.description ? `<div class="small muted">${esc(c.description.slice(0, 160))}</div>` : ""}</td>
       <td class="small">${esc(c.page)}${c.ref ? `<br><code>${esc(c.ref)}</code>` : ""}${c.source_status ? `<br><span class="muted">was ${esc(c.source_status)}</span>` : ""}</td>
-      <td>${esc(c.owner)}</td><td>${esc(c.moscow)}</td><td class="small">${esc(c.confidence)}</td>
-      <td class="st">${c.frozenAs ? `<span class="id" style="${COLOR(c.kind)}">${esc(c.frozenAs)}</span><br>` : c.exported ? `<span class="small muted">in ${esc(c.exported)}</span><br>` : ""}${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || '<tr><td colspan="8" class="muted">nothing matches</td></tr>'}
+      <td>${esc(c.owner)}</td>${hasScopes ? `<td>${esc(c.scope)}</td>` : ""}<td>${esc(c.moscow)}</td><td class="small">${esc(c.confidence)}</td>
+      <td class="st">${c.frozenAs ? `<span class="id" style="${COLOR(c.kind)}">${esc(c.frozenAs)}</span><br>` : c.exported ? `<span class="small muted">in ${esc(c.exported)}</span><br>` : ""}${c.verdict === "Reject" ? `Reject<br><span class="small muted">${esc(c.reason)}</span>` : c.verdict === "Merge" ? `Merge → ${esc(byId[c.mergedInto]?.title?.slice(0, 40) || "?")}` : esc(c.verdict)}</td></tr>`).join("") || `<tr><td colspan="${hasScopes ? 9 : 8}" class="muted">nothing matches</td></tr>`}
     </table></div>`}${BF.edit && byId[BF.edit] && !B.frozen ? blEditor(byId[BF.edit]) : ""}`;
 }
 /* Row by row: one undecided candidate at a time, in page order, with the verdicts on keys. */
@@ -650,7 +660,7 @@ function blPass(cs, byId) {
     <div class="triage"><div class="tq-main">
       <div class="toolbar"><div><span class="id" style="${COLOR(c.kind)}">${c.kind}</span> <span class="small muted">${esc(c.page)}${c.table ? " · " + esc(c.table) : ""}${c.ref ? " · " + esc(c.ref) : ""}${c.source_status ? " · was " + esc(c.source_status) : ""}</span></div><span class="small muted">${BF.pos + 1} of ${q.length}</span></div>
       <h2 style="margin:4px 0 10px">${esc(c.title)}${c.inferred ? '<span class="tag">inferred</span>' : ""}</h2>
-      ${f("Description", c.description)}${f("Owner", c.owner)}${f("MoSCoW", c.moscow)}${f("Phase", c.phase)}${f("Rationale", c.rationale)}${f("Impact", c.impact)}${f("Next action", c["next action"])}${f("Source", c.source)}${f("Notes", c.notes)}
+      ${f("Description", c.description)}${f("Scope", c.scope)}${f("Owner", c.owner)}${f("MoSCoW", c.moscow)}${f("Phase", c.phase)}${f("Rationale", c.rationale)}${f("Impact", c.impact)}${f("Next action", c["next action"])}${f("Source", c.source)}${f("Notes", c.notes)}
       <div class="moves" style="--c:var(--cs)">
         <button data-pv="Accept" title="a">Accept <kbd>a</kbd></button>
         <select id="pv-reason">${B.reasons.map(r => `<option ${BF.reason === r ? "selected" : ""}>${r}</option>`).join("")}</select><button data-pv="Reject" title="r">Reject <kbd>r</kbd></button>
@@ -743,7 +753,7 @@ function wireBaseline(m) {
       else if (w === "Discard") await blPost({ids, verdict: "Discard"});
       else if (w === "clear") await blPost({ids, verdict: ""});
       else if (w === "owner") { const o = $("#bf-owner", m).value.trim(); if (!o) return toast("Type the new owner first"); await blPost({ids, fields: {owner: o}}); }
-      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; BF.sel.clear(); await blPost({ids, kind, fields}); }
+      else if (w === "fields") { const kind = $("#bf-kindset", m).value || null, fields = {}; const o = $("#bf-owner", m).value.trim(), mo = $("#bf-moscow", m).value, im = $("#bf-impl", m).value; if (o) fields.owner = o; if (mo) fields.moscow = mo; if (im) fields["implemented-by"] = im; const sc = ($("#bf-scope", m) || {}).value || ""; if (sc) fields.scope = sc; BF.sel.clear(); await blPost({ids, kind, fields}); }
       BF.sel.clear(); render(); toast(`${ids.length} updated`);
     } catch (e) { toast(e.message); }
   });
