@@ -93,7 +93,7 @@ The engine runs over the overlay of item files plus change sets. Suggestions app
 - On an item's view, a Supports needed panel listing what the item's state implies and is missing, each with Accept and Dismiss.
 - On Outstanding, a Register gaps note.
 
-When a transition is made in the console, the transition dialog shows the supports the new state will need before the move is confirmed. Confirming writes the transition block and the support blocks to the same change set, in that order, with the support's Source naming the transition. The reviewer can untick a support and the transition still proceeds; the missing support then appears on the item's panel.
+When a transition is made in the console, the transition dialog shows the supports the new state will need before the move is confirmed. Confirming writes the accepted support blocks first, then the transition block, to the same change set, so the transition's links can name the new supports as "item n" (each block in a change set is numbered "Item n" under model section 11), with the reverse link on each support written back the same way. The reviewer can untick a support and the transition still proceeds; the missing support then appears on the item's panel.
 
 Dismissals in Live are recorded in `<engagement>/supports-dismissed.json` with the rule, the item, the reason, who and when, so the change sets carry only blocks the ingester knows. A dismissed key stays dismissed until removed from that file.
 
