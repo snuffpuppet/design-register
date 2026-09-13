@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.0, 12 September 2026. Owner: Adam Moyes.
+Version 1.1, 13 September 2026. Owner: Adam Moyes.
 
 This document describes the system in this repository well enough for a gated architecture review: what the parts are, what each one is allowed to write, where the gates sit, and which decisions were taken on purpose. It is the reviewer's map. The model document says what the registers mean; the console README says what each screen does; the runbook says how the Confluence path is operated. This document says how they fit and why.
 
@@ -22,9 +22,10 @@ Two things feed the registers. Transcripts of meetings are read by an ingester i
 | Import skill | `.claude/skills/import-confluence/` | Claude Code, through a Confluence MCP connector | `baseline/.raw/*.json`, then the converter; `confluence.json` log |
 | Push skill | `.claude/skills/push-confluence/` | Claude Code, through the same connector | Confluence pages named in the manifest; `confluence.json` log |
 | Confluence config | `confluence.json` | Read by both skills and the push builder | Log entries and permission answers only |
+| Handoff and resume skills | `.claude/skills/handoff/`, `.claude/skills/resume/` | Claude Code, at session end and start | `handoffs/<objective>.md` and its index; nothing else |
 | Ingester | `../solution-register` | Its own repository, model 2.20 | Item files, from transcripts and from change sets |
 
-The console is a standard-library Python server and one vanilla JavaScript file. It has no database. State is the engagement folder: item files, change set files and the baseline folder. Git is the history.
+The console is a standard-library Python server and one vanilla JavaScript file. It knows its stage: Baselining until the freeze, Live after, and opens on the view for that stage. It has no database. State is the engagement folder: item files, change set files and the baseline folder. Git is the history.
 
 ## 3. The engagement folder
 
@@ -96,6 +97,7 @@ This is the table a reviewer should check first. Anything not in it is a defect.
 | `push/` | Push builder | On `make push-pages` | `push.engagement` name; parent page id; pull logged; frozen |
 | Confluence pages | Push skill | On `/push-confluence` | `permissions.write`; manifest read and reported; page version unchanged since pull; never delete |
 | `confluence.json` | Both skills | Permission answers and log entries | The skills may not edit `push.engagement` or `parent_page_url` to pass a refusal |
+| `handoffs/` | The handoff skill | Session end | Context only; `/resume` classifies it fresh, moved on, needs rechecking or superseded before acting |
 
 The one-time freeze is the deliberate exception to "the console never writes an item file". The rule as now stated: the console writes item files once, at the baseline freeze, and never again.
 
@@ -141,6 +143,7 @@ For a gated architecture review of a change to this repository:
 5. Is the model document bumped and dated if a field, state or transition changed, and is `model.py` in step?
 6. Is the sibling ingester untouched?
 7. Do the docs still agree: this document, `README.md`, `console/README.md`, `console/confluence-runbook.md`, `CLAUDE.md` and the guide page served by the console?
+8. If the change alters an anchor named in an active handoff under `handoffs/`, is the handoff rewritten or marked superseded?
 
 ## 10. Where to read next
 

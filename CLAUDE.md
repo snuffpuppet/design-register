@@ -24,7 +24,8 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 | `console/baseline.py` | Tolerant table import, duplicate suggestions, verdicts and edits in `baseline/verdicts.json`, freeze. Column heuristics are the `COLS` table at the top; add words there when a real page uses a header the mapping misses. `EDITABLE` lists what the editor may change. `skip-pages.txt` in the baseline folder names pages that produce no candidates. |
 | `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
 | `console/push-pages.py` | Builds the Confluence push from a frozen engagement into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
-| `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, report, baseline, one per register, change sets. `guide.html` is the lifecycle explanation served alongside. |
+| `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, meeting report, weekly SLT report, baseline (tabs: candidates, duplicates, row by row), one per register, change sets. `stage()` decides Baselining or Live and the opening view. `guide.html` is the lifecycle explanation served alongside and shares the theme choice. |
+| `handoffs/` | One file per objective written by `/handoff`, read by `/resume`, which checks relevance against the commit, anchors and date before acting. Start a session with `/resume` when a handoff is active. |
 | `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
 | `engagements/` | Real engagements, one folder each, created only by `/import-confluence`. |
 
@@ -40,7 +41,9 @@ Australian English. No em dashes. No rhyming patterns of three, no "not x but y"
 
 The model document's version notes at the top say why each change was made. The console README says what each mode does. `console/confluence-runbook.md` says how pull, baseline, apply and push fit together. The artifact "Two Ways Into the Registers" is the same content as `console/static/guide.html`.
 
-## Open threads as of 12 September 2026
+## Open threads as of 13 September 2026
+
+The active handoff `handoffs/baseline-abb-nokia.md` holds the ordered next steps for the real engagement; the threads below are the standing ones.
 
 - Connect a Confluence connector and set `parent_page_url`, then run `/import-confluence <engagement>` for the first real pull. Expect to add column words to `COLS` in `baseline.py` on the first real page.
 - The ingester still parses model 2.20. Porting 2.23 (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage) is Adam's call and happens in the other repository.
