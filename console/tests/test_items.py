@@ -37,3 +37,37 @@ class RoundTrip(unittest.TestCase):
 
     def test_item_path(self):
         self.assertEqual(IT.item_path("/e", "LIM-0003"), "/e/limitations/LIM-0003.md")
+
+
+class ScopeRoundTrip(unittest.TestCase):
+    def test_scope_sits_directly_after_status(self):
+        it = {"id": "REQ-0001", "kind": "REQ", "title": "A need", "status": "Draft", "scope": "CarrierEthernet",
+              "moscow": "Must", "phase": "", "owner": "Priya Nair", "implemented-by": "Vendor",
+              "raised-on": "1 September 2026", "closed-on": "", "updated": "1 September 2026", "links": []}
+        lines = IT.render_item(it).splitlines()
+        self.assertEqual(lines[3], "status: Draft")
+        self.assertEqual(lines[4], "scope: CarrierEthernet")
+
+    def test_scope_round_trips(self):
+        d = tempfile.mkdtemp()
+        try:
+            it = {"id": "RSK-0002", "kind": "RSK", "title": "A risk", "status": "Identified", "scope": "NbnTC4Access",
+                  "risk-kind": "Risk", "owner": "Priya Nair", "likelihood": "M", "impact": "H", "due": "",
+                  "raised-on": "1 September 2026", "closed-on": "", "updated": "1 September 2026", "links": []}
+            p = os.path.join(d, "RSK-0002.md")
+            open(p, "w", encoding="utf-8").write(IT.render_item(it))
+            self.assertEqual(IT.parse_item(p)["scope"], "NbnTC4Access")
+        finally:
+            shutil.rmtree(d)
+
+    def test_blank_scope_round_trips_as_blank(self):
+        d = tempfile.mkdtemp()
+        try:
+            it = {"id": "OI-0003", "kind": "OI", "title": "Do a thing", "status": "Open", "scope": "",
+                  "owner": "Priya Nair", "due": "", "next action": "Ring the vendor",
+                  "raised-on": "1 September 2026", "closed-on": "", "updated": "1 September 2026", "links": []}
+            p = os.path.join(d, "OI-0003.md")
+            open(p, "w", encoding="utf-8").write(IT.render_item(it))
+            self.assertEqual(IT.parse_item(p)["scope"], "")
+        finally:
+            shutil.rmtree(d)

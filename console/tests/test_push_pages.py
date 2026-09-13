@@ -2,6 +2,7 @@ import unittest, tempfile, os, shutil, json, importlib.util
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location("push_pages", os.path.join(HERE, "push-pages.py")); PP = importlib.util.module_from_spec(spec); spec.loader.exec_module(PP)
 import items as IT
+import model as M
 
 PAGE = "---\npage-id: 401\npage-title: Requirements\npage-version: 3\npage-url: https://x/wiki/pages/401\nparent-page-id: 400\n---\n\n# Requirements\n\n| Ref | Requirement |\n|---|---|\n| R1 | old |\n"
 
@@ -32,3 +33,15 @@ class BuildWithoutFreeze(unittest.TestCase):
         m = json.load(open(os.path.join(out, "manifest.json")))
         self.assertEqual(m["frozen"], "12 September 2026")
         self.assertIn("R1", json.load(open(os.path.join(out, "401.json")))["body"])
+
+
+class ScopeColumn(unittest.TestCase):
+    def test_scope_is_the_fourth_column_when_scopes_are_declared(self):
+        for kind in M.DIRS:
+            cols = PP.columns(kind, ["Access"])
+            self.assertEqual(cols[3], ("Scope", "scope"), f"{kind} column 4 is {cols[3]}")
+
+    def test_no_scope_column_when_none_are_declared(self):
+        for kind in M.DIRS:
+            self.assertNotIn("scope", [key for _, key in PP.columns(kind, [])],
+                             f"{kind} pushes a Scope column for an engagement with no scopes")

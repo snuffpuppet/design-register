@@ -44,5 +44,22 @@ class ModelTables(unittest.TestCase):
             self.assertIn(n, M.RULES)
 
 
+class Scope(unittest.TestCase):
+    def test_scope_is_first_short_field_on_every_type(self):
+        for kind in M.DIRS:
+            self.assertEqual(M.SHORT[kind][0], "scope", f"{kind} does not lead with scope")
+
+    def test_scope_has_a_label(self):
+        self.assertEqual(M.LABELS["scope"], "Scope")
+
+    def test_scope_is_required_on_create_for_every_type(self):
+        for kind in M.DIRS:
+            self.assertIn("scope", M.REQUIRED_ON_CREATE[kind], f"{kind} does not require scope")
+
+    def test_i24_is_stated(self):
+        self.assertIn("I24", M.RULES)
+        self.assertIn("Scope", M.RULES["I24"])
+
+
 if __name__ == "__main__":
     unittest.main()

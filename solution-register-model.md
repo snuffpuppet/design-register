@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.26, 14 September 2026. Owner: Adam Moyes.
+Version 2.27, 14 September 2026. Owner: Adam Moyes.
+
+Version 2.27 gives the item a Scope. Section 6 has said since 2.17 that a way of filtering by service or domain could be added when an engagement has several services to name, and an engagement with four technical services now does. Scope is declared per engagement rather than by this document: an engagement that names no scopes carries none and is checked by no scope rule, so nothing changes for a single-service engagement. Section 9 adds I24.
 
 Version 2.26 lets a tool write item files directly. Section 7 adds an optional History section, one line per write, and section 11 says change sets are one of two ways a tool may write, chosen per engagement. The ingester's apply stage is unchanged and serves the change set mode.
 
@@ -85,6 +87,7 @@ Every item carries these. The person field and the date fields have one name eac
 | Status | One of the values for the type (4.2). |
 | Owner | The one person field. On a requirement it is who stated the need and can say it is met. On an open item it is who does the work. On a decision, limitation, risk or change request it is who raised it, and the work that moves the item lives on an open item whose Owner is the worker. A named person on our side, "Vendor: <name>", "Joint", or a Forum row from the stakeholder register. Required while the item is not in a terminal state. |
 | Implemented by | Vendor, Internal or Both. Whose build the item lands in. Required on requirements, decisions, limitations and change requests. Not used on risks or open items. |
+| Scope | The service or area the item belongs to, from the engagement's Scopes list (6). One value, at the lowest level that applies. Required while the engagement declares scopes. Absent where it declares none. |
 | Vendor ref | The vendor's number for the change itself, once they assign one. Used on change requests only. A vendor document reference on any other type goes in Source. |
 | Links | Ids of related items, each with its relationship word (5). Links carries every relationship, including the disposition of a limitation and the resolution of an open item, so no type has a second column that repeats a link. |
 | Raised on | Date the item was created, on every type. Replaces Identified on. |
@@ -180,7 +183,11 @@ Current-state claims live in the engagement's current-state record, defined in `
 
 ## 6. Scope
 
-Removed in 2.17. Items carry no Scope. A way of filtering the registers by service or domain can be added when an engagement has several services to name.
+Scope names the service or area an item belongs to. The engagement declares its own values, because the useful split differs by engagement: one delivering four technical services splits by service, one delivering a single platform splits by nothing at all.
+
+Each item carries one Scope, at the lowest level that applies. An integration issue between two technical services is tagged at the customer-service level above them. There is no programme level, because the registers sit inside the programme and the programme is implied.
+
+An engagement with one service declares no scopes. Its items carry no Scope, nothing asks for one, and I24 never fires. Scope was removed in 2.17 for exactly that case and returns in 2.27 for the other one.
 
 ## 7. Register layout
 
@@ -190,12 +197,12 @@ Frontmatter per type, in this order:
 
 | Type | Frontmatter keys |
 |---|---|
-| REQ | id, title, status, moscow, phase, owner, implemented-by, links, raised-on, closed-on, updated |
-| DEC | id, title, status, owner, consulted, approved-by, implemented-by, links, raised-on, closed-on, updated |
-| LIM | id, title, status, owner, chosen-option, implemented-by, links, raised-on, closed-on, updated |
-| RSK | id, title, status, kind, owner, likelihood, impact, due, links, raised-on, closed-on, updated |
-| OI | id, title, status, owner, due, links, raised-on, closed-on, updated |
-| CR | id, title, status, owner, chosen-option, estimate, approved-by, phase, implemented-by, vendor-ref, links, raised-on, closed-on, updated |
+| REQ | id, title, status, scope, moscow, phase, owner, implemented-by, links, raised-on, closed-on, updated |
+| DEC | id, title, status, scope, owner, consulted, approved-by, implemented-by, links, raised-on, closed-on, updated |
+| LIM | id, title, status, scope, owner, chosen-option, implemented-by, links, raised-on, closed-on, updated |
+| RSK | id, title, status, scope, kind, owner, likelihood, impact, due, links, raised-on, closed-on, updated |
+| OI | id, title, status, scope, owner, due, links, raised-on, closed-on, updated |
+| CR | id, title, status, scope, owner, chosen-option, estimate, approved-by, phase, implemented-by, vendor-ref, links, raised-on, closed-on, updated |
 
 The meeting view is a set of generated index tables, one per type, rendered from the frontmatter and never edited by hand. Each index shows the frontmatter keys above, with Links rendered as text. One supporting page sits beside the indexes: a conventions page that condenses sections 2 to 5 and 8 for people adding items by hand.
 
@@ -243,8 +250,9 @@ Run against a proposed set before writing it, and on request during maintenance.
 | I21 Mitigation actions | Every RSK in Mitigating whose Mitigation names an action has a "mitigated by OI-nnnn" link to an open item not Closed. |
 | I22 Workaround tooling | A LIM in Accepted whose chosen option needs something built has a "needs REQ-nnnn" link to a requirement with Implemented by Internal. Warning. |
 | I23 Delivered change | Every CR in Delivered has a "delivers REQ-nnnn" link. |
+| I24 Scope | Every item's Scope is one of the engagement's Scopes, and no item is without one, where the engagement declares any. Where the engagement declares none, the rule does not apply. |
 
-I1 to I14, I17 to I21 and I23 are failures. I15, I16 and I22 are warnings.
+I1 to I14, I17 to I21, I23 and I24 are failures. I15, I16 and I22 are warnings.
 
 ## 10. Maintenance routine
 

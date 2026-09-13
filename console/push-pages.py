@@ -104,11 +104,28 @@ def source_page(item):
 
 # ---------- the normalised table ----------
 
-def columns(kind):
+def columns(kind, scopes=None):
     cols = [("ID", "id"), ("Title", "title"), ("Status", "status")]
-    cols += [(M.LABELS.get(k, k), k) for k in M.SHORT[kind]]
+    cols += [(M.LABELS.get(k, k), k) for k in M.SHORT[kind] if k != "scope" or scopes]
     cols += [("Raised on", "raised-on"), ("Closed on", "closed-on"), ("Links", "links"), ("Source", "source"), ("Source id", "source-id")]
     return cols
+
+
+def engagement_scopes(eng):
+    """The engagement's declared scopes. This script has its own reader rather than importing the
+    server, as it does for the rest of engagement.md."""
+    p = os.path.join(eng, "engagement.md")
+    if not os.path.exists(p):
+        return []
+    out, on = [], False
+    for ln in open(p, encoding="utf-8"):
+        if ln.startswith("## Scopes"):
+            on = True; continue
+        if ln.startswith("## "):
+            on = False
+        if on and ln.startswith("- "):
+            out.append(ln[2:].strip())
+    return out
 
 
 def cell(v):
@@ -116,8 +133,8 @@ def cell(v):
     return html.escape(str(v or "")).replace("\n", "<br />")
 
 
-def table_html(kind, items, refs):
-    cols = columns(kind)
+def table_html(kind, items, refs, scopes=None):
+    cols = columns(kind, scopes)
     rows = ["<tr>" + "".join(f"<th><p><strong>{html.escape(lab)}</strong></p></th>" for lab, _ in cols) + "</tr>"]
     for it in items:
         vals = {k: it.get(k, "") for _, k in cols}
@@ -207,7 +224,7 @@ def build(eng, cfg, outdir):
     bdir = os.path.join(eng, cfg.get("local_copy", "baseline"))
     pages = pulled_pages(bdir)
     guard(eng, cfg, pages)
-    items = load_items(eng); idmap, frozen_on = id_map(bdir)
+    items = load_items(eng); scopes = engagement_scopes(eng); idmap, frozen_on = id_map(bdir)
     verdicts = json.load(open(os.path.join(bdir, "verdicts.json"), encoding="utf-8")) if os.path.exists(os.path.join(bdir, "verdicts.json")) else {}
     refs = {}
     for ref, nid in idmap.items():
@@ -232,7 +249,7 @@ def build(eng, cfg, outdir):
         note = (f"Register as at {today()} from this page; {len(its)} items in the engagement register"
                 f"{', baselined ' + frozen_on if frozen_on else ''}{', ' + str(merged) + ' merged' if merged else ''}{', ' + str(rejected) + ' rejected across the baseline' if rejected else ''}. "
                 "Source of truth is now the engagement register; ids are the register's, Source id is the id this page had.") if add_note else ""
-        tables = "\n".join(table_html(k, [i for i in its if i["kind"] == k], refs) for k in kinds)
+        tables = "\n".join(table_html(k, [i for i in its if i["kind"] == k], refs, scopes) for k in kinds)
         entry = {"id": page["id"], "title": page["title"], "version": page["version"], "parentId": page["parentId"], "url": page["url"], "items": len(its), "kinds": kinds}
         if mode == "new-child":
             body = (note_html(note) + "\n" if note else "") + tables

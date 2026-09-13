@@ -1,4 +1,4 @@
-"""Register model 2.26 as data: types, states, transitions, the fields each move demands, and the supports each state implies.
+"""Register model 2.27 as data: types, states, transitions, the fields each move demands, and the supports each state implies.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
@@ -58,12 +58,12 @@ TRANSITIONS = {
 
 # Short (frontmatter) and long (body) fields per type, in file order.
 SHORT = {
-    "REQ": ["moscow", "phase", "owner", "implemented-by"],
-    "DEC": ["owner", "consulted", "approved-by", "implemented-by"],
-    "LIM": ["owner", "chosen-option", "implemented-by"],
-    "RSK": ["risk-kind", "owner", "likelihood", "impact", "due"],
-    "OI":  ["owner", "due"],
-    "CR":  ["owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
+    "REQ": ["scope", "moscow", "phase", "owner", "implemented-by"],
+    "DEC": ["scope", "owner", "consulted", "approved-by", "implemented-by"],
+    "LIM": ["scope", "owner", "chosen-option", "implemented-by"],
+    "RSK": ["scope", "risk-kind", "owner", "likelihood", "impact", "due"],
+    "OI":  ["scope", "owner", "due"],
+    "CR":  ["scope", "owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
 }
 LONG = {
     "REQ": ["source", "notes"],
@@ -74,7 +74,7 @@ LONG = {
     "CR":  ["reason", "source", "notes"],
 }
 LABELS = {
-    "risk-kind": "Kind", "moscow": "MoSCoW", "phase": "Phase", "owner": "Owner", "implemented-by": "Implemented by",
+    "risk-kind": "Kind", "moscow": "MoSCoW", "phase": "Phase", "scope": "Scope", "owner": "Owner", "implemented-by": "Implemented by",
     "vendor-ref": "Vendor ref", "consulted": "Consulted", "approved-by": "Approved by",
     "chosen-option": "Chosen option", "likelihood": "Likelihood", "impact": "Impact", "due": "Due",
     "estimate": "Estimate", "rationale": "Rationale", "options": "Options", "trigger": "Trigger",
@@ -109,12 +109,12 @@ REQUIRED_ON_ENTRY = {
 }
 # On creation every type needs these.
 REQUIRED_ON_CREATE = {
-    "REQ": ["title", "moscow", "owner", "implemented-by", "source"],
-    "DEC": ["title", "owner", "rationale", "implemented-by", "source"],
-    "LIM": ["title", "owner", "implemented-by", "source"],
-    "RSK": ["title", "risk-kind", "owner", "likelihood", "impact", "source"],
-    "OI":  ["title", "owner", "next action", "source"],
-    "CR":  ["title", "owner", "reason", "implemented-by", "source", "link:triggered by"],
+    "REQ": ["title", "scope", "moscow", "owner", "implemented-by", "source"],
+    "DEC": ["title", "scope", "owner", "rationale", "implemented-by", "source"],
+    "LIM": ["title", "scope", "owner", "implemented-by", "source"],
+    "RSK": ["title", "scope", "risk-kind", "owner", "likelihood", "impact", "source"],
+    "OI":  ["title", "scope", "owner", "next action", "source"],
+    "CR":  ["title", "scope", "owner", "reason", "implemented-by", "source", "link:triggered by"],
 }
 FIRST_STATE = {"REQ": "Draft", "DEC": "Proposed", "LIM": "Identified", "RSK": "Identified", "OI": "Open", "CR": "Proposed"}
 
@@ -197,6 +197,7 @@ RULES = {
     "I21": "Every RSK in Mitigating whose Mitigation names an action has a mitigated by link to an open item.",
     "I22": "Every LIM in Accepted whose chosen option needs something built has a needs link to an internal REQ (warning).",
     "I23": "Every CR in Delivered has a delivers link to the requirement it delivered.",
+    "I24": "Every item's Scope is one of the engagement's Scopes, and no item is without one, where the engagement declares any.",
 }
 
 
