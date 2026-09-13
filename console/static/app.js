@@ -450,7 +450,7 @@ function sltMarkdown() {
 }
 
 /* ---------- baseline mode ---------- */
-let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", tab: "rows", edit: null, confirmFreeze: false, pos: 0, help: false};
+let BF = {kind: "", page: "", verdict: "", q: "", sel: new Set(), reason: "", tab: "rows", edit: null, confirmFreeze: false, pos: 0, help: false, sedit: null, sfields: {}};
 function baselineView() {
   const B = S.baseline, cs = B.candidates;
   const f = cs.filter(c => (!BF.kind || c.kind === BF.kind) && (!BF.page || c.page === BF.page) && (BF.verdict === "" ? true : BF.verdict === "none" ? !c.verdict : c.verdict === BF.verdict) && (!BF.q || (c.title + " " + c.description).toLowerCase().includes(BF.q.toLowerCase())));
@@ -468,14 +468,16 @@ function baselineView() {
       <li><b>Drop the pages that are views.</b> Filter by page. A summary, outstanding or conventions page restates rows that are already on a register page. Choose it and press <i>Treat as a view</i>; it produces no candidates from then on, on every pull.</li>
       <li><b>Resolve the duplicates tab.</b> Untick any row that is not the same item, then <i>This one leads</i> on the one to keep. The rest fold into it. Wrong group: <i>Not duplicates</i>.</li>
       <li><b>Pass through each register page</b> on the Row by row tab: one row at a time, keys <kbd>a</kbd> accept, <kbd>r</kbd> reject with the chosen reason, <kbd>x</kbd> discard, <kbd>e</kbd> edit, <kbd>j</kbd>/<kbd>k</kbd> next and previous.</li>
+      <li><b>Fill the missing supports.</b> Every accepted row whose state implies another record, a decision behind an accepted limitation, a change request behind one marked Change requested, the open item that carries a draft, is offered here prefilled. Accept, edit then accept, or dismiss with a reason. A limitation the source calls Accepted with nothing behind it can instead be sent back to Under assessment. The freeze waits until this list is empty of failures.</li>
       <li><b>Fix fields in bulk</b> on the Candidates tab where a page has a pattern: no owner, wrong MoSCoW, wrong type.</li>
       <li><b>Freeze</b> when nothing is left to decide.</li></ol></details>`}
     ${B.frozen ? `<div class="note">The baseline is frozen. ${Object.entries(B.frozen.counts).map(([k, v]) => `${v} ${S.model.names[k].toLowerCase()}${v === 1 ? "" : "s"}`).join(", ")} were written to the registers; the id map is in <code>baseline/frozen.md</code>. Verdicts here are read only now; every change from here is a change set.</div>` : ""}
     <div class="progress"><div style="width:${Math.round(100 * cs.filter(c => c.verdict).length / Math.max(1, cs.length))}%"></div></div>
-    ${B.frozen ? "" : `<div class="tabs"><button data-bltab="rows" class="${BF.tab === "rows" ? "on" : ""}">Candidates <span class="n">${cs.length}</span></button><button data-bltab="dups" class="${BF.tab === "dups" ? "on" : ""}">Suggested duplicates <span class="n">${clusters.length}</span></button><button data-bltab="pass" class="${BF.tab === "pass" ? "on" : ""}">Row by row <span class="n">${todo}</span></button></div>`}
+    ${B.frozen ? "" : `<div class="tabs"><button data-bltab="rows" class="${BF.tab === "rows" ? "on" : ""}">Candidates <span class="n">${cs.length}</span></button><button data-bltab="dups" class="${BF.tab === "dups" ? "on" : ""}">Suggested duplicates <span class="n">${clusters.length}</span></button><button data-bltab="pass" class="${BF.tab === "pass" ? "on" : ""}">Row by row <span class="n">${todo}</span></button><button data-bltab="supports" class="${BF.tab === "supports" ? "on" : ""}">Missing supports <span class="n">${B.suggestions.suggestions.filter(s => s.level === "fail").length}</span></button></div>`}
     ${BF.tab === "pass" && !B.frozen ? blPass(cs, byId) : ""}
     ${BF.tab === "dups" && !B.frozen ? (clusters.length ? `<div class="section"><p class="small muted">Groups whose titles overlap or that share a source id. Suggestions only${clusters.length > 25 ? `; showing the first 25 of ${clusters.length}` : ""}.</p>
       ${clusters.slice(0, 25).map(g => `<div class="cs"><div class="small muted">${g.filter(id => !byId[id]?.verdict).length} still to decide. Tick the rows that are the same item, then choose which one leads; the rest fold into it, keeping their sources and anything it does not already hold. Unticked rows stay undecided. <button class="ghost" data-notdup="${g.join(",")}">Not duplicates</button> <button class="ghost" data-discgroup="1" title="Not register rows: drop the ticked ones without a rejection reason">Discard ticked</button>${(() => { const done = g.filter(id => byId[id]?.verdict); if (!done.length) return ""; const t = {}; done.forEach(id => { const v = byId[id].verdict; t[v] = (t[v] || 0) + 1; }); return `<br><span class="small muted">Already decided here: ${Object.entries(t).map(([v, n]) => `${n} ${v.toLowerCase()}`).join(", ")}.</span>`; })()}</div>${g.map(id => { const c = byId[id]; const done = !!c.verdict; return `<div class="blk ${done ? "done" : ""}">${done ? `<span class="vd">${esc(c.verdict)}</span>` : `<label class="dup"><input type="checkbox" data-dup="${id}" checked> same</label>`} ${!done || c.verdict === "Accept" ? `<button class="ghost" data-survivor="${id}">This one leads</button>` : ""} <span class="id" style="${COLOR(c.kind)}">${c.kind}</span> ${esc(c.title)} <span class="small muted">${esc(c.page)}${c.ref ? " · " + esc(c.ref) : ""}</span></div>`; }).join("")}</div>`).join("")}</div>` : `<p class="muted">No duplicate groups left to decide.</p>`) : ""}
+    ${BF.tab === "supports" && !B.frozen ? blSupports() : ""}
     ${BF.tab !== "rows" && !B.frozen ? "" : `<div class="toolbar bl-filters">
       <select id="bf-kind">${opt(KINDS, BF.kind, "all types")}</select>
       <select id="bf-page">${opt(B.pages, BF.page, "all pages")}</select>${BF.page ? `<button class="ghost" id="bf-skip" title="A page that restates rows already on a register page. It stays pulled but produces no candidates.">Treat as a view</button>` : ""}
@@ -528,6 +530,32 @@ function blPass(cs, byId) {
       </div></div>
       <div class="tq-side"><h3>Looks like</h3>${near.length ? near.map(n => `<div class="ctx"><span class="id" style="${COLOR(n.kind)}">${n.kind}</span> ${n.verdict ? `<span class="vd">${esc(n.verdict)}</span>` : ""}<div>${esc(n.title)}</div><div class="small muted">${esc(n.page)}${n.ref ? " · " + esc(n.ref) : ""}</div></div>`).join("") : '<p class="small muted">No suggested duplicate.</p>'}
       <p class="small muted" style="margin-top:14px">A verdict moves to the next row. Reject uses the reason in the box.</p></div></div>`;
+}
+/* Missing supports: what the accepted rows' states imply and the set does not yet hold. Each offer is
+   prefilled from its trigger; accepting adds an implied candidate, linked both ways, already accepted. */
+function blSupports() {
+  const B = S.baseline, R = B.suggestions, byId = Object.fromEntries(B.candidates.map(c => [c.id, c]));
+  const fails = R.suggestions.filter(s => s.level === "fail"), warnsS = R.suggestions.filter(s => s.level === "warn");
+  const one = s => {
+    const editing = BF.sedit === s.key, f = editing ? {...s.fields, ...BF.sfields} : s.fields;
+    const fld = (k, v) => `<div class="field"><label>${esc(S.model.labels[k] || k)}</label>${editing ? (["rationale", "reason", "impact", "next action", "source"].includes(k) ? `<textarea data-sf="${k}">${esc(v)}</textarea>` : k === "owner" ? `<input data-sf="owner" list="stk" value="${esc(v)}">` : `<input data-sf="${k}" value="${esc(v)}">`) : `<div class="v">${esc(v) || '<span class="muted">—</span>'}</div>`}</div>`;
+    const keys = Object.keys(f); if (s.needsOwner && !keys.includes("owner")) keys.splice(1, 0, "owner");
+    return `<div class="cs blk-support"><div class="small muted"><b>${esc(s.rule)}</b> (${esc(s.check)}) · ${esc(S.model.names[byId[s.id]?.kind] || "")} <i>${esc(s.triggerTitle)}</i> on ${esc(s.triggerPage)} is ${esc(byId[s.id] ? (byId[s.id].status || byId[s.id].source_status || S.model.first[byId[s.id].kind]) : "")} and needs a <span class="id" style="${COLOR(s.kind)}">${s.kind}</span>${s.needsOwner ? ' <span class="tag">owner needed</span>' : ""}</div>
+      ${keys.map(k => fld(k, f[k] ?? "")).join("")}
+      <div class="small muted">Links: trigger gets <code>${esc(s.link)}&lt;new id&gt;</code>${s.reverse ? `; new item gets <code>${esc(s.reverse)}</code>` : ""}</div>
+      <div class="moves" style="--c:var(--cs)">
+        ${s.recommend === "Reassess" ? `<button class="primary" data-sv="Reassess" data-key="${s.key}" title="Send the limitation back to Under assessment; its open item is offered next">Reassess (recommended)</button> <button data-sv="Accept" data-key="${s.key}">Reconstruct</button>` : `<button class="primary" data-sv="Accept" data-key="${s.key}">${s.recommend === "Reconstruct" ? "Reconstruct (recommended)" : "Accept"}</button>${s.recommend ? ` <button data-sv="Reassess" data-key="${s.key}">Reassess</button>` : ""}`}
+        <button data-sv="edit" data-key="${s.key}">${editing ? "Stop editing" : "Edit"}</button>
+        <input data-sreason="${s.key}" placeholder="reason to dismiss" style="width:220px"><button class="ghost" data-sv="Dismiss" data-key="${s.key}">Dismiss</button>
+      </div></div>`;
+  };
+  const prompts = R.prompts.filter(p => byId[p.id]);
+  // the stakeholder list lives in the bulk toolbar, which this tab does not render; the owner boxes need it here
+  const names = fails.concat(warnsS).some(s => s.needsOwner) ? `<datalist id="stk">${S.stakeholders.map(p => `<option value="${esc(p.name)}">`).join("")}<option value="Joint"><option value="Vendor: "></datalist>` : "";
+  return `<div class="section">${names}<p class="small muted">${fails.length} needed before the freeze · ${warnsS.length} suggested · ${prompts.length} field prompt(s) · ${R.dismissed} dismissed. Offers are drafted in their first state; nothing here fills Approved by.</p>
+    ${fails.map(one).join("") || '<p class="muted">Nothing missing among the accepted rows.</p>'}
+    ${warnsS.length ? `<h3>Suggested, not required</h3>${warnsS.map(one).join("")}` : ""}
+    ${prompts.length ? `<h3>Fix by hand in the editor</h3>${prompts.map(p => `<div class="blk"><span class="id" style="${COLOR(byId[p.id].kind)}">${byId[p.id].kind}</span> <a href="#" data-edit="${p.id}">${esc(byId[p.id].title)}</a> <span class="small muted">${esc(p.rule)}: ${esc(p.text)}</span></div>`).join("")}` : ""}</div>`;
 }
 /* The editor: a fixed panel for one candidate. Fields follow the model for its type; what you save is a
    verdict override, so nothing touches the source page and Clear verdict does not undo it. */
@@ -603,6 +631,15 @@ function wireBaseline(m) {
     const others = [...group.querySelectorAll("[data-dup]")].filter(x => x.checked && x.dataset.dup !== keep).map(x => x.dataset.dup);
     if (!others.length) { toast("Tick the rows that are the same item first"); return; }
     try { await post("/api/baseline/verdict", {ids: [keep], verdict: "Accept"}); await blPost({ids: others, verdict: "Merge", mergedInto: keep}); toast(`Folded ${others.length} into it`); } catch (e) { toast(e.message); }
+  });
+  m.querySelectorAll("[data-sf]").forEach(el => el.oninput = () => { BF.sfields[el.dataset.sf] = el.value; });
+  m.querySelectorAll("[data-sv]").forEach(el => el.onclick = async () => {
+    const key = el.dataset.key, what = el.dataset.sv;
+    if (what === "edit") { if (BF.sedit === key) { BF.sedit = null; BF.sfields = {}; } else { BF.sedit = key; BF.sfields = {}; } render(); return; }
+    const body = {key, verdict: what};
+    if (what === "Dismiss") { body.reason = m.querySelector(`[data-sreason="${key}"]`)?.value.trim() || ""; if (!body.reason) return toast("Give a reason to dismiss"); }
+    if (what === "Accept" && BF.sedit === key) body.fields = BF.sfields;
+    try { const y = window.scrollY; await post("/api/baseline/support", body); BF.sedit = null; BF.sfields = {}; await load(); window.scrollTo(0, y); toast(what === "Accept" ? "Added as an accepted candidate" : what === "Reassess" ? "Sent back to Under assessment" : "Dismissed"); } catch (e) { toast(e.message); }
   });
   m.querySelectorAll("[data-edit]").forEach(el => el.onclick = e => { e.preventDefault(); BF.edit = el.dataset.edit; render(); });
   const ed = $("#ble-close", m);
