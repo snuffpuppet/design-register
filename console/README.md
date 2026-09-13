@@ -1,8 +1,10 @@
 # Register console
 
-Version 0.3, 14 September 2026.
+Version 0.4, 14 September 2026.
 
 A lifecycle console for the registers in `solution-register-model.md` (2.26). It reads an engagement folder, overlays any unapplied change sets, and writes every move, edit or new item in the engagement's mode. `- Writes: direct` in `engagement.md`, the default when the line is absent, rewrites the item file, stamps `updated` and appends a line to its History section; git is the record. `- Writes: change-sets` appends one item block to the current session's change set under `<engagement>/change-sets/` for the ingester in `solution-register` to apply (model section 11). The baseline freeze writes the registers' first item files in either mode.
+
+An engagement may declare its scopes in a `## Scopes` section of `engagement.md`, one value per line, the same shape as `## Phases`. Where it does, every item carries a Scope from that list, a new item cannot be created without one, the register views gain a scope filter and the pushed tables gain a Scope column. Where it does not, Scope does not exist for that engagement: nothing asks for it, no rule checks it, and the pushed tables are as they were.
 
 ## Run
 
