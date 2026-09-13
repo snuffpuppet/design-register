@@ -1,10 +1,10 @@
 # Supports engine: implied items, integrity and suggestions
 
-Version 1.1, 13 September 2026. Owner: Adam Moyes. Status: design, plan written. 1.1: dismissals in Live go to a json file beside the registers, not a change set block, so the ingester sees only blocks it knows; the baseline order puts Missing supports after Row by row because supports are computed over accepted rows; S20 folds into S8 and the new rules are I21 to I23.
+Version 1.2, 13 September 2026. Owner: Adam Moyes. Status: built. 1.2: matches the build. 1.1: dismissals in Live go to a json file beside the registers, not a change set block, so the ingester sees only blocks it knows; the baseline order puts Missing supports after Row by row because supports are computed over accepted rows; S20 folds into S8 and the new rules are I21 to I23.
 
 ## Purpose
 
-The register model (2.24) says, in sections 4.4 and 5, what must exist beside an item in a given state: a requirement in Draft has an open item, a limitation in Accepted has a decision, a change request has the limitation or requirement that triggered it. Section 9 checks those as failures after the fact. Nothing today offers the missing item.
+The register model (2.25) says, in sections 4.4 and 5, what must exist beside an item in a given state: a requirement in Draft has an open item, a limitation in Accepted has a decision, a change request has the limitation or requirement that triggered it. Section 9 checks those as failures after the fact. Nothing today offers the missing item.
 
 The supports engine reads the same implications as data, finds every item whose supports are absent, and offers each missing support as a prefilled item the reviewer confirms, edits or dismisses. It runs in both console modes. In Baselining it fills the gaps in imported registers before the freeze. In Live it turns a transition into the transition plus its supports, in one change set.
 
@@ -64,7 +64,7 @@ S18 is the only row that reads text rather than a field. It looks for "build", "
 
 ### Baselining
 
-The candidate set is every table row on every non-skipped page, whatever state it claims. The engine runs over the effective candidates (verdicts applied, merges collapsed) and produces suggestions. A new tab, Missing supports, sits after Duplicates. Each suggestion shows the trigger candidate, the rule, the offered item with its prefilled fields, and three verdicts: Accept, Edit then accept, Dismiss with a reason.
+The candidate set is every table row on every non-skipped page, whatever state it claims. The engine runs over the effective candidates (verdicts applied, merges collapsed) and produces suggestions. A new tab, Missing supports, sits after Row by row. Each suggestion shows the trigger candidate, the rule, the offered item with its prefilled fields, and three verdicts: Accept, Edit then accept, Dismiss with a reason.
 
 Accepting creates a candidate with:
 
@@ -84,14 +84,14 @@ The reconstruction choice. A source limitation already marked Accepted with no d
 
 The default is Reconstruct where the source row carries a rationale or a chosen option, and Reassess where it carries neither.
 
-The freeze refuses to run while any suggestion under a failure rule is undecided. Suggestions under warning rules (I15, I16, S18) do not block. The freeze log in `baseline/frozen.md` lists the implied items by rule.
+The freeze refuses to run while any suggestion under a failure rule is undecided. Suggestions under warning rules (I15, I16, S18) do not block. Freezing remaps every candidate id in every field, including the implied ones, and `baseline/frozen.md` lists the implied items under "Implied at baseline", with an "Items by type" line.
 
 ### Live
 
 The engine runs over the overlay of item files plus change sets. Suggestions appear in two places:
 
-- On an item's view, a Supports panel listing what the item's state implies and is missing, each with Accept, Edit, Dismiss.
-- On Outstanding, a count per rule at the top, linking to the items.
+- On an item's view, a Supports needed panel listing what the item's state implies and is missing, each with Accept and Dismiss.
+- On Outstanding, a Register gaps note.
 
 When a transition is made in the console, the transition dialog shows the supports the new state will need before the move is confirmed. Confirming writes the transition block and the support blocks to the same change set, in that order, with the support's Source naming the transition. The reviewer can untick a support and the transition still proceeds; the missing support then appears on the item's panel.
 
@@ -113,10 +113,10 @@ The weekly SLT report gains one line per rule with a non-zero count, headed "Reg
 |---|---|
 | `solution-register-model.md` | Bump to 2.25. Section 5 gains `mitigated by` and `needs`. Section 9 gains I21 to I23. A sentence in section 10 says the console offers a fix for each failing item. Dated line at the top. |
 | `console/model.py` | `SUPPORTS` table, two link words, the three new rules as `RULES`. |
-| `console/integrity.py` | New. `check(items) -> failures, warnings, suggestions`. Pure function over a list of item dicts. Section 9 rules I1 to I24 where the console has the data; I5, I18 and I19 skipped where the engagement data is absent, and said so in the result. Each suggestion is `{rule, trigger, offer: {kind, state, fields, links}}`. |
-| `console/baseline.py` | Suggestions over effective candidates; verdicts `Accept`, `Dismiss` on suggestion keys; candidates created from accepted suggestions; freeze guard. |
+| `console/integrity.py` | New. `check(items, phases, stakeholders, today) -> failures, warnings, prompts, suggestions`. Pure function over a list of item dicts. Section 9 rules I1 to I17 and I19, plus the `SUPPORTS` table (S1 to S19 and S21; S20 is folded into S8). I18 and I20 are not checked here; I20 is checked by the transition endpoint. |
+| `console/baseline.py` | Suggestions over effective candidates; verdicts Accept, Edit then accept, Dismiss with a reason, and for a limitation's disposition Reconstruct or Reassess, on suggestion keys; accepted suggestions stored as implied candidates under `_implied` in `verdicts.json`, linked both ways; freeze guard. |
 | `console/server.py` | `/api/integrity` for Live; `/api/baseline` gains `suggestions`; `/api/baseline/support` for verdicts; `/api/transition` returns the supports the target state needs and accepts a list of supports to write with the move. |
-| `console/static/app.js` | Missing supports tab; Supports panel on the item view; supports in the transition dialog; counts on Outstanding; the line in the SLT report. |
+| `console/static/app.js` | Missing supports tab; Supports needed panel on the item view; supports in the transition dialog; Register gaps note on Outstanding; the line in the SLT report. |
 | `console/static/guide.html`, `console/confluence-runbook.md`, `console/README.md` | The new step in the baseline order and the Live behaviour. |
 | `console/make-sample.py`, `console/sample-baseline/` | Sample pages gain rows that trip S4, S5, S6, S8 and S17, so the tab has content in the test engagement. |
 

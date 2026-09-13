@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.24, 12 September 2026. Owner: Adam Moyes.
+Version 2.25, 13 September 2026. Owner: Adam Moyes.
+
+Version 2.25 adds the supports rules. Sections 4.4 and 5 already say what must exist beside an item in a given state; a tool may read them as implications and offer the missing record prefilled, in its first state, with Approved by empty. Two link words are added for cases the sections implied without naming: a risk's mitigation actions are open items linked "mitigated by", and an accepted workaround that needs something built raises a requirement linked "needs". Rules I21 to I23 check them. Nothing changes for an item that already meets 4.4.
 
 Version 2.24 narrows Vendor ref to the change request. It was the one field on a requirement or a limitation that pointed at a vendor document rather than describing our own item, and the vendor's own numbering for those lives in their specifications, which Source already cites. A change request keeps it because the vendor assigns a number to the change itself and we chase it by that number. A vendor reference on any other type goes in Source, as it already did for risks and open items.
 
@@ -169,6 +171,8 @@ Links are written as `<relationship> <ID>`, several per item as a list. A link o
 | REQ | replaces | A current-state claim, PRC-nnnn.sN or SYS-nnnn.fN |
 | REQ | preserves | A current-state claim |
 | OI | clarifies | A current-state claim that is Hedged or Contested, or a question on a process |
+| RSK | mitigated by | OI (one per mitigation action) |
+| LIM | needs | REQ with Implemented by Internal (the tooling an accepted workaround requires) |
 
 Current-state claims live in the engagement's current-state record, defined in `extraction-solution-design.md` section 4. A `replaces` or `preserves` link may target only a claim in Current or Current, not needed.
 
@@ -234,8 +238,11 @@ Run against a proposed set before writing it, and on request during maintenance.
 | I18 Current-state links | Every `replaces`, `preserves` and `clarifies` target exists in the current-state record, and no `replaces` or `preserves` target is Retired or Withdrawn. |
 | I19 Known stakeholder | Every person named in Owner, Approved by and Consulted resolves to a row in the engagement's stakeholder register, or is "Vendor: <name>", "Joint" or a Forum row. A row with Role Mentioned cannot be Owner. |
 | I20 Forward transitions | A change to an existing item's Status follows an arrow in 4.4. The allowed return moves are LIM from Change requested to Under assessment, CR from Deferred to Proposed, and OI between Open and Blocked. Anything else is a failure and needs a new item, not an edit. |
+| I21 Mitigation actions | Every RSK in Mitigating whose Mitigation names an action has a "mitigated by OI-nnnn" link to an open item not Closed. |
+| I22 Workaround tooling | A LIM in Accepted whose chosen option needs something built has a "needs REQ-nnnn" link to a requirement with Implemented by Internal. Warning. |
+| I23 Delivered change | Every CR in Delivered has a "delivers REQ-nnnn" link. |
 
-I1 to I14 and I17 to I20 are failures. I15 and I16 are warnings.
+I1 to I14, I17 to I21 and I23 are failures. I15, I16 and I22 are warnings.
 
 ## 10. Maintenance routine
 
@@ -254,6 +261,8 @@ Weekly:
 
 When a design document changes:
 7. Any new tracking table in a design document is a defect. Move its rows to the register and mark the table as superseded with a link to the register.
+
+A tool that runs these rules should offer the missing record for each failing item, prefilled from the item that implies it, and leave approval to a person.
 
 ## 11. Change sets: the second ingestion pathway
 

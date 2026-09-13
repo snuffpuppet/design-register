@@ -4,7 +4,7 @@ Read `README.md` first for what is here and how the pieces fit. This file is wha
 
 ## What this repository is for
 
-The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.24), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
+The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.25), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
 
 The sibling repository `../solution-register` holds the ingester that writes register item files from transcripts. It is at model 2.20 and is **never edited from here**. Adam ports the model to it when he chooses. The two repositories share nothing but the model document and the change set file format (model section 11).
 
@@ -21,10 +21,11 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 | Path | Note |
 |---|---|
 | `console/server.py` | Standard library only. Reads items and change sets, overlays them, serves the API, appends blocks. An item's `kind` in the API is its type; the risk's Kind field is exposed as `risk-kind`. |
+| `console/integrity.py` | Section 9 and the `SUPPORTS` table over item dicts. Pure; used by baseline and live. Rules read from `model.py` only. |
 | `console/baseline.py` | Tolerant table import, duplicate suggestions, verdicts and edits in `baseline/verdicts.json`, freeze. Column heuristics are the `COLS` table at the top; add words there when a real page uses a header the mapping misses. `EDITABLE` lists what the editor may change. `skip-pages.txt` in the baseline folder names pages that produce no candidates. |
 | `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
 | `console/push-pages.py` | Builds the Confluence push from a frozen engagement into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
-| `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, meeting report, weekly SLT report, baseline (tabs: candidates, duplicates, row by row), one per register, change sets. `stage()` decides Baselining or Live and the opening view. `guide.html` is the lifecycle explanation served alongside and shares the theme choice. |
+| `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, meeting report, weekly SLT report, baseline (tabs: candidates, duplicates, row by row, missing supports), one per register, change sets. `stage()` decides Baselining or Live and the opening view. `guide.html` is the lifecycle explanation served alongside and shares the theme choice. |
 | `.claude/settings.json`, `.claude/hooks/` | A SessionStart hook prints the project's slash commands at the start of every session, read from each skill's `usage:` line. Add a `usage:` line to any new skill. |
 | `handoffs/` | One file per objective written by `/handoff`, read by `/resume`, which checks relevance against the commit, anchors and date before acting. Start a session with `/resume` when a handoff is active. |
 | `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
@@ -32,7 +33,7 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 
 ## Testing the console
 
-Chrome via the Claude in Chrome extension refuses `localhost` and `127.0.0.1`. Use `http://localtest.me:8085/`, which resolves to the machine. After a rebuild wait two seconds before loading, or the first fetch races the container start and the page renders blank. The API is quicker to check than the page: `curl localhost:8085/api/state` and `curl localhost:8085/api/baseline`.
+Chrome via the Claude in Chrome extension refuses `localhost` and `127.0.0.1`. Use `http://localtest.me:8085/`, which resolves to the machine. After a rebuild wait two seconds before loading, or the first fetch races the container start and the page renders blank. The API is quicker to check than the page: `curl localhost:8085/api/state` and `curl localhost:8085/api/baseline`. `make test` runs the console's unit tests in the python image, no browser needed.
 
 ## Conventions
 

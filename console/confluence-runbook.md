@@ -49,7 +49,7 @@ The console reads every `.md` in that folder as candidates. Every row is a candi
 
 ## 2. Baseline
 
-In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. When done, Freeze baseline writes every accepted candidate as an item file in the engagement's registers, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. The freeze runs once and refuses if a register already has items.
+In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. Then work Missing supports to zero failures before the freeze: it offers the record each accepted candidate's state implies is missing, for accepting, editing then accepting, or dismissing with a reason. When done, Freeze baseline writes every accepted candidate as an item file in the engagement's registers, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. The freeze runs once, refuses while any failure-level offer in Missing supports is undecided, and refuses if a register already has items.
 
 ## 3. Apply
 
