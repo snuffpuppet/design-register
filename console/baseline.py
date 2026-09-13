@@ -8,6 +8,7 @@ Nothing here writes an item file; state lives in <baseline>/verdicts.json.
 import os, re, csv, json, glob, hashlib, io
 from html.parser import HTMLParser
 import model as M
+import integrity as I
 
 MONTHS = "January February March April May June July August September October November December".split()
 # a source writes one of these where it means the cell is empty; carrying it through would invent a value
@@ -46,11 +47,14 @@ COLS = {
     "inferred": ["inferred", "derived", "basis"],
     "trigger": ["trigger"], "mitigation": ["mitigation", "treatment", "response"],
     "likelihood": ["likelihood", "probability"],
+    "chosen-option": ["chosen option", "chosen", "disposition"],
     "options": ["options", "alternatives"],
     "due": ["due", "date", "deadline", "review", "needed by"],
 }
 # headers a model word would otherwise swallow; these belong in Notes
-NEVER_MAP = {"financial impact", "business impact", "customer impact"}
+# "Disposition record" names the decision or change request that dispositioned a limitation, not a chosen
+# option; LINK_NOTE_WORDS already reads it as a link column, so it stays out of the mapping
+NEVER_MAP = {"financial impact", "business impact", "customer impact", "disposition record"}
 
 REJECT_REASONS = ["duplicate", "inferred, no evidence", "verified, no longer an assumption", "delivered, no longer a dependency", "not a requirement (present tense)", "legacy practice", "out of scope",
                   "vendor detail", "too vague to act on", "already covered by design", "other"]
@@ -226,10 +230,10 @@ def load_candidates(bdir):
                     "rationale": rec.get("rationale", ""), "impact": norm_lmh(rec.get("impact", "")) if kind == "RSK" else rec.get("impact", ""), "description": rec.get("description", ""),
                     "source": rec.get("source", "") or f"{page}{(' / ' + heading) if heading else ''}{(' / ' + rec['ref']) if rec.get('ref') else ''}",
                     "confidence": conf, "inferred": inferred, "trigger": rec.get("trigger", ""), "mitigation": rec.get("mitigation", ""),
-                    "likelihood": norm_lmh(rec.get("likelihood", "")), "risk-kind": rkind, "options": rec.get("options", ""), "next action": rec.get("next action", ""),
+                    "likelihood": norm_lmh(rec.get("likelihood", "")), "risk-kind": rkind, "chosen-option": rec.get("chosen-option", ""), "options": rec.get("options", ""), "next action": rec.get("next action", ""),
                     "due": rec.get("due", ""), "notes": "\n".join(notes),
                 })
-    return cands
+    return cands + load_implied(bdir)
 
 
 def norm_moscow(v):
@@ -326,10 +330,12 @@ def save_verdicts(bdir, v):
     json.dump(v, open(os.path.join(bdir, "verdicts.json"), "w", encoding="utf-8"), indent=1, ensure_ascii=False)
 
 
-def apply_verdict(bdir, ids, verdict=None, reason="", merged_into=None, fields=None, kind=None):
+def apply_verdict(bdir, ids, verdict=None, reason="", merged_into=None, fields=None, kind=None, links=None):
     v = load_verdicts(bdir)
     for cid in ids:
         e = v.setdefault(cid, {})
+        if links is not None:
+            e["links"] = list(links)
         if verdict is not None:
             e["verdict"] = verdict
             e["reason"] = reason if verdict == "Reject" else ""
@@ -347,11 +353,14 @@ def effective(c, v):
     if e.get("kind"): out["kind"] = e["kind"]
     out.update(e.get("fields", {}))
     out["verdict"] = e.get("verdict", ""); out["reason"] = e.get("reason", ""); out["mergedInto"] = e.get("mergedInto"); out["exported"] = e.get("exported", ""); out["frozenAs"] = e.get("frozenAs", "")
+    # a trigger's links are held on its verdict; an implied candidate carries its own as well
+    out["links"] = list(e.get("links", [])) + (list(c.get("links", [])) if c.get("implied") else [])
+    out["implied"] = bool(c.get("implied"))
     return out
 
 
 # what the reviewer may change on a candidate before the freeze
-EDITABLE = {"title", "status", "owner", "moscow", "phase", "implemented-by", "approved-by", "consulted", "vendor-ref", "likelihood", "impact", "due", "risk-kind",
+EDITABLE = {"title", "status", "owner", "moscow", "phase", "implemented-by", "approved-by", "consulted", "vendor-ref", "likelihood", "impact", "due", "risk-kind", "chosen-option",
             "description", "rationale", "trigger", "mitigation", "options", "next action", "notes", "raised-on"}
 
 FOLD_SKIP = {"title", "status", "source", "notes", "raised-on"}
@@ -378,6 +387,148 @@ def fold_merged(surv, merged, kind):
     return out, kept_back
 
 
+IMPLIED_KEY = "_implied"
+SUPPORTS_KEY = "_supports"
+# a note that came from a link column ("Links: delivers REQ-030", "Delivers: REQ-030") reads as links
+LINK_NOTE_WORDS = {"Links": "", "Delivers": "delivers", "Resolves into": "resolves into", "Disposition record": "disposition",
+                   "Blocked by": "blocked by", "Supersedes": "supersedes", "Addresses": "addresses"}
+
+
+def load_implied(bdir):
+    """Candidates the reviewer accepted off the Missing supports tab. They live with the verdicts, never
+    in the source pages, and join the candidate list so the rest of the baseline treats them alike."""
+    return list(load_verdicts(bdir).get(IMPLIED_KEY, []))
+
+
+def status_of(c):
+    """The status this candidate would be frozen with: an edited status, else a source status that is one
+    of the model's own states for its type, else the type's first state."""
+    k = c["kind"]
+    return c.get("status") or next((st for st in M.STATES[k] if st.lower() == (c.get("source_status") or "").lower()), M.FIRST_STATE[k])
+
+
+def refmap_of(cands):
+    """Source ref -> candidate id, the way the freeze maps refs to new ids: a full model-form id is unique
+    across the source, a bare number only within its page."""
+    m = {}
+    for c in cands:
+        if c["ref"]:
+            m[c["ref"] if LINK_RE.fullmatch(c["ref"]) else f"{c['page']} \u00b7 {c['ref']}"] = c["id"]
+    return m
+
+
+def source_links(c, refmap):
+    """The links a candidate's Notes carry, with source ids read as candidate ids. A source id that names
+    no candidate is dropped: the engine never links to something the baseline does not hold."""
+    out = []
+    for n in (c.get("notes") or "").split("\n"):
+        m = re.match(r"(" + "|".join(LINK_NOTE_WORDS) + r"): (.+)", n)
+        if not (m and LINK_RE.search(m.group(2))):
+            continue
+        word = LINK_NOTE_WORDS[m.group(1)]
+        for part in re.split(r"[;,]\s*", m.group(2)):
+            part = part.strip()
+            idm = LINK_RE.search(part)
+            if not idm:
+                continue
+            ref = f"{idm.group(1)}-{idm.group(2)}"
+            cid = refmap.get(ref) or refmap.get(f"{idm.group(1)}{idm.group(2)}") or refmap.get(f"{c['page']} \u00b7 {ref}")
+            if not cid:
+                continue
+            lead = part[:idm.start()].strip().lower()
+            out.append(((lead or word) + " " + cid).strip() if (lead or word) else cid)
+    return out
+
+
+def as_items(cands, v):
+    """The accepted candidates and the implied ones as item dicts for integrity.check. Ids are candidate
+    ids, so a suggestion points at a row the reviewer can still see on the baseline tabs."""
+    refmap = refmap_of(cands)
+    eff = {c["id"]: effective(c, v) for c in cands}
+    merged_into = {}
+    for c in eff.values():
+        if c["verdict"] == "Merge" and c["mergedInto"] in eff:
+            merged_into.setdefault(c["mergedInto"], []).append(c)
+    items = []
+    for c in eff.values():
+        if c["verdict"] != "Accept":
+            continue
+        k = c["kind"]
+        merged = merged_into.get(c["id"], [])
+        it, _ = fold_merged(c, merged, k)
+        it = dict(it)
+        it["status"] = status_of(it)
+        it["links"] = list(dict.fromkeys(list(c.get("links") or []) + source_links(c, refmap)
+                                         + sum((source_links(m, refmap) for m in merged), [])))
+        if k == "CR" and not it.get("reason"):
+            it["reason"] = it.get("rationale", "")
+        items.append(it)
+    return items
+
+
+def suggestions(cands, v):
+    """integrity.check over the accepted set, with dismissed rows dropped and each offer told which
+    candidate triggered it. Recommend says what the row reads like: a limitation that already carries a
+    rationale or a chosen option is a record to reconstruct, one that carries neither is a claim to reassess."""
+    res = I.check(as_items(cands, v))
+    done = v.get(SUPPORTS_KEY, {})
+    byc = {c["id"]: c for c in cands}
+    kept = []
+    for s in res["suggestions"]:
+        if done.get(s["key"], {}).get("verdict") == "Dismiss":
+            continue
+        trig = byc.get(s["id"])
+        e = effective(trig, v) if trig else {}
+        s["triggerTitle"] = e.get("title", "")
+        s["triggerPage"] = e.get("page", "")
+        if s["rule"] in ("S5", "S6"):
+            s["recommend"] = "Reconstruct" if (e.get("rationale") or e.get("chosen-option")) else "Reassess"
+        kept.append(s)
+    res["suggestions"] = kept
+    res["dismissed"] = sum(1 for e in done.values() if e.get("verdict") == "Dismiss")
+    return res
+
+
+def support_verdict(bdir, key, verdict, reason="", fields=None, sugg=None):
+    """A reviewer's answer to one missing support. Accept writes the offered item as an implied candidate
+    and links it both ways; Reassess drops the trigger back to Under assessment; Dismiss hides the row."""
+    v = load_verdicts(bdir)
+    fields = fields or {}
+    if verdict == "Dismiss":
+        v.setdefault(SUPPORTS_KEY, {})[key] = {"verdict": "Dismiss", "reason": reason}
+    elif verdict == "Reassess":
+        if not sugg:
+            raise ValueError("Reassess needs the suggestion.")
+        e = v.setdefault(sugg["id"], {}); e.setdefault("fields", {})["status"] = "Under assessment"
+        e["links"] = [l for l in e.get("links", []) if not l.lower().startswith("dispositioned by")]
+        v.setdefault(SUPPORTS_KEY, {})[key] = {"verdict": "Reassess"}
+    elif verdict == "Accept":
+        if not sugg:
+            raise ValueError("Accept needs the suggestion.")
+        f = dict(sugg["fields"]); f.update({k: x for k, x in fields.items() if x is not None})
+        if sugg["needsOwner"] and not str(f.get("owner", "")).strip():
+            raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
+        iid = "i" + key[1:]
+        cand = {"id": iid, "page": "Implied at baseline", "table": "", "kind": sugg["kind"], "title": f.get("title", ""), "ref": "",
+                "source_status": sugg["status"], "owner": f.get("owner", ""), "approved-by": "", "moscow": f.get("moscow", ""), "phase": f.get("phase", ""),
+                "implemented-by": f.get("implemented-by", ""), "vendor-ref": "", "raised-on": "", "consulted": f.get("consulted", ""),
+                "rationale": f.get("rationale", "") if sugg["kind"] != "CR" else f.get("reason", ""), "impact": f.get("impact", ""), "description": "",
+                "source": f.get("source", ""), "confidence": "", "inferred": False, "trigger": "", "mitigation": "", "likelihood": "",
+                "risk-kind": "Risk" if sugg["kind"] == "RSK" else "", "chosen-option": f.get("chosen-option", ""), "options": "",
+                "next action": f.get("next action", ""), "due": f.get("due", ""),
+                "notes": f"Implied at baseline by {sugg['id']} under {sugg['rule']}",
+                "links": [sugg["reverse"]] if sugg["reverse"] else [], "implied": True}
+        v[IMPLIED_KEY] = [c for c in v.get(IMPLIED_KEY, []) if c["id"] != iid] + [cand]
+        v.setdefault(iid, {})["verdict"] = "Accept"
+        trig = v.setdefault(sugg["id"], {})
+        trig["links"] = list(dict.fromkeys(trig.get("links", []) + [sugg["link"] + iid]))
+        v.setdefault(SUPPORTS_KEY, {})[key] = {"verdict": "Accept", "created": iid}
+    else:
+        raise ValueError("Unknown support verdict.")
+    save_verdicts(bdir, v)
+    return v
+
+
 def assemble(cands, v, today):
     """The accepted set as it would enter the registers: one record per accepted candidate with its merged
     rows folded in. Returns (records, rejection rows). Each record is {"kind", "fields", "gist", "cid", "refs"}
@@ -396,7 +547,7 @@ def assemble(cands, v, today):
         k = c["kind"]
         c, kept_back = fold_merged(c, merged_into.get(c["id"], []), k)
         # a source status that is one of the model's own states for this type is kept; anything else starts the item at its first state
-        status = c.get("status") or next((st for st in M.STATES[k] if st.lower() == (c.get("source_status") or "").lower()), M.FIRST_STATE[k])
+        status = status_of(c)
         fields = {"Title": c["title"], "Status": status, "Raised on": c.get("raised-on") or today}
         for key in M.SHORT[k]:
             if key == "risk-kind":
@@ -416,7 +567,8 @@ def assemble(cands, v, today):
         fields["Notes"] = " ⏎ ".join(n.replace("\n", " ⏎ ") for n in notes if n)
         refs = [r for r in [c["ref"]] + [m["ref"] for m in merged_into.get(c["id"], [])] if r]
         records.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"],
-                        "refs": refs, "page": c["page"], "merged_cids": [m["id"] for m in merged_into.get(c["id"], [])]})
+                        "refs": refs, "page": c["page"], "merged_cids": [m["id"] for m in merged_into.get(c["id"], [])],
+                        "links": list(dict.fromkeys(c.get("links") or [])), "implied": bool(c.get("implied"))})
     return records, rejects
 
 
@@ -428,6 +580,8 @@ def export_blocks(cands, v, today):
 
 FROZEN = "frozen.md"
 LINK_RE = re.compile(r"\b(REQ|DEC|LIM|RSK|OI|CR)-?(\d+)\b")
+# a candidate id, or an implied candidate id, as integrity.LINK_ID reads them
+CAND_RE = re.compile(r"\b[ci][0-9a-f]{8,10}\b")
 
 
 def frozen(bdir):
@@ -465,6 +619,23 @@ def item_text(id, fields, links):
     return "\n".join(lines)
 
 
+IMPLIED_BY = re.compile(r"by (\S+) under (S\d+)")
+
+
+def implied_section(records, remap):
+    """What the freeze wrote that no source page held: one row per implied item, the rule that offered it
+    and the item that triggered it. Nothing is written when the baseline implied nothing."""
+    rows = []
+    for r in records:
+        if not r.get("implied"):
+            continue
+        m = IMPLIED_BY.search(r["fields"].get("Notes", "") + " " + r["fields"].get("Source", ""))
+        rows.append(f"| {r['id']} | {m.group(2) if m else ''} | {remap(m.group(1)) if m else ''} |")
+    if not rows:
+        return ""
+    return "\n\n## Implied at baseline\n\nItems the registers needed that no source page held.\n\n| Item | Rule | Implied by |\n|---|---|---|\n" + "\n".join(rows) + "\n"
+
+
 def freeze(eng, bdir, cands, v, today, who):
     """Write the accepted set as item files, the first content of the registers. Refuses if any item file
     exists, so a live register is never overwritten. Source ids become the model's ids in order of acceptance,
@@ -474,34 +645,49 @@ def freeze(eng, bdir, cands, v, today, who):
     for d in M.DIRS.values():
         if glob.glob(os.path.join(eng, d, "*.md")):
             raise ValueError(f"The {d} register already has items; freeze only runs into empty registers.")
+    pending = [x for x in suggestions(cands, v)["suggestions"] if x["level"] == "fail"]
+    if pending:
+        raise ValueError(f"{len(pending)} missing support(s) still undecided on the Missing supports tab; accept or dismiss them before the freeze.")
     records, rejects = assemble(cands, v, today)
     if not records:
         raise ValueError("Nothing accepted yet.")
-    counter, idmap, out = {}, {}, []
+    counter, idmap, out, cids = {}, {}, [], set()
     for r in records:
         counter[r["kind"]] = counter.get(r["kind"], 0) + 1
         nid = f"{r['kind']}-{counter[r['kind']]:04d}"
         r["id"] = nid
+        idmap[r["cid"]] = nid; cids.add(r["cid"])
+        for mc in r["merged_cids"]:
+            idmap[mc] = nid; cids.add(mc)
         for ref in r["refs"]:
             # a bare number is only unique within its page; an id in the model's form is unique across the source
             idmap[ref if LINK_RE.fullmatch(ref) else f"{r['page']} · {ref}"] = nid
     def remap(txt):
-        return LINK_RE.sub(lambda m: idmap.get(f"{m.group(1)}-{m.group(2)}", idmap.get(f"{m.group(1)}{m.group(2)}", m.group(0))), txt)
-    # a note that came from a link column ("Links: delivers REQ-030", "Delivers: REQ-030") becomes links where the ids map
-    words = {"Links": "", "Delivers": "delivers", "Resolves into": "resolves into", "Disposition record": "disposition", "Blocked by": "blocked by", "Supersedes": "supersedes", "Addresses": "addresses"}
+        # source ids first, then candidate ids: both name items that now carry one of the model's ids
+        return CAND_RE.sub(lambda m: idmap.get(m.group(0), m.group(0)),
+                           LINK_RE.sub(lambda m: idmap.get(f"{m.group(1)}-{m.group(2)}", idmap.get(f"{m.group(1)}{m.group(2)}", m.group(0))), txt))
     for r in records:
-        links, notes = [], []
+        # links held on the verdict, and an implied candidate's own, are already ours. A link whose target
+        # was not accepted still reads as a candidate id after the remap, and is dropped rather than written dangling
+        links = [l for l in (remap(x) for x in r.get("links", [])) if not CAND_RE.search(l)]
+        notes = []
         for n in r["fields"].get("Notes", "").split(" ⏎ "):
-            m = re.match(r"(" + "|".join(words) + r"): (.+)", n)
+            m = re.match(r"(" + "|".join(LINK_NOTE_WORDS) + r"): (.+)", n)
             if not (m and LINK_RE.search(m.group(2))):
                 notes.append(n); continue
             for part in re.split(r"[;,]\s*", m.group(2)):
                 part = part.strip()
                 if not LINK_RE.search(part): continue
-                word = words[m.group(1)]
+                word = LINK_NOTE_WORDS[m.group(1)]
                 links.append((word + " " + remap(part)).strip() if word and not re.match(r"[a-z]", part) else remap(part))
             notes.append(n + " (as written in the source)")
         r["fields"]["Notes"] = " ⏎ ".join(notes)
+        links = list(dict.fromkeys(links))
+        if r.get("implied"):
+            # an implied item's Source and Notes are the engine's own words about the candidate that
+            # triggered it, not source text, so the candidate id in them becomes the item's id
+            for lab in ("Source", "Notes"):
+                r["fields"][lab] = remap(r["fields"].get(lab, ""))
         os.makedirs(os.path.join(eng, M.DIRS[r["kind"]]), exist_ok=True)
         open(os.path.join(eng, M.DIRS[r["kind"]], r["id"] + ".md"), "w", encoding="utf-8").write(item_text(r["id"], r["fields"], links))
         out.append(r)
@@ -516,7 +702,9 @@ def freeze(eng, bdir, cands, v, today, who):
     with open(os.path.join(bdir, FROZEN), "w", encoding="utf-8") as f:
         f.write(f"# Baseline frozen\n\n- Frozen on: {today}\n- Frozen by: {who}\n- Items written: {counts}\n- Rejected: {len(rejects)}\n\n"
                 "The registers above this folder started from these items. Every change since is a change set.\n\n"
-                "## Id map\n\n| Source id | Item |\n|---|---|\n" + "\n".join(f"| {ref} | {nid} |" for ref, nid in idmap.items()) + "\n")
+                "## Id map\n\n| Source id | Item |\n|---|---|\n"
+                + "\n".join(f"| {ref} | {nid} |" for ref, nid in idmap.items() if ref not in cids) + "\n"
+                + implied_section(out, remap))
     return {"ok": True, "written": len(out), "rejected": len(rejects), "counts": counter}
 
 
