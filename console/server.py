@@ -61,13 +61,18 @@ def load_stakeholders():
 
 
 def load_engagement():
-    eng = {"name": os.path.basename(ENG), "phases": [], "current": ""}
+    eng = {"name": os.path.basename(ENG), "phases": [], "current": "", "writes": "direct"}
     p = os.path.join(ENG, "engagement.md")
     if os.path.exists(p):
         on = False
         for ln in open(p, encoding="utf-8"):
             if ln.startswith("# Engagement:"):
                 eng["name"] = ln.split(":", 1)[1].strip()
+            m = re.match(r"- Writes:\s*(\S+)", ln)
+            if m:
+                if m.group(1) not in ("direct", "change-sets"):
+                    raise ValueError(f"engagement.md says Writes: {m.group(1)}; it must be direct or change-sets")
+                eng["writes"] = m.group(1)
             if ln.startswith("## Phases"):
                 on = True; continue
             if ln.startswith("## "):
@@ -78,6 +83,11 @@ def load_engagement():
                     name = name[:-9].strip(); eng["current"] = name
                 eng["phases"].append(name)
     return eng
+
+
+def writes_direct():
+    """Direct mode rewrites item files; change-sets mode appends blocks for the ingester. Per engagement."""
+    return load_engagement()["writes"] == "direct"
 
 
 # ---------- change sets (section 11) ----------
@@ -343,8 +353,35 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
         return f
 
-    def write_offer(self, cs, req, sugg, overrides):
-        """One create block for an offer. Returns its block number."""
+    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None):
+        """The one place a Live write lands. Change-sets mode appends a block to the maker's open change set;
+        direct mode rewrites the item file, stamps Updated and appends one History line. Callers build fields
+        by label and links as text, the same in both modes. Returns item (block number or id) and ref, the
+        text a link uses to name what was written."""
+        ev = self.evidence(req)
+        if not writes_direct():
+            cs = current_change_set(req["madeBy"])
+            n = append_block(cs, kind, target, fields, links, ev, gist, frm=frm, based_on=based_on)
+            return {"changeSet": cs["id"], "item": n, "ref": f"item {n}"}
+        if target == "new":
+            taken = [int(os.path.basename(p)[len(kind) + 1:-3]) for p in glob.glob(os.path.join(ENG, M.DIRS[kind], f"{kind}-*.md"))]
+            it = {"id": f"{kind}-{max(taken + [0]) + 1:04d}", "kind": kind, "links": [], "history": [], "raised-on": today(), "closed-on": ""}
+        else:
+            it = parse_item(item_path(ENG, target))
+        for k, v in fields.items():
+            it[field_key(k)] = v
+        for l in links:
+            if l not in it["links"]:
+                it["links"].append(l)
+        it["updated"] = today()
+        move = f"{frm} → {it['status']}" if frm is not None else ""
+        it["history"].append(" | ".join(x for x in [today(), req["madeBy"].strip(), move, gist, ev[0].split(" | ", 2)[2]] if x))
+        p = item_path(ENG, it["id"]); os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "w", encoding="utf-8").write(render_item(it))
+        return {"item": it["id"], "written": p, "ref": it["id"]}
+
+    def write_offer(self, req, sugg, overrides):
+        """One new item for an offer. Returns the ref a link uses to name it."""
         f = self.offer_fields(sugg, overrides)
         kind = sugg["kind"]
         fields = {"Title": f.get("title", ""), "Status": sugg["status"], "Raised on": today()}
@@ -354,7 +391,7 @@ class H(SimpleHTTPRequestHandler):
         if kind == "RSK":
             fields["Kind"] = f.get("risk-kind", "Risk")
         links = [sugg["reverse"]] if sugg["reverse"] else []
-        return append_block(cs, kind, "new", fields, links, self.evidence(req), f"{sugg['rule']}: implied by {sugg['id']}")
+        return self.commit(kind, "new", fields, links, req, f"{sugg['rule']}: implied by {sugg['id']}")["ref"]
 
     def transition(self, req):
         items = overlay(load_registers(), load_change_sets())
@@ -388,18 +425,16 @@ class H(SimpleHTTPRequestHandler):
             missing.append("Vendor ref")
         if missing:
             raise ValueError("Before " + to + " you need: " + "; ".join(missing))
-        cs = current_change_set(req["madeBy"])
         support_links = []
         for s, f in chosen:
-            n = self.write_offer(cs, req, s, f)
-            support_links.append(f"{s['link']}item {n}")
+            support_links.append(s["link"] + self.write_offer(req, s, f))
         fields = {"Status": to}
         for k, v in req.get("fields", {}).items():
             fields[label_of(field_key(k))] = v
         if to in M.CLOSES[kind]:
             fields["Closed on"] = today()
-        n = append_block(cs, kind, it["id"], fields, req.get("links", []) + support_links, self.evidence(req), req.get("gist", "") or f"{frm} to {to}", frm=frm, based_on=it.get("updated", ""))
-        return {"ok": True, "changeSet": cs["id"], "item": n, "supports": len(support_links)}
+        r = self.commit(kind, it["id"], fields, req.get("links", []) + support_links, req, req.get("gist", "") or f"{frm} to {to}", frm=frm, based_on=it.get("updated", ""))
+        return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"], "supports": len(support_links)}
 
     def support_accept(self, req):
         """Write one offer the live registers are missing and link the trigger to it."""
@@ -412,10 +447,9 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("That suggestion is no longer current; reload.")
         self.offer_fields(s, req.get("fields"))   # refuse early, before anything is written
         self.evidence(req)
-        cs = current_change_set(req["madeBy"])
-        n = self.write_offer(cs, req, s, req.get("fields"))
-        m = append_block(cs, it["kind"], it["id"], {}, [f"{s['link']}item {n}"], self.evidence(req), f"{s['rule']}: linked to the implied {s['kind']}", frm=None, based_on=it.get("updated", ""))
-        return {"ok": True, "changeSet": cs["id"], "item": n, "linkBlock": m}
+        ref = self.write_offer(req, s, req.get("fields"))
+        r = self.commit(it["kind"], it["id"], {}, [s["link"] + ref], req, f"{s['rule']}: linked to the implied {s['kind']}", based_on=it.get("updated", ""))
+        return {"ok": True, "changeSet": r.get("changeSet"), "item": ref if writes_direct() else int(ref.split()[1]), "linkBlock": r["item"]}
 
     def support_link(self, req):
         """Point the trigger at a record the registers already hold instead of creating one: an edit block
@@ -432,13 +466,11 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Pick the record to link.")
         if target["kind"] != s["kind"]:
             raise ValueError(f"{target['id']} is a {M.NAMES[target['kind']]}; this offer needs a {M.NAMES[s['kind']]}.")
-        ev = self.evidence(req)
-        cs = current_change_set(req["madeBy"])
-        n = append_block(cs, it["kind"], it["id"], {}, [f"{s['link']}{target['id']}"], ev, f"{s['rule']}: linked to the existing {target['id']}", frm=None, based_on=it.get("updated", ""))
+        r = self.commit(it["kind"], it["id"], {}, [f"{s['link']}{target['id']}"], req, f"{s['rule']}: linked to the existing {target['id']}", based_on=it.get("updated", ""))
         m = None
         if s["reverse"]:
-            m = append_block(cs, target["kind"], target["id"], {}, [s["reverse"]], ev, f"{s['rule']}: reverse link from {it['id']}", frm=None, based_on=target.get("updated", ""))
-        return {"ok": True, "changeSet": cs["id"], "item": n, "reverseBlock": m}
+            m = self.commit(target["kind"], target["id"], {}, [s["reverse"]], req, f"{s['rule']}: reverse link from {it['id']}", based_on=target.get("updated", ""))["item"]
+        return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"], "reverseBlock": m}
 
     def support_dismiss(self, req):
         who = req.get("madeBy", "").strip()
@@ -482,10 +514,8 @@ class H(SimpleHTTPRequestHandler):
         for k in M.SHORT[kind] + M.LONG[kind]:
             if f.get(k):
                 fields[label_of(k)] = f[k]
-        ev = self.evidence(req)   # the maker must be named before a change set is opened
-        cs = current_change_set(req["madeBy"])
-        n = append_block(cs, kind, "new", fields, f["links"], ev, req.get("gist", "") or "raised in console")
-        return {"ok": True, "changeSet": cs["id"], "item": n, "ref": f"item {n}"}
+        r = self.commit(kind, "new", fields, f["links"], req, req.get("gist", "") or "raised in console")
+        return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"], "ref": r["ref"]}
 
     def edit(self, req):
         items = overlay(load_registers(), load_change_sets())
@@ -495,10 +525,8 @@ class H(SimpleHTTPRequestHandler):
         fields = {label_of(field_key(k)): v for k, v in req.get("fields", {}).items() if str(v).strip() != ""}
         if not fields and not req.get("links"):
             raise ValueError("Nothing changed.")
-        ev = self.evidence(req)   # the maker must be named before a change set is opened
-        cs = current_change_set(req["madeBy"])
-        n = append_block(cs, it["kind"], it["id"], fields, req.get("links", []), ev, req.get("gist", "") or "fields updated", frm=None, based_on=it.get("updated", ""))
-        return {"ok": True, "changeSet": cs["id"], "item": n}
+        r = self.commit(it["kind"], it["id"], fields, req.get("links", []), req, req.get("gist", "") or "fields updated", based_on=it.get("updated", ""))
+        return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"]}
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):

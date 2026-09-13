@@ -12,7 +12,7 @@ def write_item(eng, kind, id, title, status, **f):
 
 class Stub:
     """The handler methods only use self for other methods, so an instance without a socket will do."""
-    evidence = S.H.evidence; support_link = S.H.support_link
+    evidence = S.H.evidence; support_link = S.H.support_link; commit = S.H.commit
 
 
 class LiveLink(unittest.TestCase):
@@ -20,6 +20,7 @@ class LiveLink(unittest.TestCase):
         self.d = tempfile.mkdtemp(); self.eng = os.path.join(self.d, "eng"); os.makedirs(self.eng)
         self.saved = (S.ENG, S.CS_DIR, S.DISMISSED_PATH)
         S.ENG = self.eng; S.CS_DIR = os.path.join(self.eng, "change-sets"); S.DISMISSED_PATH = os.path.join(self.eng, "supports-dismissed.json")
+        open(os.path.join(self.eng, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         write_item(self.eng, "LIM", "LIM-0001", "No bulk port", "Change requested", impact="Ops", options="1. Vendor adds bulk; 2. Manual", **{"chosen-option": "1"})
         write_item(self.eng, "CR", "CR-0001", "Vendor adds bulk port", "Proposed", reason="Ops")
         write_item(self.eng, "DEC", "DEC-0001", "Bulk port stance", "Proposed")
