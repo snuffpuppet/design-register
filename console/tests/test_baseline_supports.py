@@ -253,3 +253,58 @@ class LinkExisting(unittest.TestCase):
         lim = open(os.path.join(eng, "limitations", "LIM-0001.md"), encoding="utf-8").read()
         self.assertIn("dispositioned by DEC-0001", lim)
         self.assertNotIn("Implied at baseline", open(os.path.join(self.b, "frozen.md"), encoding="utf-8").read())
+
+
+class ScopeColumns(unittest.TestCase):
+    def test_scope_header_maps(self):
+        self.assertEqual(B.map_header(["Scope"]), ["scope"])
+
+    def test_domain_header_maps_to_scope(self):
+        self.assertEqual(B.map_header(["Domain"]), ["scope"])
+
+    def test_service_and_area_map_to_scope(self):
+        self.assertEqual(B.map_header(["Service", "Area"]), ["scope", "scope"])
+
+    def test_scope_is_editable(self):
+        self.assertIn("scope", B.EDITABLE)
+
+    def test_owner_still_maps(self):
+        self.assertEqual(B.map_header(["Owner"]), ["owner"])
+
+
+class ScopeFreeze(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.b = os.path.join(self.d, "baseline"); os.makedirs(self.b)
+        open(os.path.join(self.b, "Limitations.md"), "w").write(PAGE)
+        open(os.path.join(self.b, "Requirements.md"), "w").write(REQS)
+        self.ids = [c["id"] for c in B.load_candidates(self.b)]
+        B.apply_verdict(self.b, self.ids, "Accept")
+        for x in B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"]:
+            if x["level"] == "fail":
+                B.support_verdict(self.b, x["key"], "Dismiss", reason="test")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def run_freeze(self, scope, scopes):
+        B.apply_verdict(self.b, self.ids, "Accept", fields={"scope": scope})
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng, exist_ok=True)
+        return B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b),
+                        "13 September 2026", "Adam", scopes=scopes or None)
+
+    def test_freeze_refuses_a_blank_scope_when_scopes_declared(self):
+        with self.assertRaises(ValueError) as e:
+            self.run_freeze("", ["Access"])
+        self.assertIn("Scope", str(e.exception))
+        self.assertIn("(blank)", str(e.exception))
+
+    def test_freeze_refuses_an_off_list_scope(self):
+        with self.assertRaises(ValueError) as e:
+            self.run_freeze("Nonsense", ["Access"])
+        self.assertIn("Nonsense", str(e.exception))
+
+    def test_freeze_accepts_a_listed_scope(self):
+        self.assertTrue(self.run_freeze("Access", ["Access"])["ok"])
+
+    def test_freeze_ignores_scope_when_none_declared(self):
+        self.assertTrue(self.run_freeze("", [])["ok"])

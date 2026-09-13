@@ -29,6 +29,7 @@ COLS = {
     "next action": ["next action", "next step", "action required"],
     "raised-on": ["raised on", "identified on", "created on", "logged on", "opened on"],
     "consulted": ["consulted"],
+    "scope": ["scope", "domain", "service", "area"],
     "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "assumption", "dependency", "action", "item", "statement", "change request"],
     "vendor-ref": ["vendor ref", "vendor reference", "vendor id", "supplier ref", "external ref", "external id"],
     "ref": ["id", "ref", "key", "#", "number", "identifier"],
@@ -359,7 +360,7 @@ def effective(c, v):
 
 # what the reviewer may change on a candidate before the freeze
 EDITABLE = {"title", "status", "owner", "moscow", "phase", "implemented-by", "approved-by", "consulted", "vendor-ref", "likelihood", "impact", "due", "risk-kind", "chosen-option",
-            "description", "rationale", "trigger", "mitigation", "options", "next action", "notes", "raised-on"}
+            "description", "rationale", "trigger", "mitigation", "options", "next action", "notes", "raised-on", "scope"}
 
 FOLD_SKIP = {"title", "status", "source", "notes", "raised-on"}
 
@@ -527,6 +528,7 @@ def support_verdict(bdir, key, verdict, reason="", fields=None, sugg=None, targe
             raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
         iid = "i" + key[1:]
         cand = {"id": iid, "page": "Implied at baseline", "table": "", "kind": sugg["kind"], "title": f.get("title", ""), "ref": "",
+                "scope": f.get("scope", ""),
                 "source_status": sugg["status"], "owner": f.get("owner", ""), "approved-by": "", "moscow": f.get("moscow", ""), "phase": f.get("phase", ""),
                 "implemented-by": f.get("implemented-by", ""), "vendor-ref": "", "raised-on": "", "consulted": f.get("consulted", ""),
                 "rationale": f.get("rationale", "") if sugg["kind"] != "CR" else f.get("reason", ""), "impact": f.get("impact", ""), "description": "",
@@ -585,7 +587,8 @@ def assemble(cands, v, today):
         refs = [r for r in [c["ref"]] + [m["ref"] for m in merged_into.get(c["id"], [])] if r]
         records.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"],
                         "refs": refs, "page": c["page"], "merged_cids": [m["id"] for m in merged_into.get(c["id"], [])],
-                        "links": list(dict.fromkeys(c.get("links") or [])), "implied": bool(c.get("implied"))})
+                        "links": list(dict.fromkeys(c.get("links") or [])), "implied": bool(c.get("implied")),
+                        "scope": c.get("scope", "")})
     return records, rejects
 
 
@@ -656,7 +659,7 @@ def implied_section(records):
     return "\n\n## Implied at baseline\n\nItems the registers needed that no source page held.\n\n| Item | Rule | Implied by |\n|---|---|---|\n" + "\n".join(rows) + "\n"
 
 
-def freeze(eng, bdir, cands, v, today, who):
+def freeze(eng, bdir, cands, v, today, who, scopes=None):
     """Write the accepted set as item files, the first content of the registers. Refuses if any item file
     exists, so a live register is never overwritten. Source ids become the model's ids in order of acceptance,
     a Links note whose source ids all map becomes real links, and the id map is written to baseline/frozen.md."""
@@ -671,6 +674,12 @@ def freeze(eng, bdir, cands, v, today, who):
     records, rejects = assemble(cands, v, today)
     if not records:
         raise ValueError("Nothing accepted yet.")
+    if scopes:
+        bad = [r for r in records if str(r.get("scope", "")).strip() not in scopes]
+        if bad:
+            vals = sorted({str(r.get("scope", "")).strip() or "(blank)" for r in bad})
+            raise ValueError(f"{len(bad)} accepted item(s) have a Scope that is not one of the engagement's: "
+                             + ", ".join(vals) + ". Fix them on the Candidates tab before the freeze.")
     counter, idmap, out, cids = {}, {}, [], set()
     for r in records:
         counter[r["kind"]] = counter.get(r["kind"], 0) + 1

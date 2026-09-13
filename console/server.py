@@ -338,7 +338,8 @@ class H(SimpleHTTPRequestHandler):
                     who = req.get("madeBy", "").strip()
                     if not who:
                         raise ValueError("Say who you are first (Made by).")
-                    return self.send_json(B.freeze(ENG, B_DIR, B.load_candidates(B_DIR), B.load_verdicts(B_DIR), today(), who))
+                    return self.send_json(B.freeze(ENG, B_DIR, B.load_candidates(B_DIR), B.load_verdicts(B_DIR), today(), who,
+                                                    scopes=load_engagement()["scopes"] or None))
             except ValueError as e:
                 return self.send_json({"error": str(e)}, 400)
         self.send_json({"error": "unknown"}, 404)
