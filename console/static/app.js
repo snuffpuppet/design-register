@@ -82,7 +82,10 @@ function render() {
   m.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => { triageMove(el.dataset.tq); });
   m.querySelectorAll("[data-rk]").forEach(el => el.onclick = () => { riskKind = el.dataset.rk; render(); });
   m.querySelectorAll("[data-raw]").forEach(el => el.onclick = async e => { e.preventDefault(); const t = await (await fetch("/api/change-set/" + el.dataset.raw)).text(); $("#raw-" + el.dataset.raw).innerHTML = `<pre>${esc(t)}</pre>`; });
-  renderDetail();
+  // Work through carries the open item in the queue panel itself, so the drawer stays hidden there.
+  // Calling renderDetail() in that view would call back into render() and recurse.
+  if (view === "triage") { const d = $("#detail"); if (d) d.hidden = true; }
+  else renderDetail();
 }
 const head = (title, sub = "", actions = "") => `<div class="toolbar"><div><h2>${title}</h2>${sub ? `<div class="small muted">${sub}</div>` : ""}</div>${actions ? `<div class="actions">${actions}</div>` : ""}</div>`;
 const idTag = i => `<a href="#" data-open="${i.id}" class="id" style="${COLOR(i.kind)}">${i.id}</a>${i.provisional ? '<span class="tag new">pending id</span>' : ""}`;
