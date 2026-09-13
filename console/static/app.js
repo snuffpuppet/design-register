@@ -36,13 +36,18 @@ async function loadOnce() {
   $("#stage").className = "stage " + st;
   $("#banner").innerHTML = st === "baseline"
     ? "<strong>Baselining.</strong> The pulled pages are candidates and nothing is written to the registers until you freeze. Verdicts and edits are kept in the baseline folder and can be changed until then."
+    : S.engagement.writes === "direct"
+    ? "This view is the registers <strong>as they stand</strong>: every move, edit or new item writes the item file, and git holds the history."
     : "This view is the registers <strong>as proposed</strong>: the item files plus every change set not yet applied. Every move, edit or new item appends a block to your session's change set, which the ingester applies.";
+  const direct = S.engagement.writes === "direct";
+  $("#close-session").hidden = direct;
   if (!viewChosen) { view = st === "baseline" ? "baseline" : "outstanding"; viewChosen = true; }
   const mine = S.change_sets.filter(c => !c.closed && !c.applied && c.header["Made by"] === madeBy());
-  $("#session-info").textContent = mine.length ? `${mine[0].id}, ${mine[0].blocks.length} block(s) this session` : "no open change set";
+  $("#session-info").textContent = direct ? "writes in place" : mine.length ? `${mine[0].id}, ${mine[0].blocks.length} block(s) this session` : "no open change set";
   banner("");
   render();
 }
+const said = r => r.changeSet ? `${r.changeSet} item ${r.item}` : `${r.item} written`;
 async function post(url, body) {
   const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({...body, madeBy: madeBy()})});
   const j = await r.json();
@@ -61,7 +66,7 @@ function render() {
     B?.present ? group("Source", [link("baseline", "Baseline", B.frozen ? "frozen" : B.candidates.filter(c => !c.verdict).length, "--c:var(--cs)")]) : "",
     group("Meeting", [link("outstanding", "Outstanding"), link("triage", "Work through", queue().length), link("report", "Meeting report"), link("slt", "Weekly SLT report")]),
     group("Registers", KINDS.map(k => link(k, S.model.names[k] + "s", counts(k), COLOR(k)))),
-    group("Changes", [link("cs", "Change sets", pendingN, "--c:var(--cs)")]),
+    S.engagement.writes === "direct" && !S.change_sets.length ? "" : group("Changes", [link("cs", "Change sets", pendingN, "--c:var(--cs)")]),
     `<div class="grp"><a href="guide.html" data-ext="1">Guide</a></div>`,
   ].join("");
   if (st === "baseline") $("#nav").querySelectorAll(".grp").forEach((g, n) => { if (n === 1) g.classList.add("dim"); });
@@ -176,6 +181,7 @@ function itemPanel(i, closable) {
     <div class="field ${changed.has("links") ? "changed" : ""}"><label>Links</label><ul class="links">${i.links.map(l => { const m = l.match(/([A-Z]+-\d{4}(?:\.\d+)?)/); return `<li>${m && S.byId[m[1]] ? esc(l.replace(m[1], "")) + `<a href="#" data-open="${m[1]}">${m[1]}</a>` : esc(l)}</li>`; }).join("") || '<li class="muted">none</li>'}</ul></div>
     ${S.model.long[k].map(f => fld(f, i[f])).join("")}
     ${fld("raised-on", i["raised-on"])}${fld("closed-on", i["closed-on"])}
+    ${i.history?.length ? `<div class="field"><label>History</label><ul class="small muted hist">${i.history.map(h => `<li>${esc(h)}</li>`).join("")}</ul></div>` : ""}
     <div class="small muted">updated ${esc(i.updated || "")}</div>
     ${form && form.mode === "edit" ? editForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button></div>`}`;
 }
@@ -215,7 +221,7 @@ function wire(d) {
   d.querySelectorAll("[data-slink]").forEach(el => el.onclick = async () => {
     const key = el.dataset.slink, target = el.dataset.target || d.querySelector(`[data-lkin="${key}"]`)?.value.trim();
     if (!target) return toast("Pick the record to link");
-    try { const r = await post("/api/support/link", {id: open, key, target, evidence: ""}); toast(`${r.changeSet} item ${r.item}: linked to ${target}`); await load(); renderDetail(); } catch (e) { toast(e.message); }
+    try { const r = await post("/api/support/link", {id: open, key, target, evidence: ""}); toast(`${said(r)}: linked to ${target}`); await load(); renderDetail(); } catch (e) { toast(e.message); }
   });
   d.querySelectorAll("[data-sdis]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sdis, rule: el.dataset.rule, dismiss: true, fields: {}, links: []}; renderDetail(); });
   d.querySelectorAll("[data-son]").forEach(el => el.onchange = () => { const s = form.supports[+el.dataset.son]; s.pick = el.checked; s.on = sOn(s); renderDetail(); });
@@ -254,10 +260,10 @@ const input = (key, val = "", req = false, kind = null) => {
   if (S.model.long.REQ.concat(S.model.long.DEC, S.model.long.LIM, S.model.long.RSK, S.model.long.OI, S.model.long.CR).includes(key)) return `<div class="field">${lab}<textarea data-f="${key}">${esc(val)}</textarea></div>`;
   return `<div class="field">${lab}<input data-f="${key}" value="${esc(val)}"></div>`;
 };
-const linkAdder = (k) => { const words = Object.keys(S.model.linkWords[k] || {}); return `<div class="field"><label>Add link</label><div style="display:flex;gap:6px"><select id="new-link-word" style="width:45%">${words.map(w => `<option ${form.linkWord === w ? "selected" : ""}>${w}</option>`).join("")}</select><input id="new-link" placeholder="REQ-0014, or item 2 for a block in this session" value="${esc(form.linkText || "")}"></div></div>`; };
+const linkAdder = (k) => { const words = Object.keys(S.model.linkWords[k] || {}); return `<div class="field"><label>Add link</label><div style="display:flex;gap:6px"><select id="new-link-word" style="width:45%">${words.map(w => `<option ${form.linkWord === w ? "selected" : ""}>${w}</option>`).join("")}</select><input id="new-link" placeholder="${S.engagement.writes === "direct" ? "REQ-0014" : "REQ-0014, or item 2 for a block in this session's change set"}" value="${esc(form.linkText || "")}"></div></div>`; };
 const tail = () => `<div class="field"><label>Evidence (meeting, document or note)</label><input id="evidence" value="${esc(form.evidence || "")}" placeholder="e.g. stakeholder forum 11 Sep"></div>
   <div class="field"><label>Why, in one sentence (Gist)</label><input id="gist" value="${esc(form.gist || "")}"></div>
-  <div class="err" id="err"></div><div class="actions"><button class="primary" id="submit">${form.mode === "support" && form.dismiss ? "Dismiss" : "Append to change set"}</button><button id="cancel">Cancel</button></div>`;
+  <div class="err" id="err"></div><div class="actions"><button class="primary" id="submit">${form.mode === "support" && form.dismiss ? "Dismiss" : (S.engagement.writes === "direct" ? "Write" : "Append to change set")}</button><button id="cancel">Cancel</button></div>`;
 
 function moveForm(i) {
   const k = i.kind, req = (S.model.required[k] || {})[form.to] || [];
@@ -343,7 +349,7 @@ async function submit() {
       else {
         const {__reason, ...fields} = form.fields, s = (S.integrity?.suggestions || []).find(x => x.key === form.key);
         if (!String(fields.title ?? s?.fields.title ?? "").trim()) throw new Error("Give the implied item a title.");
-        r = await post("/api/support/accept", {id: open, key: form.key, fields, evidence: form.evidence || ""}); toast(`${r.changeSet} item ${r.item} appended and linked`);
+        r = await post("/api/support/accept", {id: open, key: form.key, fields, evidence: form.evidence || ""}); toast(`${said(r)}${r.changeSet ? " appended" : ""} and linked`);
       }
       form = null; await load(); return;
     }
@@ -354,7 +360,7 @@ async function submit() {
       r = await post("/api/transition", {...body, id: open, to: form.to, supports: chosen.map(s => ({key: s.key, fields: s.edits}))});
     }
     else r = await post("/api/edit", {...body, id: open});
-    toast(`${r.changeSet} item ${r.item} appended`);
+    toast(r.changeSet ? `${said(r)} appended` : said(r));
     form = null; await load();
     if (view === "triage") { const q = queue(); if (!q.some(e => e.item.id === open)) { open = null; } render(); }
   } catch (e) { err.textContent = e.message; }

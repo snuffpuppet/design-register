@@ -375,6 +375,8 @@ class H(SimpleHTTPRequestHandler):
                 it["links"].append(l)
         it["updated"] = today()
         move = f"{frm} → {it['status']}" if frm is not None else ""
+        if move and gist == f"{frm} to {it['status']}":
+            gist = ""   # the default gist only repeats the move
         it["history"].append(" | ".join(x for x in [today(), req["madeBy"].strip(), move, gist, ev[0].split(" | ", 2)[2]] if x))
         p = item_path(ENG, it["id"]); os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "w", encoding="utf-8").write(render_item(it))

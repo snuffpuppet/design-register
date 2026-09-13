@@ -7,6 +7,9 @@ services:
     container_name: ${NAME:-register-console}
     ports:
       - "${PORT:-8085}:8080"
+    environment:
+      # dates on items and History lines are stamped in the console's own timezone, not UTC
+      - TZ=${TZ:-Australia/Sydney}
     volumes:
       # the engagement folder, absolute; the Makefile resolves ENG to this
       - "${ENG_ABS:-./test-data/puppy-gloves}:/engagement"

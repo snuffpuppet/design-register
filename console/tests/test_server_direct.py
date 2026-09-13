@@ -80,7 +80,7 @@ class DirectWrites(unittest.TestCase):
         self.h.transition({"id": "OI-0001", "to": "Closed", "fields": {}, "links": ["resolves into none: done"], "madeBy": "Adam"})
         it = self.read("OI-0001")
         self.assertEqual(it["status"], "Closed"); self.assertEqual(it["closed-on"], S.today())
-        self.assertIn("Open → Closed", it["history"][-1])
+        self.assertIn("Open → Closed", it["history"][-1]); self.assertNotIn("Open to Closed", it["history"][-1])
 
     def test_accepted_offer_gets_a_real_id_and_links_both_ways(self):
         items = S.overlay(S.load_registers(), S.load_change_sets())
