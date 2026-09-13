@@ -102,6 +102,9 @@ def offer(row, trigger):
     # A required field the template left empty still belongs in the offer, as an empty box the
     # reviewer fills. Title and source are handled here; a link: entry is not a field.
     okind = row["offer"][0] if row["offer"] else None
+    # Scope is inherited, never asked for: an offered record belongs to the same service as its trigger.
+    if str(trigger.get("scope", "") or "").strip():
+        out.setdefault("scope", trigger["scope"])
     for key in M.REQUIRED_ON_CREATE.get(okind, []):
         if key in ("title", "source") or key.startswith("link:"):
             continue
@@ -162,16 +165,16 @@ def suggestions(items, by_id):
     return sugs, prompts
 
 
-def check(items, phases=None, stakeholders=None, today=None):
+def check(items, phases=None, stakeholders=None, today=None, scopes=None):
     by_id = {}
     for it in items:
         by_id.setdefault(it["id"], it)
     sugs, prompts = suggestions(items, by_id)
-    failures, warnings = rules(items, by_id, phases, stakeholders, today)
+    failures, warnings = rules(items, by_id, phases, stakeholders, today, scopes)
     return {"failures": failures, "warnings": warnings, "prompts": prompts, "suggestions": sugs}
 
 
-def rules(items, by_id, phases=None, stakeholders=None, today=None):
+def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None):
     F, W = [], []
     fail = lambda rule, it, text: F.append({"rule": rule, "id": it["id"], "text": text})
     warn = lambda rule, it, text: W.append({"rule": rule, "id": it["id"], "text": text})
@@ -217,6 +220,13 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None):
         # I5
         if phases is not None and k in ("REQ", "CR") and str(it.get("phase", "")).strip() and it["phase"] not in phases:
             fail("I5", it, f"phase {it['phase']!r} is not in the engagement's Phases")
+        # I24
+        if scopes:
+            sc = str(it.get("scope", "")).strip()
+            if not sc:
+                fail("I24", it, "no Scope")
+            elif sc not in scopes:
+                fail("I24", it, f"scope {sc!r} is not in the engagement's Scopes")
         # I6
         for l in it.get("links", []):
             t = link_target(l)

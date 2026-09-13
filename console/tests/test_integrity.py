@@ -309,6 +309,43 @@ class Rules(unittest.TestCase):
         self.assertIn("REQ-0001", fails(r, "I2"))
 
 
+class ScopeRule(unittest.TestCase):
+    def fails(self, res, id):
+        return [f["rule"] for f in res["failures"] if f["id"] == id]
+
+    def test_off_list_scope_fails(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="Nonsense")], scopes=["Access", "Delivery"])
+        self.assertIn("I24", self.fails(r, "REQ-0001"))
+
+    def test_blank_scope_fails_when_scopes_declared(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="")], scopes=["Access", "Delivery"])
+        self.assertIn("I24", self.fails(r, "REQ-0001"))
+
+    def test_listed_scope_passes(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="Access")], scopes=["Access", "Delivery"])
+        self.assertNotIn("I24", self.fails(r, "REQ-0001"))
+
+    def test_rule_is_inert_when_no_scopes_declared(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="")])
+        self.assertNotIn("I24", self.fails(r, "REQ-0001"))
+
+    def test_off_list_scope_is_inert_when_no_scopes_declared(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="Nonsense")])
+        self.assertNotIn("I24", self.fails(r, "REQ-0001"))
+
+
+class ScopeInheritance(unittest.TestCase):
+    def test_offer_takes_the_triggers_scope(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must", scope="CarrierEthernet")])
+        s = sug(r, "S1", "REQ-0001")
+        self.assertEqual(s[0]["fields"]["scope"], "CarrierEthernet")
+
+    def test_offer_with_no_trigger_scope_leaves_an_empty_box(self):
+        r = I.check([item("REQ-0001", "Draft", moscow="Must")])
+        s = sug(r, "S1", "REQ-0001")
+        self.assertEqual(s[0]["fields"]["scope"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
 
