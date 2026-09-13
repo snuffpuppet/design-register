@@ -104,6 +104,11 @@ tr.decided td{opacity:.55}
 #conn-banner{position:fixed;top:0;left:0;right:0;z-index:99;padding:6px 12px;font-size:.78rem;background:#7a5b00;color:#fff;text-align:center}
 
 .note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--cs);border-radius:4px;padding:8px 12px;font-size:.85rem;margin:8px 0}
+.supports{border:1px solid var(--line);border-left:3px solid var(--cs);border-radius:4px;background:var(--surface);padding:2px 12px 8px;margin:12px 0}
+.supports h3{margin:10px 0 2px;font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2)}
+.supports .blk:first-of-type{border-top:none}
+.supports label.dup{display:block;padding:6px 0 2px}
+.supports input[data-sowner]{width:190px;margin:0 0 6px 18px}
 .cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 12px}
 .bl-edit{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);overflow-y:auto;background:var(--surface);border-left:1px solid var(--line);padding:18px 20px;z-index:8;box-shadow:-8px 0 24px rgba(0,0,0,.25)}
 .bl-edit .close{float:right}

@@ -116,7 +116,11 @@ function outstanding() {
   const req = it.filter(i => i.kind === "REQ" && i.status === "Draft" && old14(i) && !later(i));
   const defects = it.filter(i => !term(i.kind).includes(i.status) && defect(i));
   const deferred = it.filter(i => (i.kind === "CR" && i.status === "Deferred") || (i.kind === "REQ" && later(i)));
-  return head("Outstanding", "Model section 8, in order. Amber marks an item with a pending change in an unapplied change set.") + `
+  const missing = (S.integrity?.suggestions || []).filter(s => s.level === "fail"), bad = S.integrity?.failures || [];
+  const gaps = missing.length || bad.length
+    ? `<div class="note">Register gaps: ${missing.length} missing support${missing.length === 1 ? "" : "s"}, ${bad.length} integrity failure${bad.length === 1 ? "" : "s"}. ${[...new Set(missing.map(s => s.id))].slice(0, 12).map(id => `<a href="#" data-open="${esc(id)}" class="id" style="${COLOR(S.byId[id]?.kind || "cs")}">${esc(id)}</a>`).join(" ")}</div>`
+    : "";
+  return head("Outstanding", "Model section 8, in order. Amber marks an item with a pending change in an unapplied change set.") + gaps + `
     <div class="stat"><div><b>${oi.length}</b><span>open items</span></div><div><b>${lim.length}</b><span>limitations to disposition</span></div><div><b>${cr.filter(c => c.status === "For approval").length}</b><span>CRs with the business</span></div><div><b class="${defects.length ? "req" : ""}">${defects.length}</b><span>register defects</span></div></div>
     ${sec("1. Open items not Closed", oi, ["status", "owner", "next action", "due"])}
     ${sec("2. Limitations in Identified or Under assessment", lim, ["status", "owner", "raised-on"])}
@@ -162,6 +166,7 @@ function itemPanel(i, closable) {
     <h2>${idTag(i)} ${esc(i.title)}</h2>
     <div class="st">${esc(i.status)}${S.model.terminal[k].includes(i.status) ? " (terminal)" : ""}</div>
     ${i.pending.map(p => `<div class="pend"><b>${p.cs} item ${p.n}</b>${p.from ? ` · ${esc(p.from)} → ${esc(p.status)}` : ""}<br>${esc(p.gist)}</div>`).join("")}
+    ${supportsPanel(i)}
     ${moves.length ? `<h3>Move to</h3><div class="moves" style="${COLOR(k)}">${moves.map(m => `<button data-move="${m}" class="${form?.to === m ? "on" : ""}">${m}</button>`).join("")}</div>` : ""}
     ${form && form.mode === "move" ? moveForm(i) : ""}
     ${S.model.short[k].map(f => fld(f, i[f])).join("")}
@@ -171,10 +176,36 @@ function itemPanel(i, closable) {
     <div class="small muted">updated ${esc(i.updated || "")}</div>
     ${form && form.mode === "edit" ? editForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button></div>`}`;
 }
+/* What section 9 and the SUPPORTS table say this item still needs. Accepting writes the offer as a new
+   provisional item and links the two; dismissing keeps the reason beside the register. */
+function supportsPanel(i) {
+  const R = S.integrity || {suggestions: [], prompts: [], failures: []};
+  const mine = R.suggestions.filter(s => s.id === i.id), prompts = R.prompts.filter(p => p.id === i.id);
+  if (!mine.length && !prompts.length) return "";
+  return `<div class="supports"><h3>Supports needed</h3>
+    ${mine.map(s => `<div class="blk"><span class="id" style="${COLOR(s.kind)}">${s.kind}</span> ${esc(s.fields.title || "untitled")} <span class="small muted">${esc(s.rule)} · ${s.level === "fail" ? "needed" : "suggested"}${s.needsOwner ? " · owner needed" : ""}</span>
+      <div class="moves" style="${COLOR(s.kind)}"><button data-sacc="${esc(s.key)}">Accept</button> <button class="ghost" data-sdis="${esc(s.key)}" data-rule="${esc(s.rule)}">Dismiss</button></div>
+      ${form?.mode === "support" && form.key === s.key ? supportForm(s) : ""}</div>`).join("")}
+    ${prompts.map(p => `<div class="blk small muted">${esc(p.rule)}: ${esc(p.text)}</div>`).join("")}</div>`;
+}
+function supportForm(s) {
+  if (form.dismiss) return `<div class="form"><h3>Dismiss ${esc(s.rule)}</h3>
+    <div class="field"><label>Reason to dismiss</label><input data-f="__reason" value="${esc(form.fields.__reason || "")}"></div>${tail()}</div>`;
+  const keys = Object.keys(s.fields); if (!keys.includes("title")) keys.unshift("title");
+  if (s.needsOwner && !keys.includes("owner")) keys.splice(1, 0, "owner");
+  return `<div class="form"><h3>Accept the implied ${esc(S.model.names[s.kind] || s.kind)}</h3>
+    ${keys.map(k => input(k, form.fields[k] ?? s.fields[k] ?? "", k === "title" || (k === "owner" && s.needsOwner), s.kind)).join("")}
+    <p class="small muted">It is written in ${esc(s.status)} and linked: this item gets <code>${esc(s.link)}&lt;new&gt;</code>${s.reverse ? `, the new one gets <code>${esc(s.reverse)}</code>` : ""}.</p>${tail()}</div>`;
+}
 function wire(d) {
   $("#close-detail", d)?.addEventListener("click", () => { open = null; form = null; renderDetail(); });
+  d.querySelectorAll("[data-sacc]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sacc, fields: {}, links: []}; renderDetail(); });
+  d.querySelectorAll("[data-sdis]").forEach(el => el.onclick = () => { form = {mode: "support", key: el.dataset.sdis, rule: el.dataset.rule, dismiss: true, fields: {}, links: []}; renderDetail(); });
+  d.querySelectorAll("[data-son]").forEach(el => el.onchange = () => { const s = form.supports[+el.dataset.son]; s.pick = el.checked; s.on = sOn(s); renderDetail(); });
+  d.querySelectorAll("[data-sedit]").forEach(el => el.oninput = () => { const n = +el.dataset.sedit, s = form.supports[n]; s.edits[el.dataset.sk] = el.value; s.on = sOn(s); const cb = d.querySelector(`[data-son="${n}"]`); if (cb) cb.checked = s.on; });
+  if (form?.mode === "move") d.querySelectorAll("[data-f]").forEach(el => el.onchange = () => refreshSupports());
   d.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
-  d.querySelectorAll("[data-move]").forEach(el => el.onclick = () => { form = {mode: "move", to: el.dataset.move, fields: {}, links: []}; renderDetail(); });
+  d.querySelectorAll("[data-move]").forEach(el => el.onclick = () => { form = {mode: "move", to: el.dataset.move, fields: {}, links: [], supports: null}; renderDetail(); refreshSupports(true); });
   $("#edit-btn", d)?.addEventListener("click", () => { form = {mode: "edit", fields: {}, links: []}; renderDetail(); });
   $("#cancel", d)?.addEventListener("click", () => { form = null; renderDetail(); });
   $("#submit", d)?.addEventListener("click", submit);
@@ -185,11 +216,12 @@ function wire(d) {
   $("#evidence", d)?.addEventListener("input", e => form.evidence = e.target.value);
   $("#gist", d)?.addEventListener("input", e => form.gist = e.target.value);
 }
+const stkList = () => `<datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">${esc(s.role)}</option>`).join("")}<option value="Joint"><option value="Vendor: "></datalist>`;
 const input = (key, val = "", req = false, kind = null) => {
   const c = (key === "impact" && kind !== "RSK") ? null : S.model.choices[key];
   const lab = `<label>${esc(S.model.labels[key] || key)}${req ? ' <span class="req">required</span>' : ""}</label>`;
   if (c) return `<div class="field">${lab}<select data-f="${key}"><option value="">—</option>${c.map(o => `<option ${o === val ? "selected" : ""}>${o}</option>`).join("")}</select></div>`;
-  if (key === "owner" || key === "approved-by") return `<div class="field">${lab}<input data-f="${key}" list="stk" value="${esc(val)}"><datalist id="stk">${S.stakeholders.map(s => `<option value="${esc(s.name)}">${esc(s.role)}</option>`).join("")}<option value="Joint"><option value="Vendor: "></datalist></div>`;
+  if (key === "owner" || key === "approved-by") return `<div class="field">${lab}<input data-f="${key}" list="stk" value="${esc(val)}">${stkList()}</div>`;
   if (key === "phase") return `<div class="field">${lab}<select data-f="phase"><option value="">—</option>${S.engagement.phases.map(p => `<option ${p === val ? "selected" : ""}>${p}</option>`).join("")}</select></div>`;
   if (S.model.long.REQ.concat(S.model.long.DEC, S.model.long.LIM, S.model.long.RSK, S.model.long.OI, S.model.long.CR).includes(key)) return `<div class="field">${lab}<textarea data-f="${key}">${esc(val)}</textarea></div>`;
   return `<div class="field">${lab}<input data-f="${key}" value="${esc(val)}"></div>`;
@@ -197,17 +229,57 @@ const input = (key, val = "", req = false, kind = null) => {
 const linkAdder = (k) => { const words = Object.keys(S.model.linkWords[k] || {}); return `<div class="field"><label>Add link</label><div style="display:flex;gap:6px"><select id="new-link-word" style="width:45%">${words.map(w => `<option ${form.linkWord === w ? "selected" : ""}>${w}</option>`).join("")}</select><input id="new-link" placeholder="REQ-0014, or item 2 for a block in this session" value="${esc(form.linkText || "")}"></div></div>`; };
 const tail = () => `<div class="field"><label>Evidence (meeting, document or note)</label><input id="evidence" value="${esc(form.evidence || "")}" placeholder="e.g. stakeholder forum 11 Sep"></div>
   <div class="field"><label>Why, in one sentence (Gist)</label><input id="gist" value="${esc(form.gist || "")}"></div>
-  <div class="err" id="err"></div><div class="actions"><button class="primary" id="submit">Append to change set</button><button id="cancel">Cancel</button></div>`;
+  <div class="err" id="err"></div><div class="actions"><button class="primary" id="submit">${form.mode === "support" && form.dismiss ? "Dismiss" : "Append to change set"}</button><button id="cancel">Cancel</button></div>`;
 
 function moveForm(i) {
   const k = i.kind, req = (S.model.required[k] || {})[form.to] || [];
   const fields = req.filter(r => !r.startsWith("link:")).map(r => r === "options" ? "options" : r);
   const links = req.filter(r => r.startsWith("link:")).map(r => r.slice(5));
   if (!form.linkWord && links.length) form.linkWord = links.find(w => !i.links.some(l => l.toLowerCase().startsWith(w))) || links[0];
+  const ticked = (form.supports || []).some(s => s.on);
+  const held = i.links.some(l => links.some(w => l.toLowerCase().startsWith(w)));
   return `<div class="form"><h3>${esc(i.status)} → ${esc(form.to)}</h3>
     ${fields.map(f => input(f, form.fields[f] ?? i[f] ?? "", true, k)).join("")}
-    ${links.length ? `<p class="small muted">This move needs a link: ${links.map(esc).join(", ")}. ${i.links.some(l => links.some(w => l.toLowerCase().startsWith(w))) ? "Already present, or add another below." : "Add it below, or create the record first from its register and link <code>item n</code>."}</p>` : ""}
+    ${links.length ? `<p class="small muted">This move needs a link: ${links.map(esc).join(", ")}. ${held ? "Already present, or add another below." : ticked ? "Already present, or provided by a ticked support below, or add another." : "Add it below, or create the record first from its register and link <code>item n</code>."}</p>` : ""}
+    ${supportsChooser()}
     ${linkAdder(k)}${tail()}</div>`;
+}
+/* What the chosen move implies, previewed by the server. Ticked offers are written to the change set
+   before the move and linked to it; one that needs an owner stays unticked until an owner is typed. */
+function supportsChooser() {
+  if (form.supports === null) return '<p class="small muted">Checking what this move implies…</p>';
+  if (!form.supports.length) return "";
+  const names = form.supports.some(s => s.needsOwner) ? stkList() : "";
+  const one = (s, n) => {
+    const gaps = sGaps(s), hint = sReady(s) ? "" : ` · fill the ${gaps.filter(g => !sVal(s, g)).map(g => (S.model.labels[g] || g).toLowerCase()).join(" and ")} to include`;
+    return `<label class="dup" title="${esc(s.check)} · ${esc(sVal(s, "source"))}"><input type="checkbox" data-son="${n}" ${s.on ? "checked" : ""}> <span class="id" style="${COLOR(s.kind)}">${s.kind}</span> ${esc(sVal(s, "title") || "untitled")} <span class="small muted">${esc(s.rule)} · ${s.level === "fail" ? "needed" : "suggested"}${hint}</span></label>
+      ${gaps.map(g => `<input data-sedit="${n}" data-sk="${g}" ${g === "owner" ? 'list="stk"' : ""} placeholder="${esc(S.model.labels[g] || g)}" value="${esc(s.edits[g] || "")}">`).join("")}`;
+  };
+  return `<div class="supports">${names}<h3>This move implies</h3>${form.supports.map(one).join("")}
+    <p class="small muted">Ticked items are written to the change set before the move and linked to it.</p></div>`;
+}
+/* An offer is only worth writing once it has a title and, where the model demands one, an owner.
+   A fail-level offer is ticked as soon as it is ready, unless the reviewer has said otherwise. */
+const sVal = (s, k) => String(s.edits[k] ?? s.fields[k] ?? "").trim();
+const sGaps = s => [...(s.needsOwner ? ["owner"] : []), ...(sVal(s, "title") ? [] : ["title"])];
+const sReady = s => !sGaps(s).some(g => !sVal(s, g));
+const sOn = s => (s.pick === undefined ? s.level === "fail" : s.pick) && sReady(s);
+/* The offers depend on the fields being typed into the move, so ask the server again as they change.
+   The reviewer's own ticks and edits survive; the panel is only redrawn when the implication moved. */
+async function refreshSupports(first) {
+  if (!form || form.mode !== "move") return;
+  const to = form.to, on = open, was = form.supports, prev = Object.fromEntries((was || []).map(s => [s.key, s]));
+  const sig = list => (list || []).map(s => `${s.key}|${sVal(s, "title")}|${s.on}`).join("~");
+  let r;
+  try { r = await post("/api/supports", {id: on, to, fields: form.fields, links: []}); }
+  catch (e) { if (first && form?.mode === "move" && form.to === to && open === on) { form.supports = []; renderDetail(); } toast(e.message); return; }
+  if (!(form?.mode === "move" && form.to === to && open === on)) return;
+  const next = r.suggestions.map(s => { const p = prev[s.key], e = {...s, edits: p ? p.edits : {}, pick: p ? p.pick : undefined}; e.on = sOn(e); return e; });
+  if (was && sig(was) === sig(next)) { form.supports = next; return; }
+  const a = document.activeElement, key = a && a.dataset ? a.dataset.f : null, at = a && a.selectionStart;
+  form.supports = next;
+  renderDetail();
+  if (key) { const el = $(`#detail [data-f="${CSS.escape(key)}"]`); if (el) { el.focus(); try { el.setSelectionRange(at, at); } catch {} } }
 }
 function editForm(i) {
   const k = i.kind;
@@ -230,8 +302,21 @@ async function submit() {
     if (form.linkText) links.push(`${form.linkWord || Object.keys(S.model.linkWords[form.kind || S.byId[open].kind])[0]} ${form.linkText.trim()}`);
     const body = {fields: form.fields, links, evidence: form.evidence || "", gist: form.gist || ""};
     let r;
+    if (form.mode === "support") {
+      if (form.dismiss) { if (!form.fields.__reason) throw new Error("Give a reason to dismiss."); r = await post("/api/support/dismiss", {id: open, key: form.key, rule: form.rule, reason: form.fields.__reason}); toast("Dismissed; kept in supports-dismissed.json"); }
+      else {
+        const {__reason, ...fields} = form.fields, s = (S.integrity?.suggestions || []).find(x => x.key === form.key);
+        if (!String(fields.title ?? s?.fields.title ?? "").trim()) throw new Error("Give the implied item a title.");
+        r = await post("/api/support/accept", {id: open, key: form.key, fields, evidence: form.evidence || ""}); toast(`${r.changeSet} item ${r.item} appended and linked`);
+      }
+      form = null; await load(); return;
+    }
     if (form.mode === "create") { const {__status, ...rest} = form.fields; r = await post("/api/create", {...body, fields: rest, kind: form.kind, status: __status || ""}); }
-    else if (form.mode === "move") r = await post("/api/transition", {...body, id: open, to: form.to});
+    else if (form.mode === "move") {
+      const chosen = (form.supports || []).filter(s => s.on);
+      if (chosen.some(s => !sReady(s))) throw new Error("Fill the missing field on every ticked support, or untick it.");
+      r = await post("/api/transition", {...body, id: open, to: form.to, supports: chosen.map(s => ({key: s.key, fields: s.edits}))});
+    }
     else r = await post("/api/edit", {...body, id: open});
     toast(`${r.changeSet} item ${r.item} appended`);
     form = null; await load();
@@ -399,6 +484,7 @@ function sltData() {
     movedItems: it.filter(i => inWeek(dt(i.updated)) || inWeek(dt(i["raised-on"])) || inWeek(dt(i["closed-on"]))).sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)),
     pending: S.change_sets.filter(c => !c.applied).reduce((n, c) => n + c.blocks.length, 0),
     unowned: it.filter(i => !term(i.kind).includes(i.status) && !i.owner).length,
+    gaps: (() => { const o = {}; (S.integrity?.suggestions || []).filter(s => s.level === "fail").forEach(s => o[s.rule] = (o[s.rule] || 0) + 1); (S.integrity?.failures || []).forEach(f => o[f.rule] = (o[f.rule] || 0) + 1); return o; })(),
   };
 }
 function slt() {
@@ -424,6 +510,7 @@ function slt() {
     <h3>Limitations still open <span class="small muted">${r.limsOpen.length}</span></h3><ul class="rl">${r.limsOpen.slice(0, 10).map(i => li(i, i.options ? `<div class="small">${esc(i.options).replace(/\n/g, "<br>")}</div>` : i.impact ? `<div class="small muted">${esc(i.impact)}</div>` : "")).join("") || "<li class='muted'>none</li>"}${more(r.limsOpen)}</ul>
     ${r.blocked.length ? `<h3>Blocked</h3><ul class="rl">${r.blocked.map(i => li(i, `<div class="small">${esc(i["next action"] || "")}</div><div class="small muted">${esc(i.owner)}</div>`)).join("")}</ul>` : ""}
     <h3>What changed this week</h3><ul class="rl">${r.movedItems.map(i => li(i, ` <span class="small muted">${parseDate(i["closed-on"]) && parseDate(i["closed-on"]) >= new Date(Date.now() - 7 * 864e5) ? "closed" : parseDate(i["raised-on"]) && parseDate(i["raised-on"]) >= new Date(Date.now() - 7 * 864e5) ? "new" : "updated"} ${esc(i.updated || i["raised-on"] || "")}</span>`)).join("") || "<li class='muted'>nothing recorded in the last seven days</li>"}</ul>
+    ${Object.keys(r.gaps).length ? `<h3>Register gaps</h3><p class="small">${Object.entries(r.gaps).map(([k, n]) => `${esc(k)}: ${n}`).join(" · ")}</p><p class="small muted">Supports the model expects and the registers do not yet hold, plus integrity failures. Each is a record to write, not a call for leadership.</p>` : ""}
     <p class="small muted">Registers as proposed, including ${r.pending} pending change(s) not yet applied by the ingester.${r.unowned ? ` ${r.unowned} live item(s) have no owner.` : ""}</p>
     </div>`;
 }
@@ -445,6 +532,7 @@ function sltMarkdown() {
   L.push(`## Limitations still open (${r.limsOpen.length})`, ...(r.limsOpen.length ? r.limsOpen.slice(0, 10).map(i => line(i, i.options ? "\n" + i.options.split("\n").map(o => "    " + o).join("\n") : "")) : ["- none"]), ...cap(r.limsOpen), ``);
   if (r.blocked.length) L.push(`## Blocked`, ...r.blocked.map(i => line(i, ` ${i["next action"] || ""} (${i.owner})`)), ``);
   L.push(`## What changed this week`, ...(r.movedItems.length ? r.movedItems.map(i => line(i, ` ${i.updated || i["raised-on"] || ""}`)) : ["- nothing recorded in the last seven days"]), ``);
+  if (Object.keys(r.gaps).length) L.push(`## Register gaps`, Object.entries(r.gaps).map(([k, n]) => `${k}: ${n}`).join(" · "), ``);
   L.push(`_Registers as proposed, ${r.pending} pending change(s) not yet applied._`);
   return L.join("\n");
 }
