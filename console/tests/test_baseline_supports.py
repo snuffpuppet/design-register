@@ -120,3 +120,39 @@ class BaselineSupports(unittest.TestCase):
         frozen = open(os.path.join(self.b, "frozen.md")).read()
         self.assertIn("## Implied at baseline", frozen)
         self.assertIn("S6", frozen)
+
+    def accept_every_support(self):
+        while True:
+            left = [x for x in B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"] if x["level"] == "fail"]
+            if not left:
+                return
+            for x in left:
+                B.support_verdict(self.b, x["key"], "Accept", sugg=x, fields={"owner": "Tom Okafor"})
+
+    def test_freeze_leaves_no_candidate_id_in_any_item_file(self):
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        self.accept_every_support()
+        B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
+        seen = 0
+        for root, _, names in os.walk(eng):
+            for name in names:
+                seen += 1
+                text = open(os.path.join(root, name), encoding="utf-8").read()
+                self.assertIsNone(B.CAND_RE.search(text), name + " carries a candidate id")
+        self.assertGreater(seen, 5)
+        # the ids are there, remapped, rather than simply absent
+        self.assertIn("Accepts LIM-0001", open(os.path.join(eng, "decisions", "DEC-0001.md"), encoding="utf-8").read())
+        ois = [open(os.path.join(eng, "open-items", n), encoding="utf-8").read() for n in os.listdir(os.path.join(eng, "open-items"))]
+        self.assertTrue(any("Take DEC-0001 to the approver" in t for t in ois))
+
+    def test_frozen_counts_every_item_written_including_implied(self):
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        self.accept_every_support()
+        r = B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
+        self.assertEqual(B.frozen(self.b)["counts"], r["counts"])
+        self.assertEqual(sum(r["counts"].values()), r["written"])
+
+    def test_source_links_reads_a_disposition_record_column(self):
+        dec = {"id": "cdeadbeef", "page": "Limitations", "ref": "DEC-001"}
+        lim = {"page": "Limitations", "notes": "Baseline import from Limitations\nDisposition record: DEC-001"}
+        self.assertEqual(B.source_links(lim, B.refmap_of([dec])), ["dispositioned by cdeadbeef"])

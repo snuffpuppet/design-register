@@ -390,7 +390,7 @@ def fold_merged(surv, merged, kind):
 IMPLIED_KEY = "_implied"
 SUPPORTS_KEY = "_supports"
 # a note that came from a link column ("Links: delivers REQ-030", "Delivers: REQ-030") reads as links
-LINK_NOTE_WORDS = {"Links": "", "Delivers": "delivers", "Resolves into": "resolves into", "Disposition record": "disposition",
+LINK_NOTE_WORDS = {"Links": "", "Delivers": "delivers", "Resolves into": "resolves into", "Disposition record": "dispositioned by",
                    "Blocked by": "blocked by", "Supersedes": "supersedes", "Addresses": "addresses"}
 
 
@@ -595,10 +595,15 @@ def frozen(bdir):
         if m: out["on"] = m.group(1).strip()
         m = re.match(r"- Frozen by: (.*)", ln)
         if m: out["by"] = m.group(1).strip()
+        m = re.match(r"- Items by type: (.*)", ln)
+        if m:
+            out["counts"] = {k: int(n) for k, n in re.findall(r"([A-Z]+)=(\d+)", m.group(1))}
         m = re.match(r"\| ([^|]+) \| ([A-Z]+-\d+) \|", ln)
         if m and m.group(1).strip() not in ("Source id", "---"): out["map"][m.group(1).strip()] = m.group(2)
-    for nid in out["map"].values():
-        out["counts"][nid.split("-")[0]] = out["counts"].get(nid.split("-")[0], 0) + 1
+    if not out["counts"]:
+        # a baseline frozen before the counts line was written: the id map named every item then
+        for nid in out["map"].values():
+            out["counts"][nid.split("-")[0]] = out["counts"].get(nid.split("-")[0], 0) + 1
     return out
 
 
@@ -622,15 +627,16 @@ def item_text(id, fields, links):
 IMPLIED_BY = re.compile(r"by (\S+) under (S\d+)")
 
 
-def implied_section(records, remap):
+def implied_section(records):
     """What the freeze wrote that no source page held: one row per implied item, the rule that offered it
-    and the item that triggered it. Nothing is written when the baseline implied nothing."""
+    and the item that triggered it. The write loop has already turned the candidate id in these fields
+    into an item id, so the id is read as it stands. Nothing is written when the baseline implied nothing."""
     rows = []
     for r in records:
         if not r.get("implied"):
             continue
         m = IMPLIED_BY.search(r["fields"].get("Notes", "") + " " + r["fields"].get("Source", ""))
-        rows.append(f"| {r['id']} | {m.group(2) if m else ''} | {remap(m.group(1)) if m else ''} |")
+        rows.append(f"| {r['id']} | {m.group(2) if m else ''} | {m.group(1) if m else ''} |")
     if not rows:
         return ""
     return "\n\n## Implied at baseline\n\nItems the registers needed that no source page held.\n\n| Item | Rule | Implied by |\n|---|---|---|\n" + "\n".join(rows) + "\n"
@@ -684,10 +690,10 @@ def freeze(eng, bdir, cands, v, today, who):
         r["fields"]["Notes"] = " ⏎ ".join(notes)
         links = list(dict.fromkeys(links))
         if r.get("implied"):
-            # an implied item's Source and Notes are the engine's own words about the candidate that
-            # triggered it, not source text, so the candidate id in them becomes the item's id
-            for lab in ("Source", "Notes"):
-                r["fields"][lab] = remap(r["fields"].get(lab, ""))
+            # an implied item's fields are the engine's own words about the candidate that triggered it,
+            # never source text. Offer templates put the trigger's id in Title, Rationale, Reason, Next
+            # action and Source alike, so every one of them reads the candidate id as the item's id
+            r["fields"] = {lab: (remap(val) if isinstance(val, str) else val) for lab, val in r["fields"].items()}
         os.makedirs(os.path.join(eng, M.DIRS[r["kind"]]), exist_ok=True)
         open(os.path.join(eng, M.DIRS[r["kind"]], r["id"] + ".md"), "w", encoding="utf-8").write(item_text(r["id"], r["fields"], links))
         out.append(r)
@@ -700,11 +706,13 @@ def freeze(eng, bdir, cands, v, today, who):
         f.write(f"# Baseline rejections\n\nWritten {today} by {who}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
     counts = ", ".join(f"{n} {M.NAMES[k].lower()}{'s' if n != 1 else ''}" for k, n in sorted(counter.items()))
     with open(os.path.join(bdir, FROZEN), "w", encoding="utf-8") as f:
-        f.write(f"# Baseline frozen\n\n- Frozen on: {today}\n- Frozen by: {who}\n- Items written: {counts}\n- Rejected: {len(rejects)}\n\n"
+        by_type = ", ".join(f"{k}={n}" for k, n in sorted(counter.items()))
+        f.write(f"# Baseline frozen\n\n- Frozen on: {today}\n- Frozen by: {who}\n- Items written: {counts}\n"
+                f"- Items by type: {by_type}\n- Rejected: {len(rejects)}\n\n"
                 "The registers above this folder started from these items. Every change since is a change set.\n\n"
                 "## Id map\n\n| Source id | Item |\n|---|---|\n"
                 + "\n".join(f"| {ref} | {nid} |" for ref, nid in idmap.items() if ref not in cids) + "\n"
-                + implied_section(out, remap))
+                + implied_section(out))
     return {"ok": True, "written": len(out), "rejected": len(rejects), "counts": counter}
 
 
