@@ -111,3 +111,39 @@ class DirectWrites(unittest.TestCase):
         open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         r = self.h.edit({"id": "OI-0001", "fields": {"Next action": "email"}, "madeBy": "Adam"})
         self.assertEqual(r["changeSet"], "CS-0001"); self.assertEqual(self.read("OI-0001")["next action"], "ring")
+
+
+class Scopes(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.saved = (S.ENG, S.CS_DIR, S.DISMISSED_PATH); use(self.d)
+
+    def tearDown(self):
+        S.ENG, S.CS_DIR, S.DISMISSED_PATH = self.saved; shutil.rmtree(self.d)
+
+    def eng(self, body):
+        open(os.path.join(self.d, "engagement.md"), "w", encoding="utf-8").write(body)
+
+    def test_scopes_parse(self):
+        self.eng("# Engagement: x\n\n## Phases\n\n- P1 (current)\n\n## Scopes\n\n- Access\n- Delivery\n")
+        self.assertEqual(S.load_engagement()["scopes"], ["Access", "Delivery"])
+
+    def test_phases_still_parse_alongside_scopes(self):
+        self.eng("# Engagement: x\n\n## Phases\n\n- P1 (current)\n\n## Scopes\n\n- Access\n")
+        e = S.load_engagement()
+        self.assertEqual(e["phases"], ["P1"]); self.assertEqual(e["current"], "P1")
+
+    def test_no_scopes_section_is_an_empty_list(self):
+        self.eng("# Engagement: x\n\n## Phases\n\n- P1 (current)\n")
+        self.assertEqual(S.load_engagement()["scopes"], [])
+
+    def test_scope_is_required_on_create_when_declared(self):
+        self.eng("# Engagement: x\n\n## Scopes\n\n- Access\n")
+        self.assertIn("scope", S.required_on_create("OI"))
+
+    def test_scope_is_not_required_when_none_declared(self):
+        self.eng("# Engagement: x\n")
+        self.assertNotIn("scope", S.required_on_create("OI"))
+
+    def test_other_required_fields_are_untouched(self):
+        self.eng("# Engagement: x\n")
+        self.assertEqual(S.required_on_create("OI"), ["title", "owner", "next action", "source"])

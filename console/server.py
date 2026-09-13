@@ -61,10 +61,10 @@ def load_stakeholders():
 
 
 def load_engagement():
-    eng = {"name": os.path.basename(ENG), "phases": [], "current": "", "writes": "direct"}
+    eng = {"name": os.path.basename(ENG), "phases": [], "current": "", "writes": "direct", "scopes": []}
     p = os.path.join(ENG, "engagement.md")
     if os.path.exists(p):
-        on = False
+        sect = None
         for ln in open(p, encoding="utf-8"):
             if ln.startswith("# Engagement:"):
                 eng["name"] = ln.split(":", 1)[1].strip()
@@ -74,20 +74,37 @@ def load_engagement():
                     raise ValueError(f"engagement.md says Writes: {m.group(1)}; it must be direct or change-sets")
                 eng["writes"] = m.group(1)
             if ln.startswith("## Phases"):
-                on = True; continue
+                sect = "phases"; continue
+            if ln.startswith("## Scopes"):
+                sect = "scopes"; continue
             if ln.startswith("## "):
-                on = False
-            if on and ln.startswith("- "):
+                sect = None
+            if sect and ln.startswith("- "):
                 name = ln[2:].strip()
-                if name.endswith("(current)"):
-                    name = name[:-9].strip(); eng["current"] = name
-                eng["phases"].append(name)
+                if sect == "phases":
+                    if name.endswith("(current)"):
+                        name = name[:-9].strip(); eng["current"] = name
+                    eng["phases"].append(name)
+                else:
+                    eng["scopes"].append(name)
     return eng
 
 
 def writes_direct():
     """Direct mode rewrites item files; change-sets mode appends blocks for the ingester. Per engagement."""
     return load_engagement()["writes"] == "direct"
+
+
+def required_on_create(kind, scopes=None):
+    """The model's required fields, less Scope where the engagement names no scopes. Scope is the one
+    field the model makes conditional on the engagement rather than on the type. Pass scopes where the
+    caller already holds the engagement, so a six-type loop reads engagement.md once rather than six times."""
+    if scopes is None:
+        scopes = load_engagement()["scopes"]
+    req = list(M.REQUIRED_ON_CREATE[kind])
+    if not scopes:
+        req = [r for r in req if r != "scope"]
+    return req
 
 
 # ---------- change sets (section 11) ----------
@@ -209,12 +226,13 @@ def append_block(cs, kind, target, fields, links, evidence, gist, frm=None, base
 
 def state():
     items = overlay(load_registers(), load_change_sets())
-    return {"engagement": load_engagement(), "items": list(items.values()), "stakeholders": load_stakeholders(),
+    eng = load_engagement()
+    return {"engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
             "integrity": integrity_of(items),
             "change_sets": load_change_sets(), "today": today(),
             "model": {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
                       "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
-                      "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": M.REQUIRED_ON_CREATE,
+                      "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k, eng["scopes"]) for k in M.DIRS},
                       "first": M.FIRST_STATE, "names": M.NAMES, "linkWords": M.LINK_WORDS, "closes": {k: sorted(v) for k, v in M.CLOSES.items()}}}
 
 
@@ -233,7 +251,7 @@ def load_dismissed():
 def integrity_of(items):
     """Section 9 and the SUPPORTS table over the overlaid items, less the suggestions already dismissed."""
     eng = load_engagement()
-    res = I.check(list(items.values()), phases=eng["phases"] or None, stakeholders=load_stakeholders() or None, today=today())
+    res = I.check(list(items.values()), phases=eng["phases"] or None, stakeholders=load_stakeholders() or None, today=today(), scopes=eng["scopes"] or None)
     gone = load_dismissed()
     res["suggestions"] = [s for s in res["suggestions"] if s["key"] not in gone]
     res["dismissed"] = len(gone)
@@ -493,7 +511,7 @@ class H(SimpleHTTPRequestHandler):
         f = {field_key(k): v for k, v in req.get("fields", {}).items()}
         f["links"] = req.get("links", [])
         missing = []
-        for r in M.REQUIRED_ON_CREATE[kind]:
+        for r in required_on_create(kind):
             if r.startswith("link:"):
                 if not any(l.lower().startswith(r[5:]) for l in f["links"]):
                     missing.append(f"Links: {r[5:]} …")
