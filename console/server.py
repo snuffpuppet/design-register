@@ -254,7 +254,15 @@ def state():
 
 
 def load_dismissed():
-    return json.load(open(DISMISSED_PATH, encoding="utf-8")) if os.path.exists(DISMISSED_PATH) else {}
+    """The dismissed suggestions. A file that will not parse is treated as empty rather than taken as far
+    as /api/state, where it would stop the console dead over a hand edit."""
+    if not os.path.exists(DISMISSED_PATH):
+        return {}
+    try:
+        gone = json.load(open(DISMISSED_PATH, encoding="utf-8"))
+    except (ValueError, OSError):
+        return {}
+    return gone if isinstance(gone, dict) else {}
 
 
 def integrity_of(items):
@@ -403,7 +411,11 @@ class H(SimpleHTTPRequestHandler):
         wanted = req.get("supports") or []
         if wanted:
             preview = {s["key"]: s for s in self.supports_preview({**req, "to": to})["suggestions"]}
+            seen = set()
             for w in wanted:
+                if w["key"] in seen:   # one offer per suggestion, however many times it was sent
+                    continue
+                seen.add(w["key"])
                 s = preview.get(w["key"])
                 if not s:
                     raise ValueError("A chosen support is no longer current; reload and try again.")
@@ -490,8 +502,9 @@ class H(SimpleHTTPRequestHandler):
         for k in M.SHORT[kind] + M.LONG[kind]:
             if f.get(k):
                 fields[label_of(k)] = f[k]
+        ev = self.evidence(req)   # the maker must be named before a change set is opened
         cs = current_change_set(req["madeBy"])
-        n = append_block(cs, kind, "new", fields, f["links"], self.evidence(req), req.get("gist", "") or "raised in console")
+        n = append_block(cs, kind, "new", fields, f["links"], ev, req.get("gist", "") or "raised in console")
         return {"ok": True, "changeSet": cs["id"], "item": n, "ref": f"item {n}"}
 
     def edit(self, req):
@@ -502,8 +515,9 @@ class H(SimpleHTTPRequestHandler):
         fields = {label_of(field_key(k)): v for k, v in req.get("fields", {}).items() if str(v).strip() != ""}
         if not fields and not req.get("links"):
             raise ValueError("Nothing changed.")
+        ev = self.evidence(req)   # the maker must be named before a change set is opened
         cs = current_change_set(req["madeBy"])
-        n = append_block(cs, it["kind"], it["id"], fields, req.get("links", []), self.evidence(req), req.get("gist", "") or "fields updated", frm=None, based_on=it.get("updated", ""))
+        n = append_block(cs, it["kind"], it["id"], fields, req.get("links", []), ev, req.get("gist", "") or "fields updated", frm=None, based_on=it.get("updated", ""))
         return {"ok": True, "changeSet": cs["id"], "item": n}
 
     def baseline_state(self):
@@ -523,9 +537,10 @@ class H(SimpleHTTPRequestHandler):
         blocks, rejects = B.export_blocks(cands, v, today())
         if not blocks and not rejects:
             raise ValueError("Nothing accepted or rejected yet.")
+        ev = self.evidence({**req, "evidence": "baseline of generated registers"})   # named maker first
         cs = current_change_set(req["madeBy"])
         for b in blocks:
-            append_block(cs, b["kind"], "new", b["fields"], [], self.evidence({**req, "evidence": "baseline of generated registers"}), b["gist"])
+            append_block(cs, b["kind"], "new", b["fields"], [], ev, b["gist"])
         B.mark_exported(B_DIR, [b["cid"] for b in blocks] + [c["id"] for c in cands if v.get(c["id"], {}).get("verdict") in ("Reject", "Merge")], cs["id"])
         with open(os.path.join(B_DIR, "rejections.md"), "w", encoding="utf-8") as f:
             f.write(f"# Baseline rejections\n\nWritten {today()} by {req['madeBy']}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
