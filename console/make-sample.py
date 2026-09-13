@@ -92,6 +92,11 @@ item("LIM-0022", "Platform holds one notification channel per customer", "Identi
 item("LIM-0023", "Address validation rejects unit numbers with a slash", "Resolved",
      {"owner": "Adam Moyes", "chosen-option": "", "implemented-by": "Vendor", "vendor-ref": "VND-DEF-3", "raised-on": "26 August 2026", "closed-on": "5 September 2026", "updated": "5 September 2026"},
      {"Impact": "About 40 addresses a month failed validation.", "Options": "", "Source": "Vendor defect VND-DEF-3 closed 5 September 2026; retest passed", "Notes": "Vendor conformance path: held to the agreed requirement, no CR."}, ["constrains REQ-0014"])
+item("LIM-0024", "Vendor invoicing engine cannot itemise charges per site for multi-site orders", "Accepted",
+     {"owner": "Tom Okafor", "chosen-option": "1", "implemented-by": "Vendor", "vendor-ref": "", "raised-on": "6 September 2026", "closed-on": "", "updated": "6 September 2026"},
+     {"Impact": "Multi-site orders are billed on the primary site only; the second site's usage is unaccounted for.",
+      "Options": "1. Accept and reconcile manually each month; impact: 1 day a month, Tom's team; phase: Day one\n2. Vendor splits the charge by site; impact: vendor estimate 4 weeks; phase: Later",
+      "Source": "Billing workshop, 6 September 2026", "Notes": "Accepted without a decision on record; gap left for the demo data."}, ["constrains REQ-0002"])
 
 # --- Decisions ---
 item("DEC-0009", "Represent a customer service as two linked services, not a bundle", "Accepted",
@@ -115,6 +120,9 @@ item("RSK-0004", "Vendor delivers the port allocation change by 30 September", "
 item("RSK-0005", "The billing adapter can merge two service lines at rating time", "Identified",
      {"kind": "Assumption", "owner": "Tom Okafor", "likelihood": "L", "impact": "M", "due": "", "raised-on": "26 August 2026", "closed-on": "", "updated": "26 August 2026"},
      {"Trigger": "Billing SME confirms rating happens per service line with no merge hook.", "Mitigation": "", "Source": "Billing workshop, 26 August 2026", "Notes": "Underpins CR-0002. Not yet verified."}, [])
+item("RSK-0006", "Vendor's chosen SMS carrier may fail silently for some country codes", "Mitigating",
+     {"kind": "Risk", "owner": "Adam Moyes", "likelihood": "L", "impact": "M", "due": "30 September 2026", "raised-on": "6 September 2026", "closed-on": "", "updated": "6 September 2026"},
+     {"Trigger": "More than 1% of SMS confirmations show no delivery receipt within 24 hours.", "Mitigation": "Vendor adds a delivery receipt check and alerts the service desk on failure.", "Source": "Vendor sync, 6 September 2026", "Notes": "Mitigation agreed but not yet linked to an open item; gap left for the demo data."}, [])
 
 # --- Open items ---
 item("OI-0031", "Write the design section for multi-gig port allocation", "Closed",

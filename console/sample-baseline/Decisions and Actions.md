@@ -17,3 +17,9 @@ pulled-on: 11 September 2026
 | A-1 | Action | Write the design section for order notifications | | Adam Moyes | Open | Design planning 1 Sep |
 | A-2 | Action | Confirm whether the default port count should change from one to four | Business input needed | | Open | T001/867 |
 | A-3 | Action | Get DEC on ordering to the change board | | Adam Moyes | Blocked | Design planning |
+
+## Change requests
+
+| Ref | Change request | Status | Reason | Vendor ref | Owner |
+|---|---|---|---|---|---|
+| CR-1 | Vendor to add bulk port assignment | Submitted | Operations need bulk port on day one | NK-CR-118 | Tom Okafor |
