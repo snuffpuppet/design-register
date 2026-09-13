@@ -9,6 +9,7 @@ import os, re, csv, json, glob, hashlib, io
 from html.parser import HTMLParser
 import model as M
 import integrity as I
+import items as I_
 
 MONTHS = "January February March April May June July August September October November December".split()
 # a source writes one of these where it means the cell is empty; carrying it through would invent a value
@@ -624,20 +625,17 @@ def frozen(bdir):
 
 
 def item_text(id, fields, links):
-    """One item file in the model's section 7 layout: frontmatter of short fields, one section per long field."""
+    """One item file in the model's section 7 layout, rendered by items.render_item so the freeze and the
+    console write the same file. Fields arrive by label; Updated starts equal to Raised on."""
     kind = id.split("-")[0]
-    short = {"Kind": "kind", **{M.LABELS.get(k, k): k for k in M.SHORT[kind]}}
-    lines = ["---", f"id: {id}", f"title: {fields['Title']}", f"status: {fields['Status']}"]
-    for lab, key in short.items():
-        if key == "risk-kind": continue
-        if lab in fields: lines.append(f"{key}: {fields[lab]}")
-    lines += [f"raised-on: {fields.get('Raised on', '')}", f"closed-on: {fields.get('Closed on', '')}", f"updated: {fields.get('Raised on', '')}", "links:"]
-    lines += [f"  - {l}" for l in links]
-    lines += ["---", ""]
-    long_labs = [M.LABELS.get(k, k.capitalize()) for k in M.LONG[kind]]
-    for lab in dict.fromkeys(long_labs + ["Source", "Notes"]):
-        lines += [f"## {lab}", "", (fields.get(lab, "") or "").replace(" ⏎ ", "\n"), ""]
-    return "\n".join(lines)
+    keys = {lab: key for key, lab in M.LABELS.items()}
+    keys.update({"Title": "title", "Status": "status", "Kind": "risk-kind"})
+    it = {"id": id, "kind": kind, "links": list(links), "history": []}
+    for lab, val in fields.items():
+        key = keys.get(lab, lab.lower())
+        it[key] = (val or "").replace(" ⏎ ", "\n") if isinstance(val, str) else val
+    it["updated"] = it.get("raised-on", "")
+    return I_.render_item(it)
 
 
 IMPLIED_BY = re.compile(r"by (\S+) under (S\d+)")

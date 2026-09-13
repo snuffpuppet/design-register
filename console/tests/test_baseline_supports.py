@@ -145,6 +145,20 @@ class BaselineSupports(unittest.TestCase):
         ois = [open(os.path.join(eng, "open-items", n), encoding="utf-8").read() for n in os.listdir(os.path.join(eng, "open-items"))]
         self.assertTrue(any("Take DEC-0001 to the approver" in t for t in ois))
 
+    def test_frozen_files_parse_back_with_no_history(self):
+        import items as IT
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        self.accept_every_support()
+        B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
+        lim = IT.parse_item(IT.item_path(eng, "LIM-0001"))
+        self.assertEqual(lim["history"], []); self.assertEqual(lim["updated"], lim["raised-on"])
+        self.assertEqual(lim["title"], "One channel per customer"); self.assertEqual(lim["owner"], "Priya Nair")
+        self.assertEqual(lim["impact"], "Email only on day one"); self.assertIn("constrains REQ-0001", lim["links"])
+        self.assertEqual(lim["chosen-option"], "1")
+        rsk_dir = os.path.join(eng, "risks")
+        for name in (os.listdir(rsk_dir) if os.path.isdir(rsk_dir) else []):
+            self.assertIn("risk-kind", IT.parse_item(os.path.join(rsk_dir, name)))
+
     def test_frozen_counts_every_item_written_including_implied(self):
         eng = os.path.join(self.d, "eng"); os.makedirs(eng)
         self.accept_every_support()
