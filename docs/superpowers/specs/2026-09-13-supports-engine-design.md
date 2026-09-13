@@ -1,6 +1,6 @@
 # Supports engine: implied items, integrity and suggestions
 
-Version 1.0, 13 September 2026. Owner: Adam Moyes. Status: design, not built.
+Version 1.1, 13 September 2026. Owner: Adam Moyes. Status: design, plan written. 1.1: dismissals in Live go to a json file beside the registers, not a change set block, so the ingester sees only blocks it knows; the baseline order puts Missing supports after Row by row because supports are computed over accepted rows; S20 folds into S8 and the new rules are I21 to I23.
 
 ## Purpose
 
@@ -30,7 +30,7 @@ The goals it serves, in order: less busy work for the person running the registe
 | `copy` | fields prefilled from the trigger, as pairs of source field and target field |
 | `rule` | the section 9 rule the implication satisfies |
 
-Rows, derived from 4.4 and 5. The first sixteen restate rules the model already checks. The last five are new rules.
+Rows, derived from 4.4 and 5. The first sixteen restate rules the model already checks. The last four are new rules; S20 is folded into S8.
 
 | # | When | Unless | Offer | Link on trigger | Copy | Rule |
 |---|---|---|---|---|---|---|
@@ -53,7 +53,7 @@ Rows, derived from 4.4 and 5. The first sixteen restate rules the model already 
 | S17 | RSK Mitigating whose Mitigation names an action | link mitigated by | OI Open | mitigated by | owner, title "Mitigate: <RSK title>", next action from Mitigation, due from RSK due | I21 new |
 | S18 | LIM Accepted whose Chosen option text says a workaround needs something built | link needs | REQ Draft, implemented-by Internal | needs | title from the option text, owner from LIM | I22 new |
 | S19 | CR Delivered | link delivers | none: reviewer picks the REQ, which then moves | delivers | | I23 new |
-| S20 | CR with vendor-ref set and no triggered by | link triggered by | as S8 | | | I24 new |
+| S20 | folded into S8: a CR with no trigger is one case whatever its Vendor ref | | | | | |
 | S21 | LIM Accepted whose Chosen option leaves the need wholly unmet | constrained REQ is Won't or its Phase is later | field prompt on the REQ, and S6's Deferred CR | | | I7, 4.4 |
 
 S17 and S18 need two new link words: `mitigated by` from RSK to OI, and `needs` from LIM to REQ. Both go into `LINK_WORDS` and section 5.
@@ -75,7 +75,7 @@ Accepting creates a candidate with:
 
 Dismissing records the reason in `verdicts.json` and the suggestion does not return unless the trigger changes.
 
-The engine reruns after every verdict, so accepting S4's requirement may retire S8's suggestion on a related change request. Order of work in the view: Duplicates, then Missing supports, then Row by row. The note at the top of the Baseline view and the guide page gain that step.
+The engine reruns after every verdict, so accepting S4's requirement may retire S8's suggestion on a related change request. Order of work in the view: Duplicates, then Row by row, then Missing supports, then Freeze. Supports are computed over accepted candidates, so the pass comes first. The note at the top of the Baseline view and the guide page gain that step.
 
 The reconstruction choice. A source limitation already marked Accepted with no decision anywhere is offered S5 in two forms on the same row:
 
@@ -95,7 +95,7 @@ The engine runs over the overlay of item files plus change sets. Suggestions app
 
 When a transition is made in the console, the transition dialog shows the supports the new state will need before the move is confirmed. Confirming writes the transition block and the support blocks to the same change set, in that order, with the support's Source naming the transition. The reviewer can untick a support and the transition still proceeds; the missing support then appears on the item's panel.
 
-Dismissals in Live are recorded in the change set as a note block ("support S5 dismissed on LIM-0012: <reason>") so the ingester and the next reader see them. A dismissed suggestion returns if the trigger's state changes.
+Dismissals in Live are recorded in `<engagement>/supports-dismissed.json` with the rule, the item, the reason, who and when, so the change sets carry only blocks the ingester knows. A dismissed key stays dismissed until removed from that file.
 
 The weekly SLT report gains one line per rule with a non-zero count, headed "Register gaps", after the existing sections.
 
@@ -111,8 +111,8 @@ The weekly SLT report gains one line per rule with a non-zero count, headed "Reg
 
 | Path | Change |
 |---|---|
-| `solution-register-model.md` | Bump to 2.25. Section 5 gains `mitigated by` and `needs`. Section 9 gains I21 to I24. A sentence in section 10 says the console offers a fix for each failing item. Dated line at the top. |
-| `console/model.py` | `SUPPORTS` table, two link words, the four new rules in whatever structure section 9 takes when it is mirrored. |
+| `solution-register-model.md` | Bump to 2.25. Section 5 gains `mitigated by` and `needs`. Section 9 gains I21 to I23. A sentence in section 10 says the console offers a fix for each failing item. Dated line at the top. |
+| `console/model.py` | `SUPPORTS` table, two link words, the three new rules as `RULES`. |
 | `console/integrity.py` | New. `check(items) -> failures, warnings, suggestions`. Pure function over a list of item dicts. Section 9 rules I1 to I24 where the console has the data; I5, I18 and I19 skipped where the engagement data is absent, and said so in the result. Each suggestion is `{rule, trigger, offer: {kind, state, fields, links}}`. |
 | `console/baseline.py` | Suggestions over effective candidates; verdicts `Accept`, `Dismiss` on suggestion keys; candidates created from accepted suggestions; freeze guard. |
 | `console/server.py` | `/api/integrity` for Live; `/api/baseline` gains `suggestions`; `/api/baseline/support` for verdicts; `/api/transition` returns the supports the target state needs and accepts a list of supports to write with the move. |
