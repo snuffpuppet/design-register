@@ -41,7 +41,7 @@ Rows, derived from 4.4 and 5. The first sixteen restate rules the model already 
 | S5 | LIM Accepted | link dispositioned by DEC | DEC Proposed | dispositioned by | title "Accept: <LIM title>", rationale from Chosen option and the options it beat, consulted "Vendor", implemented-by from LIM, owner from LIM | I7 |
 | S6 | LIM Change requested | link dispositioned by CR | CR Proposed | dispositioned by, CR carries triggered by | title from the chosen option, reason from Impact, chosen-option copied, implemented-by from LIM, owner from LIM, phase from the option's phase text | I7, I10 |
 | S7 | CR Proposed, For approval, Submitted | link worked by | OI Open | worked by | owner, title "Progress CR: <title>", next action by state: shape and estimate, chase the approver, chase the implementer | I3 |
-| S8 | CR any state | link triggered by | LIM Under assessment | triggered by | title from CR title as a fact about the platform, impact from Reason, owner from CR, implemented-by from CR, vendor-ref noted in Source | I10 |
+| S8 | CR any state | link triggered by | LIM Identified | triggered by | title from CR title as a fact about the platform, impact from Reason, owner from CR, implemented-by from CR, vendor-ref noted in Source | I10 |
 | S9 | RSK Realised | link realised as | OI Open | realised as | owner, title "Respond: <RSK title>", next action from Mitigation | I13 |
 | S10 | OI Closed | link resolves into | none: reviewer must choose a target or write "none: <reason>" | resolves into | | I9 |
 | S11 | DEC Superseded | link superseded by | DEC Proposed | superseded by | title, rationale, consulted, implemented-by from old DEC | I8 |
@@ -54,7 +54,7 @@ Rows, derived from 4.4 and 5. The first sixteen restate rules the model already 
 | S18 | LIM Accepted whose Chosen option text says a workaround needs something built | link needs | REQ Draft, implemented-by Internal | needs | title from the option text, owner from LIM | I22 new |
 | S19 | CR Delivered | link delivers | none: reviewer picks the REQ, which then moves | delivers | | I23 new |
 | S20 | folded into S8: a CR with no trigger is one case whatever its Vendor ref | | | | | |
-| S21 | LIM Accepted whose Chosen option leaves the need wholly unmet | constrained REQ is Won't or its Phase is later | field prompt on the REQ, and S6's Deferred CR | | | I7, 4.4 |
+| S21 | LIM Accepted whose Chosen option leaves the need wholly unmet | constrained REQ is Won't or its Phase is later | none: a warning prompt asking for the requirement to be set to Won't or a later Phase, with a Deferred CR raised by hand | | | I7, 4.4 |
 
 S17 and S18 need two new link words: `mitigated by` from RSK to OI, and `needs` from LIM to REQ. Both go into `LINK_WORDS` and section 5.
 
@@ -115,7 +115,7 @@ The weekly SLT report gains one line per rule with a non-zero count, headed "Reg
 | `console/model.py` | `SUPPORTS` table, two link words, the three new rules as `RULES`. |
 | `console/integrity.py` | New. `check(items, phases, stakeholders, today) -> failures, warnings, prompts, suggestions`. Pure function over a list of item dicts. Section 9 rules I1 to I17 and I19, plus the `SUPPORTS` table (S1 to S19 and S21; S20 is folded into S8). I18 and I20 are not checked here; I20 is checked by the transition endpoint. |
 | `console/baseline.py` | Suggestions over effective candidates; verdicts Accept, Edit then accept, Dismiss with a reason, and for a limitation's disposition Reconstruct or Reassess, on suggestion keys; accepted suggestions stored as implied candidates under `_implied` in `verdicts.json`, linked both ways; freeze guard. |
-| `console/server.py` | `/api/integrity` for Live; `/api/baseline` gains `suggestions`; `/api/baseline/support` for verdicts; `/api/transition` returns the supports the target state needs and accepts a list of supports to write with the move. |
+| `console/server.py` | `/api/state` carries the Live integrity result, so there is no `/api/integrity`; `/api/supports` previews the supports a proposed move implies; `/api/support/accept` and `/api/support/dismiss` for the item panel; `/api/baseline` gains `suggestions` and `/api/baseline/support` takes its verdicts; `/api/transition` accepts a list of supports to write with the move. |
 | `console/static/app.js` | Missing supports tab; Supports needed panel on the item view; supports in the transition dialog; Register gaps note on Outstanding; the line in the SLT report. |
 | `console/static/guide.html`, `console/confluence-runbook.md`, `console/README.md` | The new step in the baseline order and the Live behaviour. |
 | `console/make-sample.py`, `console/sample-baseline/` | Sample pages gain rows that trip S4, S5, S6, S8 and S17, so the tab has content in the test engagement. |
