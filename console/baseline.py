@@ -225,7 +225,7 @@ def load_candidates(bdir):
                     notes.append(f"Vendor ref: {vref}"); vref = ""
                 notes += extra
                 cands.append({
-                    "id": cid, "page": page, "table": heading, "kind": kind, "title": title, "ref": rec.get("ref", ""),
+                    "id": cid, "page": page, "table": heading, "kind": kind, "scope": rec.get("scope", ""), "title": title, "ref": rec.get("ref", ""),
                     "source_status": rec.get("status", ""), "owner": owner, "approved-by": rec.get("approved-by", "") if kind == "DEC" else "", "moscow": norm_moscow(rec.get("moscow", "")),
                     "phase": rec.get("phase", ""), "implemented-by": rec.get("implemented-by", ""), "vendor-ref": vref,
                     "raised-on": norm_date(rec.get("raised-on", "")), "consulted": rec.get("consulted", ""),

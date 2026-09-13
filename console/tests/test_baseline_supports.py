@@ -308,3 +308,74 @@ class ScopeFreeze(unittest.TestCase):
 
     def test_freeze_ignores_scope_when_none_declared(self):
         self.assertTrue(self.run_freeze("", [])["ok"])
+
+
+class ScopeInCandidates(unittest.TestCase):
+    """A source Scope or Domain column must reach the candidate's own scope field, not just Notes."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.b = os.path.join(self.d, "baseline"); os.makedirs(self.b)
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_scope_column_reaches_the_candidate(self):
+        open(os.path.join(self.b, "Limitations.md"), "w").write("""---
+page-id: 1
+page-title: Limitations
+---
+
+# Limitations
+
+| Ref | Limitation | Status | Owner | Scope |
+|---|---|---|---|---|
+| LIM-001 | One channel per customer | Accepted | Priya Nair | CarrierEthernet |
+""")
+        c = B.load_candidates(self.b)[0]
+        self.assertEqual(c["scope"], "CarrierEthernet")
+
+    def test_domain_column_reaches_the_candidate(self):
+        open(os.path.join(self.b, "Changes.md"), "w").write("""---
+page-id: 2
+page-title: Change requests
+---
+
+# Change requests
+
+| Ref | Change request | Status | Owner | Domain |
+|---|---|---|---|---|
+| CR-001 | Vendor adds bulk port | Proposed | Tom Okafor | CarrierEthernet |
+""")
+        c = B.load_candidates(self.b)[0]
+        self.assertEqual(c["scope"], "CarrierEthernet")
+
+    def test_no_scope_column_leaves_scope_blank_and_notes_unaffected(self):
+        open(os.path.join(self.b, "Requirements.md"), "w").write(REQS)
+        c = B.load_candidates(self.b)[0]
+        self.assertEqual(c["scope"], "")
+        self.assertNotIn("Scope", c["notes"])
+        self.assertNotIn("Domain", c["notes"])
+
+
+class AssembleCarriesScope(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp(); self.b = os.path.join(self.d, "baseline"); os.makedirs(self.b)
+        open(os.path.join(self.b, "Limitations.md"), "w").write("""---
+page-id: 1
+page-title: Limitations
+---
+
+# Limitations
+
+| Ref | Limitation | Status | Owner | Scope |
+|---|---|---|---|---|
+| LIM-001 | One channel per customer | Accepted | Priya Nair | CarrierEthernet |
+""")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_assemble_record_scope_matches_the_candidate(self):
+        cands = B.load_candidates(self.b)
+        B.apply_verdict(self.b, [c["id"] for c in cands], "Accept")
+        records, _ = B.assemble(B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026")
+        self.assertEqual(records[0]["scope"], "CarrierEthernet")
