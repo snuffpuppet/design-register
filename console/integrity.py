@@ -4,8 +4,17 @@ check(items) is pure: it reads the dicts and returns failures, warnings, prompts
 It never writes. Item dicts are the shape server.parse_item produces (see the plan's file map);
 baseline.as_items produces the same shape from candidates.
 """
-import hashlib, re
+import datetime, hashlib, re
 import model as M
+
+MONTHS = "January February March April May June July August September October November December".split()
+
+
+def parse_date(s):
+    m = re.match(r"^(\d{1,2}) (\w+) (\d{4})", str(s or ""))
+    if not m or m.group(2) not in MONTHS:
+        return None
+    return datetime.date(int(m.group(3)), MONTHS.index(m.group(2)) + 1, int(m.group(1)))
 
 LINK_ID = re.compile(r"\b([A-Z]+-\d{4}(?:\.\d+)?|[ci][0-9a-f]{8,10})\b")
 TOOLING = re.compile(r"\b(build|built|report|tool|tooling|script|extract|dashboard|spreadsheet)\b", re.I)
@@ -121,12 +130,130 @@ def suggestions(items, by_id):
     return sugs, prompts
 
 
-def check(items, phases=None, stakeholders=None):
-    by_id = {it["id"]: it for it in items}
+def check(items, phases=None, stakeholders=None, today=None):
+    by_id = {}
+    for it in items:
+        by_id.setdefault(it["id"], it)
     sugs, prompts = suggestions(items, by_id)
-    failures, warnings = rules(items, by_id, phases, stakeholders)
+    failures, warnings = rules(items, by_id, phases, stakeholders, today)
     return {"failures": failures, "warnings": warnings, "prompts": prompts, "suggestions": sugs}
 
 
-def rules(items, by_id, phases=None, stakeholders=None):
-    return [], []
+def rules(items, by_id, phases=None, stakeholders=None, today=None):
+    F, W = [], []
+    fail = lambda rule, it, text: F.append({"rule": rule, "id": it["id"], "text": text})
+    warn = lambda rule, it, text: W.append({"rule": rule, "id": it["id"], "text": text})
+    today = parse_date(today) if today else datetime.date.today()
+    seen = set()
+    for it in items:
+        if it["id"] in seen:
+            fail("I1", it, "id appears twice")
+        seen.add(it["id"])
+    names = None
+    if stakeholders is not None:
+        names = {s["name"] for s in stakeholders}
+        mentioned = {s["name"] for s in stakeholders if str(s.get("role", "")).lower() == "mentioned"}
+    for it in items:
+        k, st = it["kind"], it["status"]
+        term = st in M.TERMINAL.get(k, set())
+        # I2
+        if st not in M.STATES.get(k, []):
+            fail("I2", it, f"status {st!r} is not a {M.NAMES.get(k, k)} state")
+        else:
+            missing = M.missing_for(k, st, it)
+            if missing:
+                fail("I2", it, "missing for " + st + ": " + "; ".join(missing))
+        if st in M.CLOSES.get(k, set()) and not str(it.get("closed-on", "")).strip():
+            fail("I2", it, "no Closed on")
+        # I3
+        if not term and not str(it.get("owner", "")).strip():
+            fail("I3", it, "no Owner")
+        needs_oi = {"REQ": ["Draft"], "DEC": ["Proposed"], "LIM": ["Under assessment"], "CR": ["Proposed", "For approval", "Submitted"]}
+        if st in needs_oi.get(k, []):
+            words = {"REQ": "worked by", "DEC": "proposed by", "LIM": "assessed by", "CR": "worked by"}[k]
+            ois = [by_id.get(link_target(l)) for l in links_with(it, words)]
+            if not any(o and o["kind"] == "OI" and str(o.get("owner", "")).strip() for o in ois):
+                fail("I3", it, f"no open item with an owner linked '{words}'")
+        # I4
+        if k == "OI" and st != "Closed" and not str(it.get("next action", "")).strip():
+            fail("I4", it, "no Next action")
+        # I5
+        if phases is not None and k in ("REQ", "CR") and str(it.get("phase", "")).strip() and it["phase"] not in phases:
+            fail("I5", it, f"phase {it['phase']!r} is not in the engagement's Phases")
+        # I6
+        for l in it.get("links", []):
+            t = link_target(l)
+            if t and t not in by_id and not l.lower().startswith("resolves into none"):
+                fail("I6", it, f"link target {t} does not exist")
+        # I7
+        if k == "LIM":
+            disp = links_with(it, "dispositioned by")
+            targets = [by_id.get(link_target(l)) for l in disp]
+            if st == "Accepted" and not any(t and t["kind"] == "DEC" and t["status"] == "Accepted" for t in targets):
+                fail("I7", it, "Accepted without a dispositioned by link to an Accepted DEC")
+            if st == "Change requested" and not any(t and t["kind"] == "CR" and t["status"] not in ("Withdrawn", "Rejected") for t in targets):
+                fail("I7", it, "Change requested without a dispositioned by link to a live CR")
+            if st in ("Accepted", "Change requested") and not links_with(it, "constrains"):
+                fail("I7", it, "no constrains link")
+            if st in ("Identified", "Under assessment") and disp:
+                fail("I7", it, "dispositioned by link before disposition")
+            if st == "Withdrawn" and not str(it.get("source", "")).strip():
+                fail("I7", it, "Withdrawn without a reason in Source")
+            for l in links_with(it, "previously dispositioned by"):
+                t = by_id.get(link_target(l))
+                if not (t and ((t["kind"] == "DEC" and t["status"] == "Superseded") or (t["kind"] == "CR" and t["status"] in ("Withdrawn", "Rejected")))):
+                    fail("I7", it, "previously dispositioned by names a live record")
+        # I8
+        if k == "DEC" and st == "Superseded":
+            t = [by_id.get(link_target(l)) for l in links_with(it, "superseded by")]
+            if not any(x and x["kind"] == "DEC" and x["status"] in ("Accepted", "Proposed") for x in t):
+                fail("I8", it, "Superseded without a superseded by link to a live DEC")
+        # I9
+        if k == "OI":
+            if st == "Closed" and (not str(it.get("closed-on", "")).strip() or not links_with(it, "resolves into")):
+                fail("I9", it, "Closed without Closed on and a resolves into link")
+            if st == "Blocked" and not str(it.get("next action", "")).startswith("Blocked:"):
+                fail("I9", it, "Blocked without a Next action starting 'Blocked: '")
+        # I10
+        if k == "CR":
+            if st in ("Approved", "Submitted", "Delivered", "Deferred", "Withdrawn", "Rejected") and not (str(it.get("approved-by", "")).strip() and str(it.get("closed-on", "")).strip()):
+                fail("I10", it, f"{st} without Approved by and Closed on")
+            trig = [by_id.get(link_target(l)) for l in links_with(it, "triggered by")]
+            if not any(t and t["kind"] in ("LIM", "REQ") for t in trig):
+                fail("I10", it, "no triggered by link to a LIM or REQ")
+            for t in trig:
+                if t and t["kind"] == "LIM" and t["status"] == "Change requested" and not any(link_target(l) == it["id"] for l in links_with(t, "dispositioned by")):
+                    fail("I10", it, f"triggered by {t['id']} in Change requested but is not its disposition")
+        # I11
+        if k == "DEC" and st in ("Accepted", "Rejected") and not (str(it.get("approved-by", "")).strip() and str(it.get("closed-on", "")).strip() and str(it.get("consulted", "")).strip()):
+            fail("I11", it, f"{st} without Approved by, Closed on and Consulted")
+        # I12
+        if k in ("REQ", "DEC", "LIM", "CR") and it.get("implemented-by") not in ("Vendor", "Internal", "Both"):
+            fail("I12", it, "Implemented by is not Vendor, Internal or Both")
+        # I13
+        if k == "RSK" and st == "Realised" and not links_with(it, "realised as"):
+            fail("I13", it, "Realised without a realised as link")
+        # I14
+        if not str(it.get("source", "")).strip():
+            fail("I14", it, "no Source")
+        # I15, I16
+        if (k == "DEC" and st == "Proposed") or (k == "REQ" and st == "Draft"):
+            d = parse_date(it.get("raised-on"))
+            if d and (today - d).days > 14:
+                warn("I15", it, f"{st} for {(today - d).days} days")
+        if k == "DEC" and not links_with(it, "addresses") and "accept" not in str(it.get("rationale", "")).lower():
+            warn("I16", it, "no addresses link and no 'accepts' in Rationale")
+        # I17
+        if k == "CR" and st == "Deferred":
+            if not str(it.get("phase", "")).strip() or links_with(it, "worked by"):
+                fail("I17", it, "Deferred needs a Phase and no open item")
+        # I19
+        if names is not None:
+            for key in ("owner", "approved-by"):
+                v = str(it.get(key, "")).strip()
+                ok = not v or v in names or v.startswith("Vendor:") or v == "Joint"
+                if not ok:
+                    fail("I19", it, f"{M.LABELS.get(key, key)} {v!r} is not a known stakeholder")
+                if key == "owner" and v in mentioned:
+                    fail("I19", it, f"Owner {v!r} has role Mentioned")
+    return F, W

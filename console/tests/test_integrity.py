@@ -110,5 +110,80 @@ class Suggestions(unittest.TestCase):
             self.assertNotIn("approved-by", row["fields"], row["rule"])
 
 
+def fails(res, rule):
+    return sorted(set(f["id"] for f in res["failures"] if f["rule"] == rule))
+
+
+def warns(res, rule):
+    return sorted(set(f["id"] for f in res["warnings"] if f["rule"] == rule))
+
+
+class Rules(unittest.TestCase):
+    def test_i1_duplicate_id(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must"), item("REQ-0001", "Agreed", moscow="Must")])
+        self.assertEqual(fails(r, "I1"), ["REQ-0001"])
+
+    def test_i2_status_and_required(self):
+        r = I.check([item("REQ-0001", "Nonsense", moscow="Must"), item("REQ-0002", "Draft", moscow="", links=["worked by OI-0001"]), item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertEqual(fails(r, "I2"), ["REQ-0001", "REQ-0002"])
+
+    def test_i2_closed_on_in_terminal(self):
+        r = I.check([item("DEC-0001", "Accepted", rationale="x", consulted="V", **{"approved-by": "SLT"})])
+        self.assertIn("DEC-0001", fails(r, "I2"))
+
+    def test_i3_owner(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", owner="")])
+        self.assertEqual(fails(r, "I3"), ["REQ-0001"])
+
+    def test_i4_next_action(self):
+        r = I.check([item("OI-0001", "Open", **{"next action": ""})])
+        self.assertEqual(fails(r, "I4"), ["OI-0001"])
+
+    def test_i5_phase_when_given(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", phase="P9")], phases=["P1", "P2"])
+        self.assertEqual(fails(r, "I5"), ["REQ-0001"])
+        self.assertEqual(fails(I.check([item("REQ-0001", "Agreed", moscow="Must", phase="P9")]), "I5"), [])
+
+    def test_i6_link_target_exists(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", links=["worked by OI-0099"])])
+        self.assertEqual(fails(r, "I6"), ["REQ-0001"])
+
+    def test_i7_dispositions(self):
+        r = I.check([item("LIM-0001", "Identified", links=["dispositioned by DEC-0001"]), item("DEC-0001", "Accepted", rationale="x", consulted="V", **{"approved-by": "S", "closed-on": "1 September 2026"})])
+        self.assertEqual(fails(r, "I7"), ["LIM-0001"])
+
+    def test_i9_closed_open_item(self):
+        r = I.check([item("OI-0001", "Closed", **{"next action": "x", "closed-on": "1 September 2026"})])
+        self.assertEqual(fails(r, "I9"), ["OI-0001"])
+
+    def test_i11_decision_approval(self):
+        r = I.check([item("DEC-0001", "Accepted", rationale="x", consulted="", **{"approved-by": "S", "closed-on": "1 September 2026"})])
+        self.assertEqual(fails(r, "I11"), ["DEC-0001"])
+
+    def test_i12_implemented_by(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", **{"implemented-by": ""})])
+        self.assertEqual(fails(r, "I12"), ["REQ-0001"])
+
+    def test_i14_source(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", source="")])
+        self.assertEqual(fails(r, "I14"), ["REQ-0001"])
+
+    def test_i15_i16_warnings(self):
+        r = I.check([item("DEC-0001", "Proposed", rationale="Chose X over Y", **{"raised-on": "1 January 2026"}, links=["proposed by OI-0001"]), item("OI-0001", "Open", **{"next action": "x"})], today="13 September 2026")
+        self.assertEqual(warns(r, "I15"), ["DEC-0001"])
+        self.assertEqual(warns(r, "I16"), ["DEC-0001"])
+
+    def test_i17_deferred_cr(self):
+        r = I.check([item("CR-0001", "Deferred", reason="x", phase="", links=["triggered by LIM-0001", "worked by OI-0001"], **{"approved-by": "S", "closed-on": "1 September 2026"}),
+                     item("LIM-0001", "Change requested", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CR-0001"]), item("REQ-0001", "Agreed", moscow="Must"), item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertEqual(fails(r, "I17"), ["CR-0001"])
+
+    def test_i19_stakeholders_when_given(self):
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", owner="Nobody Known")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
+        self.assertEqual(fails(r, "I19"), ["REQ-0001"])
+        r = I.check([item("REQ-0001", "Agreed", moscow="Must", owner="Vendor: Nokia")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
+        self.assertEqual(fails(r, "I19"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
