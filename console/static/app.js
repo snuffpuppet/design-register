@@ -272,10 +272,15 @@ function supportsChooser() {
   return `<div class="supports">${names}<h3>This move implies</h3>${form.supports.map(one).join("")}
     <p class="small muted">Ticked items are written to the change set before the move and linked to it.</p></div>`;
 }
-/* An offer is only worth writing once it has a title and, where the model demands one, an owner.
+/* An offer is only worth writing once every field it carries has a value. The engine leaves a field
+   the model requires on create in the offer with an empty value, so each gap gets its own box here.
    A fail-level offer is ticked as soon as it is ready, unless the reviewer has said otherwise. */
 const sVal = (s, k) => String(s.edits[k] ?? s.fields[k] ?? "").trim();
-const sGaps = s => [...(s.needsOwner ? ["owner"] : []), ...(sVal(s, "title") ? [] : ["title"])];
+const sGaps = s => {
+  const keys = Object.keys(s.fields);
+  if (s.needsOwner && !keys.includes("owner")) keys.unshift("owner");
+  return keys.filter(k => !sVal(s, k));
+};
 const sReady = s => !sGaps(s).some(g => !sVal(s, g));
 const sOn = s => (s.pick === undefined ? s.level === "fail" : s.pick) && sReady(s);
 /* The offers depend on the fields and links being typed into the move, so ask the server again as they

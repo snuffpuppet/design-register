@@ -15,6 +15,10 @@ def sug(res, rule, id):
     return [s for s in res["suggestions"] if s["rule"] == rule and s["id"] == id]
 
 
+def rules_for(res, id):
+    return [p["rule"] for p in res["prompts"] if p["id"] == id]
+
+
 class Suggestions(unittest.TestCase):
     def test_key_is_stable(self):
         self.assertEqual(I.suggestion_key("S5", "LIM-0001"), I.suggestion_key("S5", "LIM-0001"))
@@ -105,6 +109,103 @@ class Suggestions(unittest.TestCase):
                    **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by DEC-0001"])
         r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must", phase="P1"), item("DEC-0001", "Accepted", rationale="x", consulted="V", **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
         self.assertIn("S21", [p["rule"] for p in r["prompts"] if p["id"] == "LIM-0005"])
+
+    def test_s3_under_assessment_limitation_offers_open_item(self):
+        r = I.check([item("LIM-0006", "Under assessment", impact="x", links=["constrains REQ-0001"]), item("REQ-0001", "Agreed", moscow="Must")])
+        s = sug(r, "S3", "LIM-0006")
+        self.assertEqual(len(s), 1)
+        self.assertEqual(s[0]["kind"], "OI"); self.assertEqual(s[0]["status"], "Open")
+        self.assertEqual(s[0]["fields"]["title"], "Assess LIM: LIM-0006 title")
+        self.assertEqual(s[0]["link"], "assessed by ")
+
+    def test_s3_silent_when_assessed_by_present(self):
+        r = I.check([item("LIM-0006", "Under assessment", impact="x", links=["constrains REQ-0001", "assessed by OI-0001"]),
+                     item("REQ-0001", "Agreed", moscow="Must"), item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertEqual(sug(r, "S3", "LIM-0006"), [])
+
+    def test_s9_realised_risk_offers_open_item(self):
+        r = I.check([item("RSK-0004", "Realised", **{"risk-kind": "Risk"}, trigger="t", mitigation="Fail over to the manual path", due="1 October 2026")])
+        s = sug(r, "S9", "RSK-0004")
+        self.assertEqual(len(s), 1)
+        self.assertEqual(s[0]["kind"], "OI"); self.assertEqual(s[0]["status"], "Open")
+        self.assertEqual(s[0]["fields"]["title"], "Respond: RSK-0004 title")
+        self.assertEqual(s[0]["fields"]["next action"], "Fail over to the manual path")
+        self.assertEqual(s[0]["link"], "realised as ")
+
+    def test_s9_silent_when_realised_as_present(self):
+        r = I.check([item("RSK-0004", "Realised", **{"risk-kind": "Risk"}, trigger="t", mitigation="m", links=["realised as OI-0001"]),
+                     item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertEqual(sug(r, "S9", "RSK-0004"), [])
+
+    def test_s9_empty_mitigation_still_offers_a_next_action_box(self):
+        r = I.check([item("RSK-0004", "Realised", **{"risk-kind": "Risk"}, trigger="t", mitigation="")])
+        s = sug(r, "S9", "RSK-0004")
+        self.assertEqual(len(s), 1)
+        self.assertIn("next action", s[0]["fields"])
+        self.assertEqual(s[0]["fields"]["next action"], "")
+        self.assertFalse(s[0]["needsOwner"])
+
+    def test_s8_empty_implemented_by_still_offers_a_box(self):
+        r = I.check([item("CR-0002", "Proposed", reason="Vendor CR 78", **{"implemented-by": ""})])
+        s = sug(r, "S8", "CR-0002")
+        self.assertEqual(len(s), 1)
+        self.assertIn("implemented-by", s[0]["fields"])
+        self.assertEqual(s[0]["fields"]["implemented-by"], "")
+
+    def test_s10_closed_open_item_prompts_for_a_resolution(self):
+        r = I.check([item("OI-0005", "Closed", **{"next action": "x", "closed-on": "1 September 2026"})])
+        self.assertIn("S10", rules_for(r, "OI-0005"))
+
+    def test_s10_silent_when_resolves_into_present(self):
+        r = I.check([item("OI-0005", "Closed", **{"next action": "x", "closed-on": "1 September 2026"}, links=["resolves into REQ-0001"]),
+                     item("REQ-0001", "Agreed", moscow="Must")])
+        self.assertNotIn("S10", rules_for(r, "OI-0005"))
+
+    def test_s11_superseded_decision_offers_its_replacement(self):
+        r = I.check([item("DEC-0004", "Superseded", rationale="Chose X over Y", consulted="Vendor",
+                          **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
+        s = sug(r, "S11", "DEC-0004")
+        self.assertEqual(len(s), 1)
+        self.assertEqual(s[0]["kind"], "DEC"); self.assertEqual(s[0]["status"], "Proposed")
+        self.assertEqual(s[0]["fields"]["rationale"], "Chose X over Y")
+        self.assertEqual(s[0]["reverse"], "supersedes DEC-0004")
+
+    def test_s11_silent_when_superseded_by_present(self):
+        r = I.check([item("DEC-0004", "Superseded", rationale="x", links=["superseded by DEC-0005"], **{"approved-by": "SLT", "closed-on": "1 September 2026"}),
+                     item("DEC-0005", "Proposed", rationale="y")])
+        self.assertEqual(sug(r, "S11", "DEC-0004"), [])
+
+    def test_s15_accepted_limitation_without_a_chosen_option_prompts(self):
+        r = I.check([item("LIM-0007", "Accepted", impact="x", **{"chosen-option": ""}, links=["constrains REQ-0001", "dispositioned by DEC-0001"]),
+                     item("REQ-0001", "Agreed", moscow="Must"), item("DEC-0001", "Accepted", rationale="x", consulted="V", **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
+        self.assertIn("S15", rules_for(r, "LIM-0007"))
+
+    def test_s15_silent_when_chosen_option_filled(self):
+        r = I.check([item("LIM-0007", "Accepted", impact="x", options="1. Live with it; impact: none; phase: P1\n2. Fix; impact: $; phase: P1",
+                          **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by DEC-0001"]),
+                     item("REQ-0001", "Agreed", moscow="Must"), item("DEC-0001", "Accepted", rationale="x", consulted="V", **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
+        self.assertNotIn("S15", rules_for(r, "LIM-0007"))
+
+    def test_s16_designed_requirement_without_a_source_prompts(self):
+        r = I.check([item("REQ-0008", "Designed", moscow="Must", phase="P1", source="", links=["worked by OI-0001"]),
+                     item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertIn("S16", rules_for(r, "REQ-0008"))
+        self.assertEqual([p["level"] for p in r["prompts"] if p["id"] == "REQ-0008" and p["rule"] == "S16"], ["warn"])
+
+    def test_s16_silent_when_source_names_the_design(self):
+        r = I.check([item("REQ-0008", "Designed", moscow="Must", phase="P1", source="Design doc §3.1", links=["worked by OI-0001"]),
+                     item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertNotIn("S16", rules_for(r, "REQ-0008"))
+
+    def test_s19_delivered_cr_without_a_delivers_link_prompts(self):
+        r = I.check([item("CR-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001"],
+                          **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
+        self.assertIn("S19", rules_for(r, "CR-0003"))
+
+    def test_s19_silent_when_delivers_present(self):
+        r = I.check([item("CR-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001", "delivers REQ-0001"],
+                          **{"approved-by": "SLT", "closed-on": "1 September 2026"}), item("REQ-0001", "Delivered", moscow="Must", phase="P1")])
+        self.assertNotIn("S19", rules_for(r, "CR-0003"))
 
     def test_offer_never_carries_approved_by(self):
         for row in [r for r in I.M.SUPPORTS if r["offer"]]:

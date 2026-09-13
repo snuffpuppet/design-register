@@ -74,6 +74,13 @@ def offer(row, trigger):
         val = re.sub(r"\s+", " ", val).strip(" :;,")
         if val or tpl == "":
             out[key] = val
+    # A required field the template left empty still belongs in the offer, as an empty box the
+    # reviewer fills. Title and source are handled here; a link: entry is not a field.
+    okind = row["offer"][0] if row["offer"] else None
+    for key in M.REQUIRED_ON_CREATE.get(okind, []):
+        if key in ("title", "source") or key.startswith("link:"):
+            continue
+        out.setdefault(key, "")
     if "source" not in out:
         out["source"] = f"Implied by {trigger['id']} under {row['rule']} ({row['check']})"
     return out
