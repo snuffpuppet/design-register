@@ -67,8 +67,8 @@ class ScopeRoundTrip(unittest.TestCase):
               "moscow": "Must", "phase": "", "owner": "Priya Nair", "implemented-by": "Vendor",
               "raised-on": "1 September 2026", "closed-on": "", "updated": "1 September 2026", "links": []}
         lines = IT.render_item(it).splitlines()
-        self.assertEqual(lines[4], "status: Draft")
-        self.assertEqual(lines[5], "scope: CarrierEthernet")
+        self.assertEqual(lines[3], "status: Draft")
+        self.assertEqual(lines[4], "scope: CarrierEthernet")
 
     def test_scope_round_trips(self):
         d = tempfile.mkdtemp()
@@ -117,7 +117,7 @@ The second test is the one that matters. `columns()` builds from `M.SHORT`, so w
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `make test`
-Expected: FAIL. `test_scope_is_first_short_field_on_every_type` with `KeyError` or an assertion naming `moscow`, and `test_scope_has_a_label` with `KeyError: 'scope'`.
+Expected: FAIL, six of them. `test_scope_is_first_short_field_on_every_type` asserting `'moscow' != 'scope'`, `test_scope_has_a_label` with `KeyError: 'scope'`, `test_scope_is_required_on_create_for_every_type`, `test_i24_is_stated`, the two `test_items.py` cases, and both `ScopeColumn` cases with `TypeError: columns() takes 1 positional argument but 2 were given`.
 
 - [ ] **Step 3: Add scope to the four model tables**
 
@@ -449,11 +449,14 @@ Rename the `on = False` initialiser above the loop to `sect = None`.
 Add a helper beside `writes_direct()`:
 
 ```python
-def required_on_create(kind):
+def required_on_create(kind, scopes=None):
     """The model's required fields, less Scope where the engagement names no scopes. Scope is the one
-    field the model makes conditional on the engagement rather than on the type."""
+    field the model makes conditional on the engagement rather than on the type. Pass scopes where the
+    caller already holds the engagement, so a six-type loop reads engagement.md once rather than six times."""
+    if scopes is None:
+        scopes = load_engagement()["scopes"]
     req = list(M.REQUIRED_ON_CREATE[kind])
-    if not load_engagement()["scopes"]:
+    if not scopes:
         req = [r for r in req if r != "scope"]
     return req
 ```
@@ -464,10 +467,19 @@ In `create()`, change the loop to use it:
         for r in required_on_create(kind):
 ```
 
-In `state()`, change the `create` key so the page is told the same truth:
+In `state()`, hold the engagement in a local so it is read once, and change the `create` key so the page is told the same truth:
 
 ```python
-                      "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k) for k in M.DIRS},
+def state():
+    items = overlay(load_registers(), load_change_sets())
+    eng = load_engagement()
+    return {"engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
+```
+
+and further down that same dict:
+
+```python
+                      "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k, eng["scopes"]) for k in M.DIRS},
 ```
 
 At the `integrity_of` call site on line 236, pass the scopes:
@@ -704,14 +716,13 @@ function register(k) {
 }
 ```
 
-Wire the select in the same delegated handler that already handles `data-rk`. Find that handler and add a sibling branch:
+Wire the select beside the risk-chip handler at `app.js:88`, which assigns handlers directly rather than delegating:
 
 ```javascript
-  const fs = e.target.closest("#flt-scope");
-  if (fs) { scopeFilter = fs.value; render(); return; }
+  $("#flt-scope", m)?.addEventListener("change", e => { scopeFilter = e.target.value; render(); });
 ```
 
-Use a `change` listener rather than `click` for the select. If the existing handler is click-only, add a `change` listener beside it rather than converting the one that serves the risk chips.
+Put it on the line after the existing `m.querySelectorAll("[data-rk]")` line. A select needs `change`, not `click`; do not convert the risk-chip handler, which is correct as it stands.
 
 - [ ] **Step 5: Verify in Chrome against the sample, which declares no scopes**
 
