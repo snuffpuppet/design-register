@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.27, 14 September 2026. Owner: Adam Moyes.
+Version 2.28, 15 September 2026. Owner: Adam Moyes.
+
+Version 2.28 lets an import be written into the registers before its review is complete and rationalised in place. Section 11 says a row that was neither rejected nor folded becomes an item and the review continues over the items, with the tool keeping its own record of what is still unreviewed. Section 7 says what a merge or a delete leaves behind in History and in version control. Nothing in sections 4, 5 or 9 changes.
 
 Version 2.27 gives the item a Scope. Section 6 has said since 2.17 that a way of filtering by service or domain could be added when an engagement has several services to name, and an engagement with four technical services now does. Scope is declared per engagement rather than by this document: an engagement that names no scopes carries none and is checked by no scope rule, so nothing changes for a single-service engagement. Section 9 adds I24.
 
@@ -193,6 +195,8 @@ An engagement with one service declares no scopes. Its items carry no Scope, not
 
 One file per item, named by its id, in a folder per type: `requirements/REQ-0004.md`, `decisions/`, `limitations/`, `risks/`, `open-items/`, `change-requests/`. The file opens with a YAML frontmatter block holding the header fields in 4.1 and the short type-specific fields, in kebab-case (`raised-on`, `closed-on`, `implemented-by`, `vendor-ref`, `links` as a list). Long fields sit in the body under fixed headings: Source (one citation or reference per line), Rationale, Impact, Options, Reason, Trigger, Mitigation, Next action, Notes, and optionally History, one line per write made by a tool in the form `date | person | move | gist | evidence`. A change to one item is a change to one file, and the item's history is that section together with the file's history in version control.
 
+When a tool merges one item into another or deletes one, the surviving item's History line says what was folded in or removed, every item whose Links named the removed id has that link rewritten or dropped with a History line of its own, and version control holds the removed file.
+
 Frontmatter per type, in this order:
 
 | Type | Frontmatter keys |
@@ -295,6 +299,8 @@ Each block is `### Item n | <kind> | Confident` with `- Target: new` or an exist
 **How it is applied.** A new stage, apply change set, runs the same gates as the transcript write stage with two substitutions. The citation check is replaced by an evidence check: every Evidence line has a date and a person resolving under I19. The integrity check runs on the proposed set as now, with I20 enforcing that every status change is a forward move from the recorded From. A conflict is a block whose Based on differs from the target file's Updated, meaning the item changed after the tool read it; the block's Verdict is blanked and the approver settles it in the file. Approval is the same as for a dossier: Approver and Approved on filled, no blank verdict. On success the ingester writes the items, stamps Updated, logs one session log row per id, and re-renders the index. On failure it restores everything, as now.
 
 **Imports.** An existing register held elsewhere, such as a table on a Confluence page or a row set in a claims-based knowledge base, comes in the same way: one change set per source page, every block `- Target: new`, the source's own id kept in Vendor ref or Source, the original column values mapped onto 4.1 and 4.2 fields, and an Evidence line naming the page, its version and the claim id where one exists. Columns the source has and this model does not are written into Notes, never into new fields. Items that cannot be mapped to a valid status are imported in the first state for their type with a Gist saying why, so the approver sees them.
+
+An import may be written into the registers before its review is complete. Every row that was neither rejected nor folded into another becomes an item, in the mapped status where the source's status is one of the type's own states and otherwise in the first state, and the review continues over the items: duplicates are merged, rows that were never register items are deleted, and the records the states imply are created or linked. A tool that does this keeps its own record of which items are still unreviewed and shows it; the record is the tool's, never a field on the item.
 
 **Why this shape.** The tool and the ingester share nothing but a folder and this document. The tool can be replaced or run in parallel with another. Every change carries who made it, when, on what evidence and against what version of the item, and the ingester's approval step is where conflicts are resolved, by the person who owns the engagement rather than by the tool. Nothing about the transcript pathway changes.
 
