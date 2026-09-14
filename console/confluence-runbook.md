@@ -1,6 +1,6 @@
 # Confluence baseline runbook
 
-Version 0.2, 14 September 2026.
+Version 0.3, 15 September 2026.
 
 How generated registers held in Confluence become a baselined engagement, and how the result goes back. Claude Code does the Confluence side through an MCP connector; the console does the baseline; the ingester in `solution-register` applies the change set. The three never share anything but files.
 
@@ -49,7 +49,7 @@ The console reads every `.md` in that folder as candidates. Every row is a candi
 
 ## 2. Baseline
 
-In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. Then work Missing supports to zero failures before the freeze: it offers the record each accepted candidate's state implies is missing, for accepting, editing then accepting, or dismissing with a reason. When done, Freeze baseline writes every accepted candidate as an item file in the engagement's registers, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. The freeze runs once, refuses while any failure-level offer in Missing supports is undecided, and refuses if a register already has items.
+In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. Missing supports offers the record each accepted candidate's state implies is missing, for accepting, editing then accepting, or dismissing with a reason. When ready, Freeze baseline writes every candidate not rejected or merged as an item file in the engagement's registers, unreviewed rows included, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. It also reports what is left: unreviewed items, supports still missing, and scopes off the list. The freeze runs once and refuses if a register already has items. From there the console's Rationalise view carries the same review forward over the real items, working down the unreviewed rows, the missing supports and the off-list scopes the freeze reported.
 
 ## 3. Apply
 
