@@ -23,8 +23,8 @@ function banner(msg) {
   if (!b) { b = document.createElement("div"); b.id = "conn-banner"; document.body.prepend(b); }
   b.textContent = msg;
 }
-/* Baselining until the freeze; live once the registers hold items. */
-function stage() { return S.baseline?.present && !S.baseline.frozen && !S.items.length ? "baseline" : "live"; }
+/* Baselining until any register holds an item; live from then on, whether or not a freeze has run. */
+function stage() { return S.baseline?.present && !S.items.length ? "baseline" : "live"; }
 let viewChosen = false;
 async function loadOnce() {
   S = await (await fetch("/api/state")).json();
@@ -37,7 +37,7 @@ async function loadOnce() {
   $("#banner").innerHTML = st === "baseline"
     ? "<strong>Baselining.</strong> The pulled pages are candidates and nothing is written to the registers until you freeze. Verdicts and edits are kept in the baseline folder and can be changed until then."
     : S.engagement.writes === "direct"
-    ? "This view is the registers <strong>as they stand</strong>: every move, edit or new item writes the item file, and git holds the history."
+    ? "This view is the registers <strong>as they stand</strong>: every move, edit, merge or delete writes the item files, and git holds the history."
     : "This view is the registers <strong>as proposed</strong>: the item files plus every change set not yet applied. Every move, edit or new item appends a block to your session's change set, which the ingester applies.";
   const direct = S.engagement.writes === "direct";
   $("#close-session").hidden = direct;
@@ -63,7 +63,9 @@ function render() {
   const link = (v, label, n, style = "") => `<a href="#" data-v="${v}" style="${style}" class="${view === v ? "on" : ""}">${label}${n !== undefined ? ` <span class="n">${n}</span>` : ""}</a>`;
   const group = (label, links) => `<div class="grp"><span class="grp-l">${label}</span>${links.join("")}</div>`;
   $("#nav").innerHTML = [
-    B?.present ? group("Source", [link("baseline", "Baseline", B.frozen ? "frozen" : B.candidates.filter(c => !c.verdict).length, "--c:var(--cs)")]) : "",
+    B?.present ? group("Source", [st === "baseline"
+      ? link("baseline", "Baseline", B.candidates.filter(c => !c.verdict).length, "--c:var(--cs)")
+      : link("rationalise", "Rationalise", S.unreviewed.length, "--c:var(--cs)")]) : "",
     group("Meeting", [link("outstanding", "Outstanding"), link("triage", "Work through", queue().length), link("report", "Meeting report"), link("slt", "Weekly SLT report")]),
     group("Registers", KINDS.map(k => link(k, S.model.names[k] + "s", counts(k), COLOR(k)))),
     S.engagement.writes === "direct" && !S.change_sets.length ? "" : group("Changes", [link("cs", "Change sets", pendingN, "--c:var(--cs)")]),
@@ -78,6 +80,7 @@ function render() {
   else if (view === "report") m.innerHTML = report();
   else if (view === "slt") m.innerHTML = slt();
   else if (view === "baseline") { m.innerHTML = baselineView(); wireBaseline(m); }
+  else if (view === "rationalise") { m.innerHTML = rationaliseView(); wireRationalise(m); }
   else if (view === "cs") m.innerHTML = changeSets();
   else m.innerHTML = register(view);
   m.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
@@ -190,7 +193,7 @@ function itemPanel(i, closable) {
     ${fld("raised-on", i["raised-on"])}${fld("closed-on", i["closed-on"])}
     ${i.history?.length ? `<div class="field"><label>History</label><ul class="small muted hist">${i.history.map(h => `<li>${esc(h)}</li>`).join("")}</ul></div>` : ""}
     <div class="small muted">updated ${esc(i.updated || "")}</div>
-    ${form && form.mode === "edit" ? editForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button></div>`}`;
+    ${form && form.mode === "edit" ? editForm(i) : form && form.mode === "merge" ? mergeForm(i) : form && form.mode === "delete" ? deleteForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button> ${S.engagement.writes === "direct" ? `<button class="ghost" id="merge-btn">Merge into…</button> <button class="ghost" id="delete-btn">Delete…</button>` : `<button class="ghost" disabled title="This engagement writes change sets, which have no block for a merge">Merge into…</button> <button class="ghost" disabled title="This engagement writes change sets, which have no block for a delete">Delete…</button>`}</div>`}`;
 }
 /* What section 9 and the SUPPORTS table say this item still needs. Accepting writes the offer as a new
    provisional item and links the two; dismissing keeps the reason beside the register. */
@@ -236,10 +239,13 @@ function wire(d) {
   d.querySelectorAll("[data-open]").forEach(el => el.onclick = e => { e.preventDefault(); openItem(el.dataset.open); });
   d.querySelectorAll("[data-move]").forEach(el => el.onclick = () => { form = {mode: "move", to: el.dataset.move, fields: {}, links: [], supports: null}; renderDetail(); refreshSupports(true); });
   $("#edit-btn", d)?.addEventListener("click", () => { form = {mode: "edit", fields: {}, links: []}; renderDetail(); });
+  $("#merge-btn", d)?.addEventListener("click", () => { form = {mode: "merge", fields: {}, links: []}; renderDetail(); });
+  $("#delete-btn", d)?.addEventListener("click", () => { form = {mode: "delete", fields: {}, links: []}; renderDetail(); });
   $("#cancel", d)?.addEventListener("click", () => { form = null; renderDetail(); });
   $("#submit", d)?.addEventListener("click", submit);
   d.querySelectorAll("[data-tq]").forEach(el => el.onclick = () => triageMove(el.dataset.tq));
   d.querySelectorAll("[data-f]").forEach(el => el.oninput = () => form.fields[el.dataset.f] = el.value);
+  d.querySelectorAll("select[data-f]").forEach(el => el.onchange = () => form.fields[el.dataset.f] = el.value);
   $("#new-link", d)?.addEventListener("input", e => form.linkText = e.target.value);
   $("#new-link-word", d)?.addEventListener("change", e => form.linkWord = e.target.value);
   $("#evidence", d)?.addEventListener("input", e => form.evidence = e.target.value);
@@ -337,6 +343,15 @@ function editForm(i) {
   const k = i.kind;
   return `<div class="form"><h3>Edit fields</h3>${["title", ...S.model.short[k], ...S.model.long[k]].map(f => input(f, form.fields[f] ?? i[f] ?? "", false, k)).join("")}${linkAdder(k)}${tail()}</div>`;
 }
+function mergeForm(i) {
+  const same = S.items.filter(x => x.kind === i.kind && x.id !== i.id);
+  return `<div class="form"><h3>Merge ${i.id} into</h3><div class="field"><label>Survivor</label><select data-f="__into"><option value="">choose…</option>${same.map(x => `<option value="${x.id}" ${form.fields.__into === x.id ? "selected" : ""}>${x.id} ${esc(x.title.slice(0, 60))}</option>`).join("")}</select></div>
+    <p class="small muted">This item's source, notes, links and any field the survivor leaves blank fold into the survivor. Links elsewhere that name this item are rewritten. This file is removed; git keeps it.</p>${tail()}</div>`;
+}
+function deleteForm(i) {
+  return `<div class="form"><h3>Delete ${i.id}</h3><div class="field"><label>Reason</label><input data-f="__reason" value="${esc(form.fields.__reason || "")}"></div>
+    <p class="small muted">Links elsewhere that name this item are dropped, each with a History line carrying the reason. The file is removed; git keeps it.</p>${tail()}</div>`;
+}
 function createForm() {
   const k = form.kind, req = S.model.create[k];
   if (!form.linkWord) form.linkWord = (req.find(r => r.startsWith("link:")) || "link:").slice(5) || Object.keys(S.model.linkWords[k])[0];
@@ -361,6 +376,8 @@ async function submit() {
       }
       form = null; await load(); return;
     }
+    if (form.mode === "merge") { if (!form.fields.__into) throw new Error("Choose the survivor."); r = await post("/api/merge", {survivor: form.fields.__into, losers: [open], evidence: form.evidence || ""}); toast(`${open} folded into ${r.survivor}`); open = r.survivor; form = null; await load(); return; }
+    if (form.mode === "delete") { if (!form.fields.__reason) throw new Error("Give a reason."); r = await post("/api/delete", {id: open, reason: form.fields.__reason, evidence: form.evidence || ""}); toast(`${open} deleted`); open = null; form = null; await load(); return; }
     if (form.mode === "create") { const {__status, ...rest} = form.fields; r = await post("/api/create", {...body, fields: rest, kind: form.kind, status: __status || ""}); }
     else if (form.mode === "move") {
       const chosen = (form.supports || []).filter(s => s.on);
@@ -601,15 +618,15 @@ function baselineView() {
   const opt = (arr, cur, blank) => `<option value="">${blank}</option>` + arr.map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
   const todo = cs.filter(c => !c.verdict).length;
   return `<div class="toolbar"><div><h2>Baseline</h2><div class="small muted">${cs.length} candidates from ${B.pages.length} page(s) · ${n("Accept")} accepted · ${n("Merge")} merged · ${n("Reject")} rejected · ${n("Discard")} discarded · <b>${todo} to go</b>${B.dismissed ? ` · ${B.dismissed} group(s) called not duplicates` : ""}</div></div>
-    <div class="actions">${B.frozen ? `<span class="small muted">Frozen ${esc(B.frozen.on)} by ${esc(B.frozen.by)}</span>` : BF.confirmFreeze ? `<span class="small muted">Writes ${n("Accept")} items into the registers and ends baselining. </span><button id="bl-freeze-go" class="primary">Yes, freeze</button> <button id="bl-freeze-no" class="ghost">Not yet</button>` : `<button id="bl-freeze" class="primary" title="Write the accepted set as the registers' first items. Runs once, only into empty registers.">Freeze baseline</button>`}</div></div>
+    <div class="actions">${B.frozen ? `<span class="small muted">Frozen ${esc(B.frozen.on)} by ${esc(B.frozen.by)}</span>` : BF.confirmFreeze ? `<span class="small muted">Writes ${cs.filter(c => ["Accept", ""].includes(c.verdict)).length} items into the registers, undecided rows included, and opens them for work. </span><button id="bl-freeze-go" class="primary">Yes, freeze</button> <button id="bl-freeze-no" class="ghost">Not yet</button>` : `<button id="bl-freeze" class="primary" title="Write every candidate not rejected, merged or discarded as the registers' first items. Runs once, only into empty registers.">Freeze baseline</button>`}</div></div>
     ${B.skipped?.length ? `<div class="small muted" style="margin:-6px 0 10px">${B.skipped.length} page(s) treated as views and producing no candidates: ${B.skipped.map(p => `${esc(p)} <a href="#" data-unskip="${esc(p)}" class="muted">restore</a>`).join(" · ")}</div>` : ""}
     ${B.frozen ? "" : `<details class="how" ${BF.help ? "open" : ""}><summary>How to work through this</summary><ol>
       <li><b>Drop the pages that are views.</b> Filter by page. A summary, outstanding or conventions page restates rows that are already on a register page. Choose it and press <i>Treat as a view</i>; it produces no candidates from then on, on every pull.</li>
       <li><b>Resolve the duplicates tab.</b> Untick any row that is not the same item, then <i>This one leads</i> on the one to keep. The rest fold into it. Wrong group: <i>Not duplicates</i>.</li>
       <li><b>Pass through each register page</b> on the Row by row tab: one row at a time, keys <kbd>a</kbd> accept, <kbd>r</kbd> reject with the chosen reason, <kbd>x</kbd> discard, <kbd>e</kbd> edit, <kbd>j</kbd>/<kbd>k</kbd> next and previous.</li>
-      <li><b>Fill the missing supports.</b> Every accepted row whose state implies another record, a decision behind an accepted limitation, a change request behind one marked Change requested, the open item that carries a draft, is offered here prefilled. Accept, edit then accept, link a record already in the set, or dismiss with a reason. A limitation the source calls Accepted with nothing behind it can instead be sent back to Under assessment. The freeze waits until this list is empty of failures.</li>
+      <li><b>Fill the missing supports.</b> Every accepted row whose state implies another record, a decision behind an accepted limitation, a change request behind one marked Change requested, the open item that carries a draft, is offered here prefilled. Accept, edit then accept, link a record already in the set, or dismiss with a reason. A limitation the source calls Accepted with nothing behind it can instead be sent back to Under assessment. What is still missing at the freeze is carried into the Rationalise view.</li>
       <li><b>Fix fields in bulk</b> on the Candidates tab where a page has a pattern: no owner, wrong MoSCoW, wrong type.</li>
-      <li><b>Freeze</b> when nothing is left to decide.</li></ol></details>`}
+      <li><b>Freeze</b> when you want the registers open. Anything undecided is written and stays flagged as unreviewed.</li></ol></details>`}
     ${B.frozen ? `<div class="note">The baseline is frozen. ${Object.entries(B.frozen.counts).map(([k, v]) => `${v} ${S.model.names[k].toLowerCase()}${v === 1 ? "" : "s"}`).join(", ")} were written to the registers; the id map is in <code>baseline/frozen.md</code>. Verdicts here are read only now; every change from here is a change set.</div>` : ""}
     <div class="progress"><div style="width:${Math.round(100 * cs.filter(c => c.verdict).length / Math.max(1, cs.length))}%"></div></div>
     ${B.frozen ? "" : `<div class="tabs"><button data-bltab="rows" class="${BF.tab === "rows" ? "on" : ""}">Candidates <span class="n">${cs.length}</span></button><button data-bltab="dups" class="${BF.tab === "dups" ? "on" : ""}">Suggested duplicates <span class="n">${clusters.length}</span></button><button data-bltab="pass" class="${BF.tab === "pass" ? "on" : ""}">Row by row <span class="n">${todo}</span></button><button data-bltab="supports" class="${BF.tab === "supports" ? "on" : ""}">Missing supports <span class="n">${B.suggestions.suggestions.filter(s => s.level === "fail").length}</span></button></div>`}
@@ -692,7 +709,7 @@ function blSupports() {
   const prompts = R.prompts.filter(p => byId[p.id]);
   // the stakeholder list lives in the bulk toolbar, which this tab does not render; the owner boxes need it here
   const names = fails.concat(warnsS).some(s => s.needsOwner) ? `<datalist id="stk">${S.stakeholders.map(p => `<option value="${esc(p.name)}">`).join("")}<option value="Joint"><option value="Vendor: "></datalist>` : "";
-  return `<div class="section">${names}<p class="small muted">${fails.length} needed before the freeze · ${warnsS.length} suggested · ${prompts.length} field prompt(s) · ${R.dismissed} dismissed. Offers are drafted in their first state; nothing here fills Approved by.</p>
+  return `<div class="section">${names}<p class="small muted">${fails.length} needed · ${warnsS.length} suggested · ${prompts.length} field prompt(s) · ${R.dismissed} dismissed. Offers are drafted in their first state; nothing here fills Approved by.</p>
     ${fails.map(one).join("") || '<p class="muted">Nothing missing among the accepted rows.</p>'}
     ${warnsS.length ? `<h3>Suggested, not required</h3>${warnsS.map(one).join("")}` : ""}
     ${prompts.length ? `<h3>Fix by hand in the editor</h3>${prompts.map(p => `<div class="blk"><span class="id" style="${COLOR(byId[p.id].kind)}">${byId[p.id].kind}</span> <a href="#" data-edit="${p.id}">${esc(byId[p.id].title)}</a> <span class="small muted">${esc(p.rule)}: ${esc(p.text)}</span></div>`).join("")}` : ""}</div>`;
@@ -802,5 +819,80 @@ function wireBaseline(m) {
   }
   const fz = $("#bl-freeze", m); if (fz) fz.onclick = () => { if (!madeBy()) return toast("Say who you are first (Made by)"); BF.confirmFreeze = true; render(); };
   const fno = $("#bl-freeze-no", m); if (fno) fno.onclick = () => { BF.confirmFreeze = false; render(); };
-  const fgo = $("#bl-freeze-go", m); if (fgo) fgo.onclick = async () => { try { const r = await post("/api/baseline/freeze", {}); BF.confirmFreeze = false; toast(`Frozen: ${r.written} items written, ${r.rejected} rejected`); await load(); } catch (e) { BF.confirmFreeze = false; toast(e.message); render(); } };
+  const fgo = $("#bl-freeze-go", m); if (fgo) fgo.onclick = async () => { try { const r = await post("/api/baseline/freeze", {}); BF.confirmFreeze = false; toast(`Frozen: ${r.written} items written, ${r.rejected} rejected, ${r.unreviewed} unreviewed, ${r.supportsFail} supports needed, ${r.offScope} off-list scopes`); BF.tab = "dups"; view = "rationalise"; await load(); } catch (e) { BF.confirmFreeze = false; toast(e.message); render(); } };
 }
+
+/* ---------- rationalise: the same work as the baseline tabs, over the item files ---------- */
+let RF = {tab: "dups", kind: "REQ", pos: 0, onlyUnrev: true, merge: null};
+function rationaliseView() {
+  const scopes = S.engagement.scopes || [], unrev = new Set(S.unreviewed);
+  const fails = (S.integrity?.suggestions || []).filter(s => s.level === "fail"), warns = (S.integrity?.suggestions || []).filter(s => s.level === "warn");
+  const offScope = scopes.length ? S.items.filter(i => !scopes.includes(i.scope || "")) : [];
+  const fz = S.baseline.frozen;
+  return `<div class="toolbar"><div><h2>Rationalise</h2><div class="small muted">${fz ? `Frozen ${esc(fz.on)} by ${esc(fz.by)} · ` : ""}${S.items.length} items · <b>${unrev.size} unreviewed</b> · ${S.dupes.length} duplicate group(s) · ${fails.length} support(s) needed${scopes.length ? ` · ${offScope.length} off-list scope(s)` : ""}</div></div></div>
+    <div class="tabs"><button data-rtab="dups" class="${RF.tab === "dups" ? "on" : ""}">Duplicates <span class="n">${S.dupes.length}</span></button><button data-rtab="rows" class="${RF.tab === "rows" ? "on" : ""}">Row by row <span class="n">${unrev.size}</span></button><button data-rtab="supports" class="${RF.tab === "supports" ? "on" : ""}">Missing supports <span class="n">${fails.length}</span></button>${scopes.length ? `<button data-rtab="scopes" class="${RF.tab === "scopes" ? "on" : ""}">Scopes <span class="n">${offScope.length}</span></button>` : ""}</div>
+    ${RF.tab === "dups" ? rDupes(unrev) : RF.tab === "rows" ? rRows(unrev) : RF.tab === "supports" ? rSupports(fails, warns) : rScopes(offScope, scopes)}`;
+}
+function rDupes(unrev) {
+  if (!S.dupes.length) return `<p class="muted">No duplicate groups left to decide.</p>`;
+  return `<div class="section"><p class="small muted">Groups whose titles overlap. Tick the items that are the same, then choose which one leads; the rest fold into it and their files are removed.</p>
+    ${S.dupes.slice(0, 25).map(g => `<div class="cs"><div class="small muted"><button class="ghost" data-rnotdup="${g.join(",")}">Not duplicates</button></div>
+      ${g.map(id => { const i = S.byId[id]; if (!i) return ""; return `<div class="blk"><label class="dup"><input type="checkbox" data-rdup="${id}" checked> same</label> <button class="ghost" data-rlead="${id}">This one leads</button> ${idTag(i)} ${esc(i.title)} <span class="small muted">${esc(i.status)}${unrev.has(id) ? " · unreviewed" : ""}</span></div>`; }).join("")}</div>`).join("")}</div>`;
+}
+function rRows(unrev) {
+  const q = S.items.filter(i => i.kind === RF.kind && (!RF.onlyUnrev || unrev.has(i.id)));
+  const bar = `<div class="toolbar bl-filters"><select id="rf-kind">${KINDS.map(k => `<option value="${k}" ${RF.kind === k ? "selected" : ""}>${S.model.names[k]}s</option>`).join("")}</select>
+    <label class="small"><input type="checkbox" id="rf-unrev" ${RF.onlyUnrev ? "checked" : ""}> unreviewed only</label><span class="small muted">${q.length} to walk</span></div>`;
+  if (!q.length) return bar + `<p class="muted">Nothing here.</p>`;
+  RF.pos = Math.min(RF.pos, q.length - 1);
+  const i = q[RF.pos], same = S.items.filter(x => x.kind === i.kind && x.id !== i.id);
+  const near = S.dupes.find(g => g.includes(i.id))?.filter(id => id !== i.id).map(id => S.byId[id]).filter(Boolean) || [];
+  return bar + `<div class="progress"><div style="width:${Math.round(100 * RF.pos / q.length)}%"></div></div>
+    <div class="triage"><div class="tq-main">${itemPanel(i, false)}
+      <div class="moves" style="--c:var(--cs)">
+        <button data-rv="reviewed" title="a">Mark reviewed <kbd>a</kbd></button>
+        <select id="rf-merge"><option value="">merge into…</option>${same.map(x => `<option value="${x.id}">${x.id} ${esc(x.title.slice(0, 50))}</option>`).join("")}</select><button data-rv="merge" title="m">Merge <kbd>m</kbd></button>
+        <input id="rf-reason" placeholder="reason to delete" style="width:200px"><button class="ghost" data-rv="delete" title="d">Delete <kbd>d</kbd></button>
+        <span class="sep"></span><button class="ghost" data-rv="prev" title="k">← <kbd>k</kbd></button><button class="ghost" data-rv="next" title="j">Skip <kbd>j</kbd> →</button></div>
+      <span class="small muted">${RF.pos + 1} of ${q.length}</span></div>
+      <div class="tq-side"><h3>Looks like</h3>${near.map(n => `<div class="ctx">${idTag(n)}<div>${esc(n.title)}</div></div>`).join("") || '<p class="small muted">No suggested duplicate.</p>'}</div></div>`;
+}
+function rSupports(fails, warns) {
+  const one = s => { const t = S.byId[s.id]; return `<div class="cs blk-support"><div class="small muted"><b>${esc(s.rule)}</b> · ${t ? idTag(t) + " " + esc(t.title) : esc(s.id)} needs a <span class="id" style="${COLOR(s.kind)}">${s.kind}</span>: <i>${esc(s.fields.title || "")}</i></div>
+    <div class="moves" style="${COLOR(s.kind)}"><button data-ropen="${esc(s.id)}" data-key="${esc(s.key)}">Open and accept</button></div></div>`; };
+  return `<div class="section"><p class="small muted">${fails.length} needed · ${warns.length} suggested · ${S.integrity.dismissed} dismissed. Opening the item shows the offer with Accept, Dismiss and Link existing.</p>
+    ${fails.map(one).join("") || '<p class="muted">Nothing needed.</p>'}${warns.length ? `<h3>Suggested, not required</h3>${warns.map(one).join("")}` : ""}</div>`;
+}
+function rScopes(offScope, scopes) {
+  return `<div class="section"><p class="small muted">Items whose Scope is blank or not one of the engagement's. Choosing one writes the item.</p>
+    ${offScope.map(i => `<div class="blk">${idTag(i)} ${esc(i.title)} <span class="small muted">${esc(i.scope || "(blank)")}</span> <select data-rscope="${i.id}"><option value="">set scope…</option>${scopes.map(s => `<option>${esc(s)}</option>`).join("")}</select></div>`).join("") || '<p class="muted">Every item has a listed scope.</p>'}</div>`;
+}
+async function rPost(url, body, msg) { const y = window.scrollY; try { await post(url, body); if (msg) toast(msg); await load(); window.scrollTo(0, y); } catch (e) { toast(e.message); } }
+async function rAct(what) {
+  const unrev = new Set(S.unreviewed), q = S.items.filter(i => i.kind === RF.kind && (!RF.onlyUnrev || unrev.has(i.id)));
+  const i = q[Math.min(RF.pos, q.length - 1)]; if (!i) return;
+  if (what === "next") { RF.pos = Math.min(q.length - 1, RF.pos + 1); render(); return; }
+  if (what === "prev") { RF.pos = Math.max(0, RF.pos - 1); render(); return; }
+  if (what === "reviewed") return rPost("/api/rationalise/reviewed", {id: i.id}, `${i.id} marked reviewed`);
+  if (what === "merge") { const into = $("#rf-merge")?.value; if (!into) return toast("Pick the item to merge into"); return rPost("/api/merge", {survivor: into, losers: [i.id], evidence: ""}, `${i.id} folded into ${into}`); }
+  if (what === "delete") { const reason = $("#rf-reason")?.value.trim(); if (!reason) return toast("Give a reason to delete"); return rPost("/api/delete", {id: i.id, reason, evidence: ""}, `${i.id} deleted`); }
+}
+function wireRationalise(m) {
+  m.querySelectorAll("[data-rtab]").forEach(el => el.onclick = () => { RF.tab = el.dataset.rtab; RF.pos = 0; render(); });
+  const on = (sel, ev, fn) => { const el = $(sel, m); if (el) el[ev] = fn; };
+  on("#rf-kind", "onchange", e => { RF.kind = e.target.value; RF.pos = 0; render(); });
+  on("#rf-unrev", "onchange", e => { RF.onlyUnrev = e.target.checked; RF.pos = 0; render(); });
+  m.querySelectorAll("[data-rv]").forEach(el => el.onclick = () => rAct(el.dataset.rv));
+  m.querySelectorAll("[data-rnotdup]").forEach(el => el.onclick = () => rPost("/api/rationalise/not-duplicates", {ids: el.dataset.rnotdup.split(",")}, "Group set aside"));
+  m.querySelectorAll("[data-rlead]").forEach(el => el.onclick = () => {
+    const keep = el.dataset.rlead, losers = [...el.closest(".cs").querySelectorAll("[data-rdup]")].filter(x => x.checked && x.dataset.rdup !== keep).map(x => x.dataset.rdup);
+    if (!losers.length) return toast("Tick the items to fold in");
+    rPost("/api/merge", {survivor: keep, losers, evidence: ""}, `Folded ${losers.length} into ${keep}`);
+  });
+  m.querySelectorAll("[data-ropen]").forEach(el => el.onclick = () => { view = S.byId[el.dataset.ropen]?.kind || view; open = el.dataset.ropen; form = {mode: "support", key: el.dataset.key, fields: {}, links: []}; render(); });
+  m.querySelectorAll("[data-rscope]").forEach(el => el.onchange = () => { if (el.value) rPost("/api/edit", {id: el.dataset.rscope, fields: {scope: el.value}, links: [], evidence: "", gist: "scope set in Rationalise"}, `${el.dataset.rscope} scope set`); });
+}
+document.addEventListener("keydown", e => {
+  if (view !== "rationalise" || RF.tab !== "rows" || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+  const k = {a: "reviewed", m: "merge", d: "delete", j: "next", k: "prev"}[e.key]; if (k) { e.preventDefault(); rAct(k); }
+});
