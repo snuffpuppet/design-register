@@ -93,19 +93,39 @@ class BaselineSupports(unittest.TestCase):
         self.assertTrue(any(y["rule"] == "S3" and y["id"] == x["id"] for y in again))
         self.assertFalse(any(y["rule"] == "S5" for y in again))
 
-    def test_freeze_refuses_with_undecided_failures_and_remaps_links(self):
+    def test_freeze_writes_with_undecided_failures_and_reports_them(self):
         eng = os.path.join(self.d, "eng"); os.makedirs(eng)
-        with self.assertRaises(ValueError) as e:
-            B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
-        self.assertIn("support", str(e.exception).lower())
-        for x in B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"]:
-            if x["level"] == "fail":
-                B.support_verdict(self.b, x["key"], "Dismiss", reason="test")
+        fails = [x for x in B.suggestions(B.load_candidates(self.b), B.load_verdicts(self.b))["suggestions"] if x["level"] == "fail"]
+        self.assertTrue(fails)
         r = B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
         self.assertTrue(r["ok"])
+        self.assertEqual(r["supportsFail"], len(fails))
+        self.assertEqual(r["unreviewed"], 0)
         lim = open(os.path.join(eng, "limitations", "LIM-0001.md")).read()
         self.assertIn("constrains REQ-0001", lim)
         self.assertNotIn("constrains c", lim)
+        fz = B.frozen(self.b)
+        self.assertEqual(fz["supportsFail"], len(fails))
+        self.assertIn("- Unreviewed: 0", open(os.path.join(self.b, "frozen.md")).read())
+
+    def test_freeze_writes_undecided_candidates_and_counts_them(self):
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        B.apply_verdict(self.b, [self.cands[0]["id"]], "")
+        r = B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
+        self.assertEqual(r["unreviewed"], 1)
+        self.assertEqual(r["written"], 3)
+        v = B.load_verdicts(self.b)
+        self.assertTrue(v[self.cands[0]["id"]]["frozenAs"].startswith("LIM-"))
+        self.assertEqual(v[self.cands[0]["id"]].get("verdict", ""), "")
+
+    def test_freeze_skips_reject_merge_and_discard(self):
+        eng = os.path.join(self.d, "eng"); os.makedirs(eng)
+        ids = [c["id"] for c in self.cands]
+        B.apply_verdict(self.b, [ids[0]], "Discard")
+        B.apply_verdict(self.b, [ids[1]], "Reject", reason="duplicate")
+        r = B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b), "13 September 2026", "Adam")
+        self.assertEqual(r["written"], 1)
+        self.assertEqual(r["rejected"], 1)
 
     def test_freeze_lists_implied(self):
         eng = os.path.join(self.d, "eng"); os.makedirs(eng)
@@ -292,19 +312,18 @@ class ScopeFreeze(unittest.TestCase):
         return B.freeze(eng, self.b, B.load_candidates(self.b), B.load_verdicts(self.b),
                         "13 September 2026", "Adam", scopes=scopes or None)
 
-    def test_freeze_refuses_a_blank_scope_when_scopes_declared(self):
-        with self.assertRaises(ValueError) as e:
-            self.run_freeze("", ["Access"])
-        self.assertIn("Scope", str(e.exception))
-        self.assertIn("(blank)", str(e.exception))
+    def test_freeze_reports_a_blank_scope_when_scopes_declared(self):
+        r = self.run_freeze("", ["Access"])
+        self.assertTrue(r["ok"]); self.assertEqual(r["offScope"], 3)
 
-    def test_freeze_refuses_an_off_list_scope(self):
-        with self.assertRaises(ValueError) as e:
-            self.run_freeze("Nonsense", ["Access"])
-        self.assertIn("Nonsense", str(e.exception))
+    def test_freeze_reports_an_off_list_scope(self):
+        r = self.run_freeze("Nonsense", ["Access"])
+        self.assertTrue(r["ok"]); self.assertEqual(r["offScope"], 3)
 
     def test_freeze_accepts_a_listed_scope(self):
-        self.assertTrue(self.run_freeze("Access", ["Access"])["ok"])
+        r = self.run_freeze("Access", ["Access"])
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["offScope"], 0)
 
     def test_freeze_ignores_scope_when_none_declared(self):
         self.assertTrue(self.run_freeze("", [])["ok"])

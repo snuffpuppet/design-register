@@ -1,5 +1,5 @@
 """Baseline mode: turn generated register tables (Confluence HTML, Markdown, CSV) into candidates,
-hold verdicts on them, and export the accepted set as a change set for the ingester.
+hold verdicts on them, and freeze the accepted and undecided set as the registers' first item files.
 
 Resilience rules: every table row is a candidate whatever it claims to be. Ids in the source are kept
 as references, never used as ours. Statuses are noted, never trusted. Unknown columns go to Notes.
@@ -386,6 +386,7 @@ def fold_merged(surv, merged, kind):
     return out, kept_back
 
 
+WRITTEN = ("Accept", "")   # the verdicts that reach the registers at the freeze: accepted, and not yet decided
 IMPLIED_KEY = "_implied"
 SUPPORTS_KEY = "_supports"
 # a note that came from a link column ("Links: delivers REQ-030", "Delivers: REQ-030") reads as links
@@ -450,7 +451,7 @@ def as_items(cands, v):
             merged_into.setdefault(c["mergedInto"], []).append(c)
     items = []
     for c in eff.values():
-        if c["verdict"] != "Accept":
+        if c["verdict"] not in WRITTEN:
             continue
         k = c["kind"]
         merged = merged_into.get(c["id"], [])
@@ -561,7 +562,7 @@ def assemble(cands, v, today):
     for c in eff.values():
         if c["verdict"] == "Reject":
             rejects.append(f"| {c['page']} | {c['ref'] or ''} | {c['title']} | {c['reason']} |")
-        if c["verdict"] != "Accept":
+        if c["verdict"] not in WRITTEN:
             continue
         k = c["kind"]
         c, kept_back = fold_merged(c, merged_into.get(c["id"], []), k)
@@ -588,7 +589,7 @@ def assemble(cands, v, today):
         records.append({"kind": k, "fields": fields, "gist": f"Baseline accept from {c['page']}" + (", inferred" if c["inferred"] else ""), "cid": c["id"],
                         "refs": refs, "page": c["page"], "merged_cids": [m["id"] for m in merged_into.get(c["id"], [])],
                         "links": list(dict.fromkeys(c.get("links") or [])), "implied": bool(c.get("implied")),
-                        "scope": c.get("scope", "")})
+                        "scope": c.get("scope", ""), "unreviewed": c["verdict"] == ""})
     return records, rejects
 
 
@@ -609,7 +610,7 @@ def frozen(bdir):
     p = os.path.join(bdir, FROZEN)
     if not os.path.exists(p):
         return None
-    out = {"on": "", "by": "", "counts": {}, "map": {}}
+    out = {"on": "", "by": "", "counts": {}, "map": {}, "unreviewed": 0, "supportsFail": 0, "supportsWarn": 0, "offScope": 0}
     for ln in open(p, encoding="utf-8"):
         m = re.match(r"- Frozen on: (.*)", ln)
         if m: out["on"] = m.group(1).strip()
@@ -618,6 +619,12 @@ def frozen(bdir):
         m = re.match(r"- Items by type: (.*)", ln)
         if m:
             out["counts"] = {k: int(n) for k, n in re.findall(r"([A-Z]+)=(\d+)", m.group(1))}
+        m = re.match(r"- Unreviewed: (\d+)", ln)
+        if m: out["unreviewed"] = int(m.group(1))
+        m = re.match(r"- Supports missing: (\d+) needed, (\d+) suggested", ln)
+        if m: out["supportsFail"], out["supportsWarn"] = int(m.group(1)), int(m.group(2))
+        m = re.match(r"- Off-list scopes: (\d+)", ln)
+        if m: out["offScope"] = int(m.group(1))
         m = re.match(r"\| ([^|]+) \| ([A-Z]+-\d+) \|", ln)
         if m and m.group(1).strip() not in ("Source id", "---"): out["map"][m.group(1).strip()] = m.group(2)
     if not out["counts"]:
@@ -660,26 +667,18 @@ def implied_section(records):
 
 
 def freeze(eng, bdir, cands, v, today, who, scopes=None):
-    """Write the accepted set as item files, the first content of the registers. Refuses if any item file
-    exists, so a live register is never overwritten. Source ids become the model's ids in order of acceptance,
-    a Links note whose source ids all map becomes real links, and the id map is written to baseline/frozen.md."""
+    """Write every candidate not rejected, merged or discarded as an item file, the first content of the
+    registers, and report what is left to rationalise. Refuses only if any item file already exists, so a
+    live register is never overwritten. Source ids become the model's ids in order of acceptance, a Links
+    note whose source ids all map becomes real links, and the id map is written to baseline/frozen.md."""
     if frozen(bdir):
         raise ValueError("The baseline is already frozen.")
     for d in M.DIRS.values():
         if glob.glob(os.path.join(eng, d, "*.md")):
             raise ValueError(f"The {d} register already has items; freeze only runs into empty registers.")
-    pending = [x for x in suggestions(cands, v)["suggestions"] if x["level"] == "fail"]
-    if pending:
-        raise ValueError(f"{len(pending)} missing support(s) still undecided on the Missing supports tab; accept or dismiss them before the freeze.")
     records, rejects = assemble(cands, v, today)
     if not records:
         raise ValueError("Nothing accepted yet.")
-    if scopes:
-        bad = [r for r in records if str(r.get("scope", "")).strip() not in scopes]
-        if bad:
-            vals = sorted({str(r.get("scope", "")).strip() or "(blank)" for r in bad})
-            raise ValueError(f"{len(bad)} accepted item(s) have a Scope that is not one of the engagement's: "
-                             + ", ".join(vals) + ". Fix them on the Candidates tab before the freeze.")
     counter, idmap, out, cids = {}, {}, [], set()
     for r in records:
         counter[r["kind"]] = counter.get(r["kind"], 0) + 1
@@ -720,6 +719,11 @@ def freeze(eng, bdir, cands, v, today, who, scopes=None):
         os.makedirs(os.path.join(eng, M.DIRS[r["kind"]]), exist_ok=True)
         open(os.path.join(eng, M.DIRS[r["kind"]], r["id"] + ".md"), "w", encoding="utf-8").write(item_text(r["id"], r["fields"], links))
         out.append(r)
+    sugg = suggestions(cands, v)["suggestions"]
+    n_fail = sum(1 for s in sugg if s["level"] == "fail")
+    n_warn = sum(1 for s in sugg if s["level"] == "warn")
+    n_unrev = sum(1 for r in out if r.get("unreviewed"))
+    n_scope = sum(1 for r in out if str(r.get("scope", "")).strip() not in scopes) if scopes else 0
     for r in out:
         e = v.setdefault(r["cid"], {}); e["frozenAs"] = r["id"]
         for mc in r["merged_cids"]:
@@ -731,12 +735,14 @@ def freeze(eng, bdir, cands, v, today, who, scopes=None):
     with open(os.path.join(bdir, FROZEN), "w", encoding="utf-8") as f:
         by_type = ", ".join(f"{k}={n}" for k, n in sorted(counter.items()))
         f.write(f"# Baseline frozen\n\n- Frozen on: {today}\n- Frozen by: {who}\n- Items written: {counts}\n"
-                f"- Items by type: {by_type}\n- Rejected: {len(rejects)}\n\n"
-                "The registers above this folder started from these items. Every change since is a change set.\n\n"
+                f"- Items by type: {by_type}\n- Rejected: {len(rejects)}\n"
+                f"- Unreviewed: {n_unrev}\n- Supports missing: {n_fail} needed, {n_warn} suggested\n- Off-list scopes: {n_scope}\n\n"
+                "The registers above this folder started from these items. Every change since is a write to an item file, held in version control.\n\n"
                 "## Id map\n\n| Source id | Item |\n|---|---|\n"
                 + "\n".join(f"| {ref} | {nid} |" for ref, nid in idmap.items() if ref not in cids) + "\n"
                 + implied_section(out))
-    return {"ok": True, "written": len(out), "rejected": len(rejects), "counts": counter}
+    return {"ok": True, "written": len(out), "rejected": len(rejects), "counts": counter, "unreviewed": n_unrev,
+            "supportsFail": n_fail, "supportsWarn": n_warn, "offScope": n_scope}
 
 
 def mark_exported(bdir, cids, cs_id):
