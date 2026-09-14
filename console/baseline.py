@@ -302,7 +302,8 @@ def dismiss_cluster(bdir, ids, undo=False):
 def clusters(cands, dismissed=()):
     """Suggested duplicate groups: same ref, or stemmed title token Jaccard >= 0.3. Suggestions only.
     Two types the model relates are never grouped; merging one into the other would lose the relationship.
-    A group the reviewer has called not duplicates stays out until its membership changes."""
+    A group the reviewer has called not duplicates stays out until its membership changes.
+    Works over candidates and over items; an item has no ref."""
     groups, seen = [], set()
     for i, a in enumerate(cands):
         if a["id"] in seen: continue
@@ -310,7 +311,7 @@ def clusters(cands, dismissed=()):
         for b in cands[i + 1:]:
             if b["id"] in seen: continue
             if frozenset((a["kind"], b["kind"])) in RELATED: continue
-            same_ref = a["ref"] and a["ref"] == b["ref"]
+            same_ref = a.get("ref") and a.get("ref") == b.get("ref")
             tb = tokens(b["title"]); j = len(ta & tb) / len(ta | tb) if ta | tb else 0
             if same_ref or (j >= 0.3 and len(ta & tb) >= 2):
                 g.append(b["id"])

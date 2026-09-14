@@ -23,6 +23,7 @@ PORT = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 8080
 CS_DIR = os.path.join(ENG, "change-sets")
 B_DIR = os.path.join(ENG, "baseline")
 DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
+DUP_PATH = os.path.join(ENG, "duplicates-dismissed.json")
 TOOL = "design-register console 0.1"
 LOCK = threading.Lock()
 
@@ -229,6 +230,7 @@ def state():
     eng = load_engagement()
     return {"engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
             "integrity": integrity_of(items),
+            "dupes": B.clusters([i for i in items.values() if not i.get("provisional")], set(load_dup_dismissed())),
             "change_sets": load_change_sets(), "today": today(),
             "model": {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
                       "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
@@ -246,6 +248,27 @@ def load_dismissed():
     except (ValueError, OSError):
         return {}
     return gone if isinstance(gone, dict) else {}
+
+
+def load_dup_dismissed():
+    """Duplicate groups the reviewer has set aside, keyed by baseline.cluster_key. Unparseable means empty."""
+    if not os.path.exists(DUP_PATH):
+        return {}
+    try:
+        gone = json.load(open(DUP_PATH, encoding="utf-8"))
+    except (ValueError, OSError):
+        return {}
+    return gone if isinstance(gone, dict) else {}
+
+
+def dismiss_dup(ids, undo=False):
+    gone = load_dup_dismissed()
+    key = B.cluster_key(ids)
+    if undo:
+        gone.pop(key, None)
+    else:
+        gone[key] = {"ids": sorted(ids), "on": today()}
+    json.dump(gone, open(DUP_PATH, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
 
 
 def integrity_of(items):
@@ -315,6 +338,9 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": True})
                 if p == "/api/baseline/not-duplicates":
                     B.dismiss_cluster(B_DIR, req["ids"], req.get("undo", False))
+                    return self.send_json({"ok": True})
+                if p == "/api/rationalise/not-duplicates":
+                    dismiss_dup(req["ids"], req.get("undo", False))
                     return self.send_json({"ok": True})
                 if p == "/api/baseline/support":
                     sugg = next((x for x in B.suggestions(B.load_candidates(B_DIR), B.load_verdicts(B_DIR))["suggestions"] if x["key"] == req["key"]), None)
