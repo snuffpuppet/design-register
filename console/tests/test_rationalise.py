@@ -41,3 +41,68 @@ class Dupes(Base):
         self.assertTrue(os.path.exists(S.DUP_PATH))
         S.dismiss_dup(["REQ-0001", "REQ-0002"], undo=True)
         self.assertEqual(len(S.state()["dupes"]), 1)
+
+
+class Merge(Base):
+    def setUp(self):
+        super().setUp()
+        write_item(self.d, "REQ-0001", "Bulk porting", "Draft", source="page A", notes="", moscow="", links=["constrained by LIM-0001"])
+        write_item(self.d, "REQ-0002", "Bulk number porting", "Agreed", source="page B", notes="from the vendor", moscow="Must", links=["constrained by LIM-0001"])
+        write_item(self.d, "LIM-0001", "No bulk port", "Identified", links=["constrains REQ-0002", "constrains REQ-0001"])
+        write_item(self.d, "DEC-0001", "Manual port", "Proposed", links=["dispositions LIM-0001", "affects REQ-0002"])
+
+    def test_merge_folds_rewrites_and_removes(self):
+        r = self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"]))
+        self.assertEqual(r["removed"], ["REQ-0002"])
+        self.assertFalse(os.path.exists(IT.item_path(self.d, "REQ-0002")))
+        s = self.read("REQ-0001")
+        self.assertEqual(s["status"], "Draft")            # never taken from the loser
+        self.assertEqual(s["moscow"], "Must")             # blank on the survivor, filled from the loser
+        self.assertIn("page B", s["source"]); self.assertIn("page A", s["source"])
+        self.assertIn("Merged in from REQ-0002: from the vendor", s["notes"])
+        self.assertEqual(s["links"], ["constrained by LIM-0001"])
+        self.assertTrue(any("merged REQ-0002 into this item" in h for h in s["history"]))
+        lim = self.read("LIM-0001")
+        self.assertEqual(lim["links"], ["constrains REQ-0001"])
+        self.assertTrue(any("merged REQ-0002 into REQ-0001" in h for h in lim["history"]))
+        dec = self.read("DEC-0001")
+        self.assertIn("affects REQ-0001", dec["links"]); self.assertNotIn("affects REQ-0002", dec["links"])
+        self.assertIn("DEC-0001", r["touched"]); self.assertIn("LIM-0001", r["touched"])
+
+    def test_merge_refuses_across_types_and_writes_nothing(self):
+        with self.assertRaises(ValueError):
+            self.h.merge(self.req(survivor="REQ-0001", losers=["LIM-0001"]))
+        self.assertTrue(os.path.exists(IT.item_path(self.d, "LIM-0001")))
+        self.assertEqual(self.read("REQ-0001")["history"], [])
+
+    def test_merge_refuses_in_change_sets_mode(self):
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
+        with self.assertRaises(ValueError) as e:
+            self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"]))
+        self.assertIn("change set", str(e.exception).lower())
+        self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0002")))
+
+
+class Delete(Base):
+    def setUp(self):
+        super().setUp()
+        write_item(self.d, "REQ-0002", "Bulk number porting", "Agreed")
+        write_item(self.d, "LIM-0001", "No bulk port", "Identified", links=["constrains REQ-0002"])
+
+    def test_delete_drops_links_and_removes_file(self):
+        r = self.h.delete(self.req(id="REQ-0002", reason="not a requirement"))
+        self.assertFalse(os.path.exists(IT.item_path(self.d, "REQ-0002")))
+        lim = self.read("LIM-0001")
+        self.assertEqual(lim["links"], [])
+        self.assertTrue(any("dropped link to REQ-0002, deleted: not a requirement" in h for h in lim["history"]))
+        self.assertEqual(r["touched"], ["LIM-0001"])
+
+    def test_delete_needs_a_reason(self):
+        with self.assertRaises(ValueError):
+            self.h.delete(self.req(id="REQ-0002", reason=""))
+        self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0002")))
+
+    def test_delete_refuses_in_change_sets_mode(self):
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
+        with self.assertRaises(ValueError):
+            self.h.delete(self.req(id="REQ-0002", reason="x"))

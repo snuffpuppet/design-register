@@ -18,7 +18,7 @@ def write_item(eng, id, title, status, **f):
 
 class Stub:
     """The handler methods only use self for other methods, so an instance without a socket will do."""
-    for _n in ("evidence", "commit", "transition", "create", "edit", "support_accept", "support_link", "supports_preview", "offer_fields", "write_offer"):
+    for _n in ("evidence", "commit", "transition", "create", "edit", "support_accept", "support_link", "supports_preview", "offer_fields", "write_offer", "merge", "delete", "rewrite_links"):
         locals()[_n] = getattr(S.H, _n, None)
 
 

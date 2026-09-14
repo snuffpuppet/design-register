@@ -328,6 +328,10 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.create(req))
                 if p == "/api/edit":
                     return self.send_json(self.edit(req))
+                if p == "/api/merge":
+                    return self.send_json(self.merge(req))
+                if p == "/api/delete":
+                    return self.send_json(self.delete(req))
                 if p == "/api/close-session":
                     return self.send_json(self.close_session(req))
                 if p == "/api/baseline/verdict":
@@ -398,16 +402,23 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
         return f
 
-    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None):
+    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None, delete=False):
         """The one place a Live write lands. Change-sets mode appends a block to the maker's open change set;
         direct mode rewrites the item file, stamps Updated and appends one History line. Callers build fields
         by label and links as text, the same in both modes. Returns item (block number or id) and ref, the
-        text a link uses to name what was written."""
+        text a link uses to name what was written. `delete=True` removes the target's file instead of writing
+        it; direct mode only, the caller has already refused otherwise."""
         ev = self.evidence(req)
         if not writes_direct():
             cs = current_change_set(req["madeBy"])
             n = append_block(cs, kind, target, fields, links, ev, gist, frm=frm, based_on=based_on)
             return {"changeSet": cs["id"], "item": n, "ref": f"item {n}"}
+        if delete:
+            p = item_path(ENG, target)
+            if not os.path.exists(p):
+                raise ValueError(f"No file for {target}.")
+            os.remove(p)
+            return {"item": target, "removed": p, "ref": target}
         if target == "new":
             taken = [int(os.path.basename(p)[len(kind) + 1:-3]) for p in glob.glob(os.path.join(ENG, M.DIRS[kind], f"{kind}-*.md"))]
             it = {"id": f"{kind}-{max(taken + [0]) + 1:04d}", "kind": kind, "links": [], "history": [], "raised-on": today(), "closed-on": ""}
@@ -574,6 +585,86 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Nothing changed.")
         r = self.commit(it["kind"], it["id"], fields, req.get("links", []), req, req.get("gist", "") or "fields updated", based_on=it.get("updated", ""))
         return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"]}
+
+    def rewrite_links(self, items, old, new, gist, req):
+        """Every item whose Links name `old` gets them rewritten to `new`, or dropped when new is None, with a
+        History line. Returns the ids touched. A rewritten link that duplicates one already held is dropped."""
+        touched = []
+        pat = re.compile(r"\b" + re.escape(old) + r"\b")
+        for it in items.values():
+            if it["id"] in (old, new) or not any(pat.search(l) for l in it["links"]):
+                continue
+            kept = []
+            for l in it["links"]:
+                if not pat.search(l):
+                    if l not in kept:
+                        kept.append(l)
+                    continue
+                if new is None:
+                    continue
+                nl = pat.sub(new, l)
+                if nl not in kept:
+                    kept.append(nl)
+            path = item_path(ENG, it["id"]); cur = parse_item(path)
+            cur["links"] = kept; cur["updated"] = today()
+            cur["history"].append(" | ".join([today(), req["madeBy"].strip(), gist, self.evidence(req)[0].split(" | ", 2)[2]]))
+            open(path, "w", encoding="utf-8").write(render_item(cur))
+            touched.append(it["id"])
+        return touched
+
+    def merge(self, req):
+        """Fold each loser into the survivor, rewrite every link that named the loser, remove the loser's file.
+        Direct mode only: the ingester's change set format has no block for a merge."""
+        if not writes_direct():
+            raise ValueError("Merge is a direct write; this engagement writes change sets, which have no block for it.")
+        self.evidence(req)
+        items = load_registers()
+        surv = items.get(req.get("survivor", ""))
+        losers = [items.get(x) for x in req.get("losers", [])]
+        if not surv or not losers or any(l is None for l in losers):
+            raise ValueError("Pick the survivor and at least one item to fold into it.")
+        if any(l["id"] == surv["id"] for l in losers):
+            raise ValueError("An item cannot be merged into itself.")
+        for l in losers:
+            if l["kind"] != surv["kind"]:
+                raise ValueError(f"{l['id']} is a {M.NAMES[l['kind']]}; {surv['id']} is a {M.NAMES[surv['kind']]}. Merge only folds items of one type.")
+        removed, touched = [], []
+        for l in losers:
+            surv = load_registers()[surv["id"]]
+            fields = {}
+            for k in M.SHORT[surv["kind"]] + M.LONG[surv["kind"]] + ["description"]:
+                if k in ("scope", "status", "source", "notes"):
+                    continue
+                if not str(surv.get(k, "") or "").strip() and str(l.get(k, "") or "").strip():
+                    fields[label_of(k)] = l[k]
+            src = [s for s in (surv.get("source", "") + "\n" + l.get("source", "")).split("\n") if s.strip()]
+            fields["Source"] = "\n".join(dict.fromkeys(src))
+            notes = surv.get("notes", "") or ""
+            if str(l.get("notes", "") or "").strip():
+                notes = (notes + "\n" if notes else "") + f"Merged in from {l['id']}: {l['notes']}"
+            fields["Notes"] = notes or ""
+            links = [x for x in l["links"] if x not in surv["links"] and not re.search(r"\b" + re.escape(surv["id"]) + r"\b", x)]
+            self.commit(surv["kind"], surv["id"], fields, links, req, f"merged {l['id']} into this item", based_on=surv.get("updated", ""))
+            touched += self.rewrite_links(load_registers(), l["id"], surv["id"], f"merged {l['id']} into {surv['id']}", req)
+            self.commit(l["kind"], l["id"], {}, [], req, "", delete=True)
+            removed.append(l["id"])
+        return {"ok": True, "survivor": surv["id"], "removed": removed, "touched": sorted(set(touched))}
+
+    def delete(self, req):
+        """Remove one item's file after dropping every link that named it. Direct mode only, reason required."""
+        if not writes_direct():
+            raise ValueError("Delete is a direct write; this engagement writes change sets, which have no block for it.")
+        self.evidence(req)
+        reason = str(req.get("reason", "")).strip()
+        if not reason:
+            raise ValueError("Give a reason; it goes into the History of every item that loses a link.")
+        items = load_registers()
+        it = items.get(req.get("id", ""))
+        if not it:
+            raise ValueError("No such item.")
+        touched = self.rewrite_links(items, it["id"], None, f"dropped link to {it['id']}, deleted: {reason}", req)
+        self.commit(it["kind"], it["id"], {}, [], req, "", delete=True)
+        return {"ok": True, "removed": it["id"], "touched": touched}
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):
