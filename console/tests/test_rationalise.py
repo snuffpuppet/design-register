@@ -106,3 +106,28 @@ class Delete(Base):
         open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         with self.assertRaises(ValueError):
             self.h.delete(self.req(id="REQ-0002", reason="x"))
+
+
+class Unreviewed(Base):
+    def setUp(self):
+        super().setUp()
+        os.makedirs(S.B_DIR)
+        json.dump({"c1": {"frozenAs": "REQ-0001"}, "c2": {"frozenAs": "REQ-0002", "verdict": "Accept"},
+                   "c3": {"frozenAs": "REQ-0002", "verdict": "Merge", "mergedInto": "c2"}},
+                  open(os.path.join(S.B_DIR, "verdicts.json"), "w"))
+        write_item(self.d, "REQ-0001", "One", "Draft"); write_item(self.d, "REQ-0002", "Two", "Draft"); write_item(self.d, "REQ-0003", "Raised here", "Draft")
+
+    def test_unreviewed_is_the_frozen_from_candidate_with_no_verdict(self):
+        self.assertEqual(S.state()["unreviewed"], ["REQ-0001"])
+
+    def test_mark_reviewed_sets_accept(self):
+        self.assertTrue(B.mark_reviewed(S.B_DIR, "REQ-0001"))
+        self.assertEqual(S.state()["unreviewed"], [])
+        self.assertEqual(B.load_verdicts(S.B_DIR)["c1"]["verdict"], "Accept")
+
+    def test_mark_reviewed_on_a_console_item_is_a_no_op(self):
+        self.assertFalse(B.mark_reviewed(S.B_DIR, "REQ-0003"))
+
+    def test_no_baseline_folder_means_nothing_unreviewed(self):
+        shutil.rmtree(S.B_DIR)
+        self.assertEqual(S.state()["unreviewed"], [])

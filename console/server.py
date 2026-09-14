@@ -231,6 +231,7 @@ def state():
     return {"engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
             "integrity": integrity_of(items),
             "dupes": B.clusters([i for i in items.values() if not i.get("provisional")], set(load_dup_dismissed())),
+            "unreviewed": sorted(B.unreviewed_ids(B_DIR) & set(items)),
             "change_sets": load_change_sets(), "today": today(),
             "model": {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
                       "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
@@ -345,6 +346,10 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": True})
                 if p == "/api/rationalise/not-duplicates":
                     dismiss_dup(req["ids"], req.get("undo", False))
+                    return self.send_json({"ok": True})
+                if p == "/api/rationalise/reviewed":
+                    if not B.mark_reviewed(B_DIR, req["id"]):
+                        raise ValueError("That item was not frozen from a candidate; nothing to mark.")
                     return self.send_json({"ok": True})
                 if p == "/api/baseline/support":
                     sugg = next((x for x in B.suggestions(B.load_candidates(B_DIR), B.load_verdicts(B_DIR))["suggestions"] if x["key"] == req["key"]), None)

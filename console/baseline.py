@@ -751,3 +751,25 @@ def mark_exported(bdir, cids, cs_id):
     for cid in cids:
         v.setdefault(cid, {})["exported"] = cs_id
     save_verdicts(bdir, v)
+
+
+def unreviewed_ids(bdir):
+    """Items frozen from a candidate that still has no verdict. The review ledger is the verdicts file;
+    nothing in an item file says whether it was reviewed."""
+    if not os.path.isdir(bdir):
+        return set()
+    v = load_verdicts(bdir)
+    return {e["frozenAs"] for k, e in v.items() if not k.startswith("_") and isinstance(e, dict)
+            and e.get("frozenAs") and not e.get("verdict")}
+
+
+def mark_reviewed(bdir, item_id):
+    """Accept every candidate frozen as this item. Returns False when none was."""
+    v = load_verdicts(bdir)
+    hit = False
+    for k, e in v.items():
+        if not k.startswith("_") and isinstance(e, dict) and e.get("frozenAs") == item_id and not e.get("verdict"):
+            e["verdict"] = "Accept"; hit = True
+    if hit:
+        save_verdicts(bdir, v)
+    return hit
