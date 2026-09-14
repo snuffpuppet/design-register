@@ -69,6 +69,14 @@ class Merge(Base):
         self.assertIn("affects REQ-0001", dec["links"]); self.assertNotIn("affects REQ-0002", dec["links"])
         self.assertIn("DEC-0001", r["touched"]); self.assertIn("LIM-0001", r["touched"])
 
+    def test_merge_drops_survivors_own_link_to_loser(self):
+        write_item(self.d, "DEC-0001", "Manual port", "Proposed", links=["supersedes DEC-0002"])
+        write_item(self.d, "DEC-0002", "Old manual port note", "Proposed", links=["superseded by DEC-0001"])
+        r = self.h.merge(self.req(survivor="DEC-0001", losers=["DEC-0002"]))
+        self.assertFalse(os.path.exists(IT.item_path(self.d, "DEC-0002")))
+        dec = self.read("DEC-0001")
+        self.assertFalse(any("DEC-0002" in l for l in dec["links"]))
+
     def test_merge_refuses_across_types_and_writes_nothing(self):
         with self.assertRaises(ValueError):
             self.h.merge(self.req(survivor="REQ-0001", losers=["LIM-0001"]))

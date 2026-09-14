@@ -407,12 +407,14 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
         return f
 
-    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None, delete=False):
+    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None, delete=False, replace_links=None):
         """The one place a Live write lands. Change-sets mode appends a block to the maker's open change set;
         direct mode rewrites the item file, stamps Updated and appends one History line. Callers build fields
         by label and links as text, the same in both modes. Returns item (block number or id) and ref, the
         text a link uses to name what was written. `delete=True` removes the target's file instead of writing
-        it; direct mode only, the caller has already refused otherwise."""
+        it; direct mode only, the caller has already refused otherwise. `replace_links`, when given, replaces
+        the target's existing links before `links` are appended; direct mode only, used by merge() to drop the
+        survivor's own links to a loser it is folding in."""
         ev = self.evidence(req)
         if not writes_direct():
             cs = current_change_set(req["madeBy"])
@@ -429,6 +431,8 @@ class H(SimpleHTTPRequestHandler):
             it = {"id": f"{kind}-{max(taken + [0]) + 1:04d}", "kind": kind, "links": [], "history": [], "raised-on": today(), "closed-on": ""}
         else:
             it = parse_item(item_path(ENG, target))
+        if replace_links is not None:
+            it["links"] = replace_links
         for k, v in fields.items():
             it[field_key(k)] = v
         for l in links:
@@ -648,8 +652,9 @@ class H(SimpleHTTPRequestHandler):
             if str(l.get("notes", "") or "").strip():
                 notes = (notes + "\n" if notes else "") + f"Merged in from {l['id']}: {l['notes']}"
             fields["Notes"] = notes or ""
+            kept = [x for x in surv["links"] if not re.search(r"\b" + re.escape(l["id"]) + r"\b", x)]
             links = [x for x in l["links"] if x not in surv["links"] and not re.search(r"\b" + re.escape(surv["id"]) + r"\b", x)]
-            self.commit(surv["kind"], surv["id"], fields, links, req, f"merged {l['id']} into this item", based_on=surv.get("updated", ""))
+            self.commit(surv["kind"], surv["id"], fields, links, req, f"merged {l['id']} into this item", based_on=surv.get("updated", ""), replace_links=kept)
             touched += self.rewrite_links(load_registers(), l["id"], surv["id"], f"merged {l['id']} into {surv['id']}", req)
             self.commit(l["kind"], l["id"], {}, [], req, "", delete=True)
             removed.append(l["id"])
