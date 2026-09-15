@@ -196,3 +196,7 @@ select.chip.add{border-style:dashed;color:var(--ink-3);font:inherit;font-size:12
 .prow .inp{padding:3px 8px;font-size:12px;max-width:200px}
 .miss{color:var(--bad)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:6px;z-index:20}
+
+.bar.bulk{background:var(--req-bg);border-bottom:1px solid var(--line);flex-wrap:wrap}.bar.bulk .b{font-weight:500}
+.cb{width:14px;height:14px;border:1.5px solid var(--ink-3);border-radius:3px;display:inline-block;box-sizing:border-box;cursor:pointer}.cb.on{background:var(--req);border-color:var(--req)}
+.c-sel{width:30px}

@@ -19,6 +19,7 @@
     if (e.key === "/") { e.preventDefault(); document.querySelector(".search")?.focus(); }
     if (e.key === "Escape") Store.set({ move: null, open: null, selection: new Set() });
     if (e.key === "Enter" && Store.ui.focus) Store.set({ open: Store.ui.focus });
+    if (e.key === "x" && Store.ui.focus) Table.toggle(Store.ui.focus);
     if (e.key === "e" && Store.ui.focus) document.querySelector("tr.focus .c-title .ed")?.click();
     if (e.key === "m" && Store.ui.focus) document.querySelector("tr.focus .st")?.click();
     if (Store.ui.open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {

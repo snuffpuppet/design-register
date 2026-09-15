@@ -2,6 +2,17 @@
   const html = htm.bind(preact.h);
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
   function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues" }[k] || Store.model.labels[k] || k; }
+  // Toggle one id in the selection, or (shift-click) the range from Store.ui.lastSel to it in rows() order.
+  function toggle(id, shift) {
+    const S = Store, sel = new Set(S.ui.selection);
+    if (shift && S.ui.lastSel) {
+      const rows = S.rows(), ids = rows.map(r => r.id);
+      const a = ids.indexOf(S.ui.lastSel), b = ids.indexOf(id);
+      if (a !== -1 && b !== -1) { const [lo, hi] = a < b ? [a, b] : [b, a]; for (let n = lo; n <= hi; n++) sel.add(ids[n]); }
+      else sel.has(id) ? sel.delete(id) : sel.add(id);
+    } else sel.has(id) ? sel.delete(id) : sel.add(id);
+    S.set({ selection: sel, lastSel: id });
+  }
   function Cell({ i, k }) {
     const [edit, setEdit] = preactHooks.useState(false);
     if (k === "id") return html`<span class=${"pill " + i.kind + " lnk"} onClick=${e => { e.stopPropagation(); Store.set({ open: i.id, focus: i.id }); }}>${i.id}</span>`;
@@ -34,9 +45,11 @@
         ${f.rule ? html`<${Chip} label="Failing" value=${f.rule} onClear=${() => setF({ rule: "" })} />` : null}
         <${FilterAdd} setF=${setF} f=${f} />
       </div>
+      <${Bulk} />
       <div class="tbl-wrap"><table>
-        <thead><tr>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
-        <tbody>${rows.map(i => html`<tr key=${i.id} class=${ui.focus === i.id ? "focus" : ""} onClick=${() => S.set({ focus: i.id })}>
+        <thead><tr><th class="c-sel"><span class=${"cb" + (rows.length && rows.every(r => ui.selection.has(r.id)) ? " on" : "")} onClick=${() => S.set({ selection: rows.length && rows.every(r => ui.selection.has(r.id)) ? new Set() : new Set(rows.map(r => r.id)) })}></span></th>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
+        <tbody>${rows.map(i => html`<tr key=${i.id} class=${(ui.focus === i.id ? "focus " : "") + (ui.selection.has(i.id) ? "sel" : "")} onClick=${() => S.set({ focus: i.id })}>
+          <td class="c-sel"><span class=${"cb" + (ui.selection.has(i.id) ? " on" : "")} onClick=${e => { e.stopPropagation(); toggle(i.id, e.shiftKey); }}></span></td>
           ${cols.map(k => html`<td class=${"c-" + k}><${Cell} i=${i} k=${k} /></td>`)}</tr>`)}</tbody>
       </table></div>
       <div class="bar foot muted">${rows.length} of ${S.state.items.length} · j/k move · Enter opens · / search</div>
@@ -56,5 +69,6 @@
         facet === "rule" ? setF({ rule: v }) : setF({ [facet]: [...new Set([...f[facet], v])] }); }}>
       <option value="">${FACET_LABELS[facet]}…</option>${values[facet].map(v => html`<option value=${v}>${v}</option>`)}</select>`;
   }
+  Table.toggle = toggle;
   window.Table = Table;
 })();
