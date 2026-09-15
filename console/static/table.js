@@ -3,7 +3,7 @@
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
   function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues" }[k] || Store.model.labels[k] || k; }
   function cell(i, k) {
-    if (k === "id") return html`<span class=${"pill " + i.kind}>${i.id}</span>`;
+    if (k === "id") return html`<span class=${"pill " + i.kind + " lnk"} onClick=${e => { e.stopPropagation(); Store.set({ open: i.id, focus: i.id }); }}>${i.id}</span>`;
     if (k === "status") return html`<span class="st">${i.status}</span>`;
     if (k === "links") return html`<span class="mono muted">${i.links.length || "–"}</span>`;
     if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">–</span>`; }

@@ -155,3 +155,25 @@ select.chip.add{border-style:dashed;color:var(--ink-3);font:inherit;font-size:12
 .warn{display:inline-block;width:6px;height:6px;border-radius:3px;background:var(--bad)}
 .muted{color:var(--ink-3)}.mono{font-family:var(--mono)}
 .loading{padding:40px;color:var(--ink-3)}
+
+.panel{position:fixed;top:0;right:0;bottom:0;width:760px;max-width:80vw;background:var(--surface);border-left:1px solid var(--line);box-shadow:-16px 0 40px rgba(28,34,48,.10);display:flex;flex-direction:column;z-index:5}
+.panel-body{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0}
+.panel-main{padding:20px 22px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.panel-side{border-left:1px solid var(--line);padding:20px 16px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.ttl{font-size:18px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.h3{font-size:13px;font-weight:600}.h3+.h3{margin-top:10px}
+.moves{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:500;cursor:pointer}
+.btn.pri{background:var(--ink);color:var(--surface);border-color:var(--ink)}.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.danger{color:var(--bad)}
+.sec p{margin:4px 0 0;max-width:640px;white-space:pre-line}
+.small{font-size:12px}
+.hop{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.hop .t{flex:1;font-size:12px;cursor:pointer}.hop.cur{border-color:var(--ink);font-weight:500}
+.hop.slot{border-style:dashed}.hop.slot.bad{border-color:var(--bad)}
+.word{font-size:11px;color:var(--ink-3);padding-left:14px}
+.gap{display:flex;gap:8px;align-items:flex-start}.gap .warn{margin-top:6px;flex:none}.warn.amber{background:var(--oi)}
+.st.on{border-color:var(--ink)}
+.lnk{cursor:pointer}
