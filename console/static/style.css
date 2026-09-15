@@ -124,9 +124,14 @@ ul.hist{margin:4px 0 0 16px;padding:0}.hist li{margin:2px 0}
 
 /* Rethink shell */
 .layout2{display:flex;min-height:100vh}
+.baselining{max-width:520px;margin:80px auto;padding:0 20px;text-align:center;display:flex;flex-direction:column;gap:16px;align-items:center}
+.baselining p{color:var(--ink-2)}
 .rail{width:220px;flex:none;background:var(--bg);border-right:1px solid var(--line);padding:16px 10px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow:auto}
 .rail .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:0 10px 6px;display:block}
 .rail .rl-eng{padding:2px 10px;font-weight:600}
+.rail .rl-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.rail .rl-foot a.rl-it{text-decoration:none}
+.rail .theme{align-self:flex-start;margin:0 10px}
 .rl-it{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:6px;color:var(--ink-2);cursor:pointer}
 .rl-it:hover{background:var(--surface)}
 .rl-it.on{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:0 0 0 1px var(--line)}

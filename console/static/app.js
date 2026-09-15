@@ -4,6 +4,9 @@
     const [, tick] = preactHooks.useState(0);
     preactHooks.useEffect(() => Store.subscribe(() => tick(n => n + 1)), []);
     if (!Store.state) return html`<div class="loading">Loading the registers…</div>`;
+    if (Store.baseline?.present && !Store.state.items.length) {
+      return html`<div class="baselining"><p>This engagement is still baselining. The baseline screens open in the previous console until the freeze.</p><a class="btn pri" href="/old/">Open the baseline console</a></div>`;
+    }
     const main = Store.ui.view.startsWith("report:") ? html`<${Report} />` : html`<${Table} />`;
     return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} />` : null}<${MoveForm.Form} /><${CreateForm.Form} /></div>`;
   }

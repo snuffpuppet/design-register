@@ -34,6 +34,23 @@
     </div>`;
   }
 
+  // Copied from old/app.js:401-414 so both consoles agree on the localStorage key and behaviour.
+  function setTheme(t) {
+    try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch {}
+    if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  }
+  function currentTheme() { try { return localStorage.getItem("theme") || "system"; } catch { return "system"; } }
+
+  function ThemeSwitch() {
+    const [t, setT] = useState(currentTheme());
+    const pick = v => { setTheme(v); setT(v); };
+    return html`<span class="theme" title="Colour scheme">
+      <button class=${t === "light" ? "on" : ""} onClick=${() => pick("light")}>Light</button>
+      <button class=${t === "system" ? "on" : ""} onClick=${() => pick("system")}>Auto</button>
+      <button class=${t === "dark" ? "on" : ""} onClick=${() => pick("dark")}>Dark</button>
+    </span>`;
+  }
+
   function Rail() {
     const S = Store, c = S.counts(), ui = S.ui;
     const [savingView, setSavingView] = useState(false), [viewName, setViewName] = useState("");
@@ -72,6 +89,10 @@
               onKeyDown=${e => { if (e.key === "Enter") saveCurrent(); if (e.key === "Escape") { setSavingView(false); setViewName(""); } }}
               placeholder="view name" /><button class="btn ghost" disabled=${!viewName.trim()} onClick=${saveCurrent}>Save</button></div>`
           : html`<div class="rl-it muted" onClick=${() => setSavingView(true)}>+ Save current view</div>`}
+      </div>
+      <div class="rl-foot">
+        <a class="rl-it muted" href="guide.html" target="_blank" rel="noopener">Guide</a>
+        <${ThemeSwitch} />
       </div>
     </nav>`;
   }

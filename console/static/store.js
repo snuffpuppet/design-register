@@ -2,15 +2,15 @@
 (function () {
   const listeners = new Set();
   const Store = {
-    state: null, model: null, views: [],
+    state: null, model: null, views: [], baseline: null,
     ui: { view: "all", filter: { types: [], statuses: [], scopes: [], owners: [], rule: "", since: "", q: "" },
           selection: new Set(), focus: null, open: null, groupBy: "", columns: null, madeBy: "" },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     emit() { listeners.forEach(fn => fn()); },
     set(patch) { Object.assign(Store.ui, patch); Store.emit(); },
     async load() {
-      const [s, m, v] = await Promise.all([fetch("/api/state").then(r => r.json()), fetch("/api/model").then(r => r.json()), fetch("/api/views").then(r => r.json())]);
-      Store.state = s; Store.model = m; Store.views = v.views;
+      const [s, m, v, b] = await Promise.all([fetch("/api/state").then(r => r.json()), fetch("/api/model").then(r => r.json()), fetch("/api/views").then(r => r.json()), fetch("/api/baseline").then(r => r.json())]);
+      Store.state = s; Store.model = m; Store.views = v.views; Store.baseline = b;
       Store.byId = Object.fromEntries(s.items.map(i => [i.id, i]));
       Store.failuresById = {};
       for (const f of s.integrity.failures) (Store.failuresById[f.id] ||= []).push(f);
