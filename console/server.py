@@ -15,6 +15,7 @@ from urllib.parse import urlparse, parse_qs
 import model as M
 import baseline as B
 import integrity as I
+import views as V
 from items import parse_item, render_item, item_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,7 @@ CS_DIR = os.path.join(ENG, "change-sets")
 B_DIR = os.path.join(ENG, "baseline")
 DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
 DUP_PATH = os.path.join(ENG, "duplicates-dismissed.json")
+VIEWS_PATH = os.path.join(ENG, "views.json")
 TOOL = "design-register console 0.1"
 LOCK = threading.Lock()
 
@@ -318,6 +320,8 @@ class H(SimpleHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", "text/markdown; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         if p == "/api/baseline":
             return self.send_json(self.baseline_state())
+        if p == "/api/views":
+            return self.send_json({"views": V.load(VIEWS_PATH)})
         if p == "/api/model":
             return self.send_json(self.model_payload())
         if p == "/api/items":
@@ -343,6 +347,17 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.needs(req))
                 if p == "/api/bulk":
                     return self.send_json(self.bulk(req))
+                if p == "/api/views":
+                    if not writes_direct():
+                        raise ValueError("Saved views are a direct-mode file.")
+                    V.save(VIEWS_PATH, req["views"])
+                    return self.send_json({"views": V.load(VIEWS_PATH)})
+                if p == "/api/report/summary":
+                    items = list(overlay(load_registers(), load_change_sets()).values())
+                    return self.send_json({"text": V.summary(req["view"], items, integrity_of({i["id"]: i for i in items}), today())})
+                if p == "/api/report/sections":
+                    items = list(overlay(load_registers(), load_change_sets()).values())
+                    return self.send_json(V.sections(req["view"], items, integrity_of({i["id"]: i for i in items}), today()))
                 if p == "/api/merge":
                     return self.send_json(self.merge(req))
                 if p == "/api/delete":
