@@ -753,6 +753,9 @@ class H(SimpleHTTPRequestHandler):
         touched = set()
         # Phase one: old -> temporary (kind-9nnn is never a real id in a register under 9000 items).
         tmp = {old: f"{kind}-9{new[-3:]}" for old, new in p["map"].items()}
+        taken = sorted(t for t in tmp.values() if t in items or os.path.exists(item_path(ENG, t)))
+        if taken:
+            raise ValueError(f"Renumber needs the ids {', '.join(taken)} free as a staging range; rename those first.")
         for old, t in tmp.items():
             touched |= set(self.move_id(old, t, req, f"renumbered from {old}", f"link renumbered from {old}"))
         for old, new in p["map"].items():

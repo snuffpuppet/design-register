@@ -66,6 +66,14 @@ class Renumber(unittest.TestCase):
         self.assertIn("LIM-0001", r["touched"])
         self.assertIn("REQ-0005 → REQ-0001", open(os.path.join(self.d, "renumbered.md")).read())
 
+    def test_refuses_when_the_staging_range_is_occupied(self):
+        write_item(self.d, "REQ-9001", "Nine", "Draft")
+        subprocess.run(["git", "-C", self.d, "add", "-A"])
+        subprocess.run(["git", "-C", self.d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "occupy"])
+        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+        self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0005")))
+        self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-9001")))
+
     def test_refuses_in_change_sets_mode(self):
         open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         subprocess.run(["git", "-C", self.d, "add", "-A"]); subprocess.run(["git", "-C", self.d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "m"])
