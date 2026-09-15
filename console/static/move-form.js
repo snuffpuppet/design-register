@@ -54,10 +54,11 @@
       } catch (e) { setErr(e.message); await S.load(); }
       setBusy(false);
     };
+    const excl = items.length === 1 ? items[0].id : undefined;
     const input = (label, get, set, kind) => {
       const k = keyFor(kind, mv.to, label);
       const opts = k.field && (S.model.choices[k.field] || (k.field === "scope" ? S.model.scopes : k.field === "phase" ? S.model.phases : k.field === "owner" ? S.model.owners : null));
-      if (k.link) return html`<${Picker.Inline} word=${k.link} kind=${kind} value=${get()} onPick=${set} />`;
+      if (k.link) return html`<${Picker.Inline} word=${k.link} kind=${kind} value=${get()} onPick=${set} exclude=${excl} />`;
       if (opts && opts.length) return html`<select class="inp" value=${get()} onChange=${e => set(e.target.value)}><option value="">–</option>${opts.map(o => html`<option value=${o}>${o}</option>`)}</select>`;
       if (k.field && S.model.long[kind].includes(k.field)) return html`<textarea class="inp" value=${get()} onInput=${e => set(e.target.value)} />`;
       return html`<input class="inp" value=${get()} onInput=${e => set(e.target.value)} placeholder=${k.prefix || ""} />`;
