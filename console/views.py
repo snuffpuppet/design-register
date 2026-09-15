@@ -41,10 +41,32 @@ def save(path, vs):
     json.dump(vs, open(path, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
 
 
+def apply_filter(items, filter):
+    """The saved view's chip filter, the parts a plain list of item dicts can answer without the browser's
+    own state: types, statuses, scopes and owners. `rule` needs integrity failures and `q` free text search,
+    both already loaded client-side, so those stay the browser's job; `since` keeps its own role below as the
+    section's change window rather than a row filter here."""
+    types = filter.get("types") or []
+    statuses = filter.get("statuses") or []
+    scopes = filter.get("scopes") or []
+    owners = filter.get("owners") or []
+    out = items
+    if types:
+        out = [i for i in out if i.get("kind") in types]
+    if statuses:
+        out = [i for i in out if i.get("status") in statuses]
+    if scopes:
+        out = [i for i in out if (i.get("scope") or "") in scopes]
+    if owners:
+        out = [i for i in out if (i.get("owner") or "") in owners]
+    return out
+
+
 def sections(view, items, integrity, today):
     """The four SLT sections as lists of rows. `moved`: items with a History move line on or after `since`.
     `raised`: raised-on on or after since. `outstanding`: DEC Proposed, CR For approval, OI Blocked, anything overdue.
     `gaps`: the integrity failures."""
+    items = apply_filter(items, view["filter"])
     since = parse_date(view["filter"].get("since")) or (parse_date(today) - datetime.timedelta(days=7))
     now = parse_date(today)
     moved, raised, outstanding = [], [], []

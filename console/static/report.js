@@ -6,7 +6,7 @@
     const [secs, setSecs] = useState(null), [text, setText] = useState(""), [msg, setMsg] = useState("");
     useEffect(() => { S.post("/api/report/sections", { view }).then(setSecs); setText(""); }, [S.ui.view, JSON.stringify(view.filter)]);
     const saveView = patch => { const vs = S.views.slice(); vs[n] = { ...view, ...patch }; S.post("/api/views", { views: vs }).then(r => { S.views = r.views; S.emit(); }); };
-    const rows = S.state.items.filter(S.viewFilter("all")).filter(i => (!view.filter.types.length || view.filter.types.includes(i.kind)) && (!view.filter.statuses.length || view.filter.statuses.includes(i.status)));
+    const rows = S.applyFilter(S.state.items.filter(S.viewFilter("all")), view.filter);
     const table = (xs, cols) => html`<table><thead><tr>${cols.map(c => html`<th>${S.model.labels[c] || c}</th>`)}</tr></thead>
       <tbody>${xs.map(r => html`<tr>${cols.map(c => html`<td>${c === "id" ? html`<span class=${"pill " + (r.kind || r.id.split("-")[0]) + " lnk"} onClick=${() => S.set({ open: r.id })}>${r.id}</span>` : c === "status" ? html`<span class="st">${r.status}</span>` : (r[c] ?? "–")}</td>`)}</tr>`)}</tbody></table>`;
     const summarise = async () => { const r = await S.post("/api/report/summary", { view }); setText(r.text); };

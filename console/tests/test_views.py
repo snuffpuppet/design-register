@@ -38,6 +38,22 @@ class Views(unittest.TestCase):
         self.assertIn("OI-0006", text); self.assertIn("overdue", text)
         self.assertIn("1 gap", text)
 
+    def test_sections_honours_the_saved_filter_s_types(self):
+        items = [
+            {"id": "CR-0009", "kind": "CR", "title": "Add site hierarchy", "status": "For approval", "owner": "P", "raised-on": "9 September 2026",
+             "updated": "12 September 2026", "history": ["12 September 2026 | Adam | Proposed → For approval | estimate agreed | console session"], "links": []},
+            {"id": "REQ-0050", "kind": "REQ", "title": "New need", "status": "Draft", "owner": "", "raised-on": "14 September 2026",
+             "updated": "14 September 2026", "history": [], "links": []},
+            {"id": "OI-0006", "kind": "OI", "title": "Certificate owner", "status": "Blocked", "owner": "A", "raised-on": "1 September 2026",
+             "updated": "1 September 2026", "history": [], "links": [], "due": "12 September 2026"},
+        ]
+        integ = {"failures": [], "warnings": []}
+        view = V.default_views()[0]; view["filter"]["since"] = "8 September 2026"; view["filter"]["types"] = ["CR"]
+        s = V.sections(view, items, integ, "15 September 2026")
+        self.assertEqual([m["id"] for m in s["moved"]], ["CR-0009"])
+        self.assertEqual([r["id"] for r in s["raised"]], ["CR-0009"])   # CR-0009 was also raised this week; REQ-0050 is filtered out
+        self.assertEqual([o["id"] for o in s["outstanding"]], ["CR-0009"])   # CR For approval is outstanding; OI-0006 Blocked is filtered out
+
     def test_sections_splits_move_line_on_the_arrow(self):
         items = [
             {"id": "CR-0009", "kind": "CR", "title": "Add site hierarchy", "status": "For approval", "owner": "P", "raised-on": "9 September 2026",

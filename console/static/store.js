@@ -25,12 +25,10 @@
       if (!r.ok || j.error) throw new Error(j.error || r.statusText);
       return j;
     },
-    // The rows the current view shows: the view's fixed filter, then the user's chips, then free text.
-    rows() {
-      const { filter, view } = Store.ui; const S = Store.state; if (!S) return [];
-      let xs = S.items.slice();
-      const fixed = Store.viewFilter(view);
-      xs = xs.filter(i => fixed(i));
+    // The chip filter (types, statuses, scopes, owners, rule, since, q) over a list of items, shared by
+    // the table's rows() and a saved view's report table so every filter key applies in both places.
+    applyFilter(items, filter) {
+      let xs = items;
       if (filter.types.length) xs = xs.filter(i => filter.types.includes(i.kind));
       if (filter.statuses.length) xs = xs.filter(i => filter.statuses.includes(i.status));
       if (filter.scopes.length) xs = xs.filter(i => filter.scopes.includes(i.scope || ""));
@@ -38,6 +36,13 @@
       if (filter.rule) xs = xs.filter(i => (Store.failuresById[i.id] || []).some(f => f.rule === filter.rule));
       if (filter.since) { const d = Store.parseDate(filter.since); if (d) xs = xs.filter(i => (Store.parseDate(i.updated) || 0) >= d); }
       if (filter.q) { const q = filter.q.toLowerCase(); xs = xs.filter(i => (i.id + " " + i.title + " " + (i.notes || "")).toLowerCase().includes(q)); }
+      return xs;
+    },
+    // The rows the current view shows: the view's fixed filter, then the user's chips, then free text.
+    rows() {
+      const { filter, view } = Store.ui; const S = Store.state; if (!S) return [];
+      const fixed = Store.viewFilter(view);
+      const xs = Store.applyFilter(S.items.filter(fixed), filter);
       return xs.sort((a, b) => a.id < b.id ? -1 : 1);
     },
     viewFilter(view) {

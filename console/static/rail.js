@@ -22,7 +22,7 @@
       <div class=${"rl-it" + (on ? " on" : "")} onClick=${onClick}>
         <span><span class=${"pill " + kind}>${kind}</span> ${label}</span>
         <span class="n">${n}</span>
-        <button class="btn ghost rl-more" onClick=${e => { e.stopPropagation(); setOpen(!open); }}>⋯</button>
+        <button class="btn ghost rl-more" onClick=${e => { e.stopPropagation(); setConfirming(false); setOpen(!open); }}>⋯</button>
       </div>
       ${open ? html`<div class="menu" onClick=${e => e.stopPropagation()}>
         <div class="mi" onClick=${() => { setOpen(false); setConfirming(true); }}><span>Renumber…</span></div>
