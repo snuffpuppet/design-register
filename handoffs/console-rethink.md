@@ -2,7 +2,7 @@
 objective: console-rethink
 title: Rethink the console on a model-driven table
 written: 16 September 2026
-commit: 230fafc
+commit: 41192c2
 branch: main
 status: active
 model-version: 2.29
