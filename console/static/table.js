@@ -2,12 +2,15 @@
   const html = htm.bind(preact.h);
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
   function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues" }[k] || Store.model.labels[k] || k; }
-  function cell(i, k) {
+  function Cell({ i, k }) {
+    const [edit, setEdit] = preactHooks.useState(false);
     if (k === "id") return html`<span class=${"pill " + i.kind + " lnk"} onClick=${e => { e.stopPropagation(); Store.set({ open: i.id, focus: i.id }); }}>${i.id}</span>`;
-    if (k === "status") return html`<span class="st">${i.status}</span>`;
+    if (k === "status") return html`<${Cells.StatusCell} item=${i} />`;
     if (k === "links") return html`<span class="mono muted">${i.links.length || "–"}</span>`;
     if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">–</span>`; }
-    const v = i[k]; return v ? v : html`<span class="muted">–</span>`;
+    if (edit) return html`<${Cells.Editor} item=${i} field=${k} onDone=${() => setEdit(false)} />`;
+    const v = i[k];
+    return html`<span class="ed" onClick=${e => { e.stopPropagation(); setEdit(true); }}>${v ? v : html`<span class="muted">–</span>`}</span>`;
   }
   function Chip({ label, value, onClear }) {
     return html`<span class="chip">${label} ${value ? html`<b>${value}</b>` : null}${onClear ? html`<span class="x" onClick=${onClear}>×</span>` : null}</span>`;
@@ -20,7 +23,8 @@
     const title = ui.view === "all" ? "All items" : S.model.names[ui.view] ? S.model.names[ui.view] + "s" : ui.view[0].toUpperCase() + ui.view.slice(1);
     return html`<div class="main-col">
       <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
-        <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} /></div>
+        <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} />
+        <input class="inp madeby" placeholder="Made by" value=${ui.madeBy} onInput=${e => { S.set({ madeBy: e.target.value }); try { localStorage.setItem("madeBy", e.target.value); } catch {} }} /></div>
       <div class="bar chips">
         ${f.types.length ? html`<${Chip} label="Type" value=${f.types.join(", ")} onClear=${() => setF({ types: [] })} />` : null}
         ${f.statuses.length ? html`<${Chip} label="Status" value=${f.statuses.join(", ")} onClear=${() => setF({ statuses: [] })} />` : null}
@@ -32,7 +36,7 @@
       <div class="tbl-wrap"><table>
         <thead><tr>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
         <tbody>${rows.map(i => html`<tr key=${i.id} class=${ui.focus === i.id ? "focus" : ""} onClick=${() => S.set({ focus: i.id })}>
-          ${cols.map(k => html`<td class=${"c-" + k}>${cell(i, k)}</td>`)}</tr>`)}</tbody>
+          ${cols.map(k => html`<td class=${"c-" + k}><${Cell} i=${i} k=${k} /></td>`)}</tr>`)}</tbody>
       </table></div>
       <div class="bar foot muted">${rows.length} of ${S.state.items.length} · j/k move · Enter opens · / search</div>
     </div>`;

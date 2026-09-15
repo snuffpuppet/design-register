@@ -3,6 +3,22 @@
   function Hop({ h, word }) {
     return html`<div class="hop"><span class=${"pill " + h.kind}>${h.id}</span><span class="t" onClick=${() => Store.set({ open: h.id, focus: h.id })}>${h.title}</span><span class="st">${h.status}</span></div>`;
   }
+  function Title({ i }) {
+    const [edit, setEdit] = preactHooks.useState(false);
+    if (edit) return html`<${Cells.Editor} item=${i} field="title" onDone=${() => setEdit(false)} />`;
+    return html`<div class="ttl ed" onClick=${() => setEdit(true)}>${i.title}</div>`;
+  }
+  function Chip({ i, field, label }) {
+    const [edit, setEdit] = preactHooks.useState(false);
+    if (edit) return html`<${Cells.Editor} item=${i} field=${field} onDone=${() => setEdit(false)} />`;
+    const v = i[field];
+    return html`<span class=${"chip ed" + (v ? "" : " muted")} onClick=${() => setEdit(true)}>${v ? html`${label} <b>${v}</b>` : `${label} –`}</span>`;
+  }
+  function LongField({ i, field }) {
+    const [edit, setEdit] = preactHooks.useState(false);
+    if (edit) return html`<${Cells.Editor} item=${i} field=${field} long onDone=${() => setEdit(false)} />`;
+    return html`<p class="ed" onClick=${() => setEdit(true)}>${i[field]}</p>`;
+  }
   function Panel() {
     const S = Store, id = S.ui.open, i = S.byId[id];
     if (!i) return null;
@@ -21,14 +37,14 @@
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
       <div class="panel-body">
         <div class="panel-main">
-          <div class="ttl">${i.title}</div>
+          <${Title} i=${i} />
           <div class="chips"><span class="st on">${i.status}</span>
-            ${i.scope ? html`<span class="chip">Scope <b>${i.scope}</b></span>` : null}
-            ${short.map(k => i[k] ? html`<span class="chip">${S.model.labels[k] || k} <b>${i[k]}</b></span>` : null)}</div>
+            ${i.scope ? html`<${Chip} i=${i} field="scope" label="Scope" />` : null}
+            ${short.map(k => html`<${Chip} i=${i} field=${k} label=${S.model.labels[k] || k} />`)}</div>
           <div class="card"><div class="h3">Next moves</div><div class="moves">
-            ${moves.map(to => html`<span class="btn">${to}${need(to) ? html` <span class="muted">needs ${need(to)}</span>` : null}</span>`)}
+            ${moves.map(to => html`<span class="btn" onClick=${() => MoveForm.open({ ids: [i.id], to })}>${to}${need(to) ? html` <span class="muted">needs ${need(to)}</span>` : null}</span>`)}
             ${!moves.length ? html`<span class="muted">${i.status} is terminal.</span>` : null}</div></div>
-          ${long.map(k => i[k] ? html`<div class="sec"><div class="h3">${S.model.labels[k] || k}</div><p>${i[k]}</p></div>` : null)}
+          ${long.map(k => i[k] ? html`<div class="sec"><div class="h3">${S.model.labels[k] || k}</div><${LongField} i=${i} field=${k} /></div>` : null)}
           ${i.links.length ? html`<div class="sec"><div class="h3">Links</div>${i.links.map(l => html`<div class="mono small">${l}</div>`)}</div>` : null}
           ${i.history?.length ? html`<div class="sec"><div class="h3">History</div>${i.history.slice().reverse().map(h => html`<div class="mono small muted">${h}</div>`)}</div>` : null}
         </div>

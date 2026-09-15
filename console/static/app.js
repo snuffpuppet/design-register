@@ -4,7 +4,7 @@
     const [, tick] = preactHooks.useState(0);
     preactHooks.useEffect(() => Store.subscribe(() => tick(n => n + 1)), []);
     if (!Store.state) return html`<div class="loading">Loading the registers…</div>`;
-    return html`<div class="layout2"><${Rail} /><${Table} />${Store.ui.open ? html`<${Panel} />` : null}</div>`;
+    return html`<div class="layout2"><${Rail} /><${Table} />${Store.ui.open ? html`<${Panel} />` : null}<${MoveForm.Form} /></div>`;
   }
   async function boot(retries = 20) {
     try { await Store.load(); }
@@ -19,6 +19,8 @@
     if (e.key === "/") { e.preventDefault(); document.querySelector(".search")?.focus(); }
     if (e.key === "Escape") Store.set({ open: null, selection: new Set() });
     if (e.key === "Enter" && Store.ui.focus) Store.set({ open: Store.ui.focus });
+    if (e.key === "e" && Store.ui.focus) document.querySelector("tr.focus .c-title .ed")?.click();
+    if (e.key === "m" && Store.ui.focus) document.querySelector("tr.focus .st")?.click();
     if (Store.ui.open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault(); const n = rows[e.key === "ArrowDown" ? Math.min(at + 1, rows.length - 1) : Math.max(at - 1, 0)];
       if (n) Store.set({ open: n.id, focus: n.id });
