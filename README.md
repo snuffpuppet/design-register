@@ -58,7 +58,7 @@ change-sets/CS-nnnn.md  ──────────────────�
 the same Confluence pages, tables replaced, source ids kept
 ```
 
-The console reads the engagement folder plus every change set not yet applied, and shows the registers as they would be once those are applied. The freeze is the one time it writes item files. Everything after is a change set, applied by the ingester through its gate. The push builds the pages to files first, so what will be sent can be read before the connector is touched.
+The console reads the engagement folder plus every change set not yet applied, and shows the registers as they would be once those are applied. The freeze writes the first item files. After it, in direct mode (the default), every move, edit, merge, delete and renumber rewrites item files through one function, with git as the history; in change-sets mode the console appends blocks for the ingester instead. The push builds the pages to files first, so what will be sent can be read before the connector is touched.
 
 ## Run it
 
@@ -72,18 +72,18 @@ make clean      # stop, remove the image, delete the generated data
 
 Point it at a real engagement with `make up ENG=engagements/<name>`. Everything runs in Docker; nothing is installed on the host. Type your name in the console's Made by field before making a move, since every block is recorded against it.
 
-## Console modes
+## The console
 
-- **Outstanding**: the meeting view from model section 8, plus register defects and the later-phase view.
-- **Work through**: a triage queue for cleaning up a large register, one item per screen with its context and only its legal moves. Keys j, k, p.
-- **Weekly SLT report**: progress for the leadership team over a seven-day window: requirements delivered and designed, movement per register, change requests awaiting approval with estimates, high-impact risks, late dependencies, blocked items and what changed. Copy as markdown or print.
-- **Meeting report**: one printable page with calls needed, change requests and estimates, risks to review, actions by owner, and pending changes. Copy as markdown.
-- **Baseline**: appears when `baseline/` holds pulled pages. Every row is a candidate whatever it claims; duplicates are suggested; verdicts are bulk; a title opens an editor; freeze writes the item files, an id map and a rejection log.
-- **Baseline**, in more detail: a note at the top gives the working order; pages that are views are named once and produce no candidates; four tabs, Candidates, Suggested duplicates, Row by row with keyboard verdicts, and Missing supports, which offers the records the accepted rows imply (the decision behind an accepted limitation, the change request behind one marked Change requested, the open item behind a draft) prefilled for Accept, Edit, Link existing, Dismiss, Reconstruct or Reassess; Freeze refuses while a required support is undecided, then writes the item files.
-- **Supports needed**, in Live mode: each item shows what its state implies and lacks, offered as a prefilled record to accept or dismiss; the move dialog lists what the target state implies and writes ticked offers before the move, linked both ways. Outstanding and the SLT report count register gaps. The engine drafts in first states, never fills Approved by and never guesses an owner. Rules are `console/integrity.py`, reading `model.py`.
-- **Registers and change sets**: one tab per type, with a kind filter on risks, and the change set files with their blocks.
-- **Guide**: the lifecycle diagrams, the baseline workflow, and the explanation, served inside the console.
-- **Header**: Made by, the open change set, Close session, and a Light / Auto / Dark switch. The stage chip under the engagement name reads Baselining until the freeze and Live after.
+One table of every item, a side panel for one item, and a bulk bar for many. The model drives all three: a state change, from a cell, the panel or the bar, opens one generated form that asks only for the fields and links that move needs.
+
+- **Rail**: work queues (Outstanding, Integrity by rule, Suggested supports, Duplicates, Unreviewed), one entry per register, saved reports, and the engagement's theme and guide. Each queue is a filter over the same table.
+- **Table**: filter chips (type, status, scope, owner, failing rule, free text), group by, sort, and cells that edit in place. The status cell lists every state for the type, greys the ones the model does not allow from here, and names what each allowed move needs. Keys: `j` `k` move, `x` select, Enter opens, `e` edits the title, `m` opens the status list, `/` searches, Esc clears.
+- **Side panel**: title, fields and long fields as inline editors; Next moves with what each needs; the provenance chain back to what the item came from and forward to what it produced, with dashed slots for links a later state will need; the item's integrity gaps and support offers with Accept, Link existing and Dismiss; Link to, Merge into, Mark reviewed and Delete. Arrow keys step to the neighbouring row.
+- **Bulk bar**: appears on selection. Set field, Move to, Link to, Merge, Withdraw, Delete over every selected item; the move form asks shared fields once and lists per-item gaps.
+- **Integrity queue**: pick a rule and the table shows the failing items with a gap cell that edits the failing field of that row's own type, or offers the missing link. Counts drop as rows are fixed.
+- **Reports**: saved views (a filter, columns, sections) in `<engagement>/views.json`. The SLT weekly view has Moved, Raised, Outstanding for SLT and Register gaps, an email summary draft, and a Build Confluence push button that hands off to `make push-pages`.
+- **Renumber**: under a register's `⋯` in the rail. Compacts the ids in raised-on order, rewrites every link, records the map in `<engagement>/renumbered.md`. Refuses unless the engagement folder is a clean git repository.
+- **Baselining**: until the freeze, the console shows a notice and opens the previous front end at `/old/`, which holds the Baseline screens (candidates, suggested duplicates, row by row, missing supports, freeze). `console/README.md` has the detail of both.
 
 ## Bringing registers in from Confluence, and sending them back
 
