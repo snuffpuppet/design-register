@@ -341,6 +341,8 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.edit(req))
                 if p == "/api/needs":
                     return self.send_json(self.needs(req))
+                if p == "/api/bulk":
+                    return self.send_json(self.bulk(req))
                 if p == "/api/merge":
                     return self.send_json(self.merge(req))
                 if p == "/api/delete":
@@ -683,6 +685,36 @@ class H(SimpleHTTPRequestHandler):
         touched = self.rewrite_links(items, it["id"], None, f"dropped link to {it['id']}, deleted: {reason}", req)
         self.commit(it["kind"], it["id"], {}, [], req, "", delete=True)
         return {"ok": True, "removed": it["id"], "touched": touched}
+
+    def bulk(self, req):
+        """One operation over many ids, each through the single-item handler, stopping at the first refusal.
+        Direct mode only: a change set records one block per item and the ingester has no notion of a batch."""
+        if not writes_direct():
+            raise ValueError("Bulk edits are direct writes; this engagement writes change sets. Move items one at a time.")
+        self.evidence(req)
+        op, ids = req.get("op"), req.get("ids", [])
+        if op not in ("set", "transition", "link", "withdraw"):
+            raise ValueError(f"Unknown bulk operation {op!r}.")
+        if not ids:
+            raise ValueError("Nothing selected.")
+        written = []
+        for id in ids:
+            single = {"id": id, "madeBy": req["madeBy"], "evidence": req.get("evidence", ""), "gist": req.get("gist", ""),
+                      "fields": req.get("fields", {}), "links": req.get("links", [])}
+            try:
+                if op == "set":
+                    self.edit(single)
+                elif op == "link":
+                    self.edit({**single, "fields": {}})
+                elif op == "transition":
+                    self.transition({**single, "to": req["to"]})
+                elif op == "withdraw":
+                    kind = id.split("-")[0]
+                    self.transition({**single, "to": M.WITHDRAWS[kind]})
+            except ValueError as e:
+                return {"written": written, "failed": {"id": id, "error": str(e)}}
+            written.append(id)
+        return {"written": written, "failed": None}
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):
