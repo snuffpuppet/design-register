@@ -1,8 +1,9 @@
-"""Register model 2.27 as data: types, states, transitions, the fields each move demands, and the supports each state implies.
+"""Register model 2.29 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
 frontmatter keys of section 7; long fields (body headings) are lower-cased heading names.
+Contains SPECIAL_ON_ENTRY, WITHDRAWS, BACKWARD, and FORWARD for entry rules and provenance tracking.
 """
 
 DIRS = {
@@ -200,9 +201,32 @@ RULES = {
     "I24": "Every item's Scope is one of the engagement's Scopes, and no item is without one, where the engagement declares any.",
 }
 
+# Conditions on entry that are not a plain "field is filled". `prefix`: the field must start with `value`.
+# `required_if`: the field is required when the item's `when` field equals `equals`.
+SPECIAL_ON_ENTRY = [
+    dict(kind="OI", state="Blocked", field="next action", check="prefix", value="Blocked: ",
+         text='Next action starting "Blocked: "'),
+    dict(kind="CR", state="Submitted", field="vendor-ref", check="required_if", when="implemented-by", equals="Vendor",
+         text="Vendor ref"),
+]
+
+# The withdrawing terminal state per type, for the bulk bar's Withdraw.
+WITHDRAWS = {"REQ": "Withdrawn", "LIM": "Withdrawn", "CR": "Withdrawn", "DEC": "Rejected", "RSK": "Retired", "OI": "Closed"}
+
+# Link words that read as provenance. BACKWARD walks to what an item came from; FORWARD to what it produced.
+BACKWARD = {
+    "REQ": ["replaces"], "DEC": ["proposed by"], "LIM": ["introduced by", "constrains"],
+    "RSK": ["raised by"], "OI": [], "CR": ["triggered by", "part of"],
+}
+FORWARD = {
+    "REQ": ["worked by"], "DEC": ["addresses", "introduces", "raises", "supersedes"],
+    "LIM": ["dispositioned by", "assessed by", "needs"], "RSK": ["realised as", "mitigated by"],
+    "OI": ["resolves into"], "CR": ["delivers", "worked by"],
+}
+
 
 def missing_for(kind, state, item):
-    """Return the list of required fields (labels) that are empty for entering `state`."""
+    """Return the list of required fields (labels) that are empty for entering `state`, including the special conditions."""
     req = REQUIRED_ON_ENTRY.get(kind, {}).get(state, [])
     out = []
     for f in req:
@@ -216,4 +240,12 @@ def missing_for(kind, state, item):
                 out.append("Options (at least two)")
         elif not str(item.get(f, "")).strip():
             out.append(LABELS.get(f, f))
+    for sp in SPECIAL_ON_ENTRY:
+        if sp["kind"] != kind or sp["state"] != state:
+            continue
+        val = str(item.get(sp["field"], "") or "")
+        if sp["check"] == "prefix" and not val.startswith(sp["value"]):
+            out.append(sp["text"])
+        if sp["check"] == "required_if" and item.get(sp["when"]) == sp["equals"] and not val.strip():
+            out.append(sp["text"])
     return out

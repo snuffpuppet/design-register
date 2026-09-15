@@ -486,10 +486,6 @@ class H(SimpleHTTPRequestHandler):
         merged = dict(it); merged.update({field_key(k): v for k, v in req.get("fields", {}).items()})
         merged["links"] = it["links"] + req.get("links", []) + [s["link"] + "item ?" for s, _ in chosen]
         missing = M.missing_for(kind, to, merged)
-        if kind == "OI" and to == "Blocked" and not merged.get("next action", "").startswith("Blocked:"):
-            missing.append('Next action starting "Blocked: "')
-        if kind == "CR" and to == "Submitted" and merged.get("implemented-by") == "Vendor" and not merged.get("vendor-ref"):
-            missing.append("Vendor ref")
         if missing:
             raise ValueError("Before " + to + " you need: " + "; ".join(missing))
         support_links = []

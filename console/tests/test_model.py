@@ -61,5 +61,29 @@ class Scope(unittest.TestCase):
         self.assertIn("Scope", M.RULES["I24"])
 
 
+class Specials(unittest.TestCase):
+    def test_blocked_needs_the_prefix(self):
+        it = {"kind": "OI", "status": "Open", "next action": "wait", "owner": "x", "links": []}
+        self.assertIn('Next action starting "Blocked: "', M.missing_for("OI", "Blocked", it))
+        it["next action"] = "Blocked: waiting"
+        self.assertEqual(M.missing_for("OI", "Blocked", it), [])
+
+    def test_vendor_cr_needs_vendor_ref_for_submitted(self):
+        it = {"kind": "CR", "status": "Approved", "approved-by": "x", "phase": "P1", "implemented-by": "Vendor", "links": []}
+        self.assertIn("Vendor ref", M.missing_for("CR", "Submitted", it))
+        it["implemented-by"] = "Internal"
+        self.assertEqual(M.missing_for("CR", "Submitted", it), [])
+
+    def test_withdraws_names_a_terminal_state_per_type(self):
+        for k, st in M.WITHDRAWS.items():
+            self.assertIn(st, M.TERMINAL[k], k)
+        self.assertEqual(M.WITHDRAWS["DEC"], "Rejected")
+
+    def test_provenance_words_are_link_words(self):
+        for k, words in list(M.BACKWARD.items()) + list(M.FORWARD.items()):
+            for w in words:
+                self.assertIn(w, M.LINK_WORDS[k], f"{k} {w}")
+
+
 if __name__ == "__main__":
     unittest.main()
