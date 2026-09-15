@@ -275,7 +275,8 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
         if k == "DEC" and st in ("Accepted", "Rejected") and not (str(it.get("approved-by", "")).strip() and str(it.get("closed-on", "")).strip() and str(it.get("consulted", "")).strip()):
             fail("I11", it, f"{st} without Approved by, Closed on and Consulted")
         # I12
-        if k in ("REQ", "DEC", "LIM", "CR") and it.get("implemented-by") not in ("Vendor", "Internal", "Both"):
+        # A limitation's implementer follows from its chosen option, so it is checked only once dispositioned.
+        if (k in ("REQ", "DEC", "CR") or (k == "LIM" and st in ("Accepted", "Change requested"))) and it.get("implemented-by") not in ("Vendor", "Internal", "Both"):
             fail("I12", it, "Implemented by is not Vendor, Internal or Both")
         # I13
         if k == "RSK" and st == "Realised" and not links_with(it, "realised as"):

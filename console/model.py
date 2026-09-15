@@ -1,4 +1,4 @@
-"""Register model 2.29 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
+"""Register model 2.30 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
@@ -94,8 +94,8 @@ REQUIRED_ON_ENTRY = {
     "DEC": {"Accepted": ["approved-by", "consulted"], "Rejected": ["approved-by", "consulted"]},
     "LIM": {
         "Under assessment": ["impact", "link:assessed by"],
-        "Accepted": ["impact", "options", "chosen-option", "link:constrains", "link:dispositioned by"],
-        "Change requested": ["impact", "options", "chosen-option", "link:constrains", "link:dispositioned by"],
+        "Accepted": ["impact", "options", "chosen-option", "implemented-by", "link:constrains", "link:dispositioned by"],
+        "Change requested": ["impact", "options", "chosen-option", "implemented-by", "link:constrains", "link:dispositioned by"],
         "Resolved": ["source"], "Withdrawn": ["source"],
     },
     "RSK": {"Mitigating": ["trigger", "mitigation"], "Realised": ["link:realised as"], "Retired": ["mitigation"]},
@@ -112,7 +112,7 @@ REQUIRED_ON_ENTRY = {
 REQUIRED_ON_CREATE = {
     "REQ": ["title", "scope", "moscow", "owner", "implemented-by", "source"],
     "DEC": ["title", "scope", "owner", "rationale", "implemented-by", "source"],
-    "LIM": ["title", "scope", "owner", "implemented-by", "source"],
+    "LIM": ["title", "scope", "owner", "source"],
     "RSK": ["title", "scope", "risk-kind", "owner", "likelihood", "impact", "source"],
     "OI":  ["title", "scope", "owner", "next action", "source"],
     "CR":  ["title", "scope", "owner", "reason", "implemented-by", "source", "link:triggered by"],
@@ -206,7 +206,7 @@ RULES = {
     "I9": "Every OI in Closed has Closed on and a resolves into link, and every OI in Blocked has a Next action starting Blocked.",
     "I10": "Every CR past Proposed has Approved by and Closed on, and a triggered by link that matches its status.",
     "I11": "Every DEC in Accepted or Rejected has Approved by, Closed on and at least one Consulted entry.",
-    "I12": "Every REQ, DEC, LIM and CR has Implemented by set to Vendor, Internal or Both.",
+    "I12": "Every REQ, DEC and CR, and every LIM in Accepted or Change requested, has Implemented by set to Vendor, Internal or Both.",
     "I13": "Every RSK in Realised has a realised as link to an open item.",
     "I14": "Every item has a Source.",
     "I15": "A DEC in Proposed or REQ in Draft older than 14 days is a warning.",

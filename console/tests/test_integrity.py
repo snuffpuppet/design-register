@@ -145,12 +145,14 @@ class Suggestions(unittest.TestCase):
         self.assertEqual(s[0]["fields"]["next action"], "")
         self.assertFalse(s[0]["needsOwner"])
 
-    def test_s8_empty_implemented_by_still_offers_a_box(self):
+    def test_s8_implemented_by_is_carried_but_not_demanded(self):
+        # Optional on a limitation until it is dispositioned (2.30), so an empty value offers no box.
         r = I.check([item("CR-0002", "Proposed", reason="Vendor CR 78", **{"implemented-by": ""})])
         s = sug(r, "S8", "CR-0002")
         self.assertEqual(len(s), 1)
-        self.assertIn("implemented-by", s[0]["fields"])
-        self.assertEqual(s[0]["fields"]["implemented-by"], "")
+        self.assertNotIn("implemented-by", s[0]["fields"])
+        r = I.check([item("CR-0003", "Proposed", reason="Vendor CR 79", **{"implemented-by": "Both"})])
+        self.assertEqual(sug(r, "S8", "CR-0003")[0]["fields"]["implemented-by"], "Both")
 
     def test_s10_closed_open_item_prompts_for_a_resolution(self):
         r = I.check([item("OI-0005", "Closed", **{"next action": "x", "closed-on": "1 September 2026"})])
@@ -265,6 +267,13 @@ class Rules(unittest.TestCase):
     def test_i12_implemented_by(self):
         r = I.check([item("REQ-0001", "Agreed", moscow="Must", **{"implemented-by": ""})])
         self.assertEqual(fails(r, "I12"), ["REQ-0001"])
+
+    def test_i12_limitation_only_once_dispositioned(self):
+        r = I.check([item("LIM-0001", "Identified", impact="x", **{"implemented-by": ""}),
+                     item("LIM-0002", "Under assessment", impact="x", **{"implemented-by": ""})])
+        self.assertEqual(fails(r, "I12"), [])
+        r = I.check([item("LIM-0003", "Accepted", impact="x", **{"implemented-by": ""})])
+        self.assertEqual(fails(r, "I12"), ["LIM-0003"])
 
     def test_i14_source(self):
         r = I.check([item("REQ-0001", "Agreed", moscow="Must", source="")])
