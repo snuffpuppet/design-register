@@ -37,3 +37,19 @@ class Views(unittest.TestCase):
         self.assertIn("REQ-0050", text)          # raised this week
         self.assertIn("OI-0006", text); self.assertIn("overdue", text)
         self.assertIn("1 gap", text)
+
+    def test_sections_splits_move_line_on_the_arrow(self):
+        items = [
+            {"id": "CR-0009", "kind": "CR", "title": "Add site hierarchy", "status": "For approval", "owner": "P", "raised-on": "9 September 2026",
+             "updated": "12 September 2026", "history": ["12 September 2026 | Adam | Proposed → For approval | estimate agreed | console session"], "links": []},
+            {"id": "CR-0010", "kind": "CR", "title": "No arrow here", "status": "For approval", "owner": "P", "raised-on": "9 September 2026",
+             "updated": "12 September 2026", "history": ["12 September 2026 | Adam | fields updated | console session"], "links": []},
+        ]
+        integ = {"failures": [], "warnings": []}
+        view = V.default_views()[0]; view["filter"]["since"] = "8 September 2026"
+        s = V.sections(view, items, integ, "15 September 2026")
+        moved = [m for m in s["moved"] if m["id"] == "CR-0009"]
+        self.assertEqual(len(moved), 1)
+        self.assertEqual(moved[0]["from"], "Proposed")
+        self.assertEqual(moved[0]["to"], "For approval")
+        self.assertFalse([m for m in s["moved"] if m["id"] == "CR-0010"])

@@ -4,7 +4,6 @@ import json, os, re, datetime
 import model as M
 
 MONTHS = "January February March April May June July August September October November December".split()
-MOVE = re.compile(r"(\S.*?) → (\S.*?)(?: \||$)")
 
 
 def parse_date(s):
@@ -52,9 +51,10 @@ def sections(view, items, integrity, today):
     for it in items:
         for h in it.get("history", []):
             d = parse_date(h)
-            m = MOVE.search(h)
-            if d and d >= since and m:
-                moved.append({"id": it["id"], "title": it["title"], "from": m.group(1), "to": m.group(2), "owner": it.get("owner", "")})
+            move = next((seg for seg in h.split(" | ") if " → " in seg), None)
+            if d and d >= since and move:
+                frm, to = move.split(" → ", 1)
+                moved.append({"id": it["id"], "title": it["title"], "from": frm, "to": to, "owner": it.get("owner", "")})
         rd = parse_date(it.get("raised-on"))
         if rd and rd >= since:
             raised.append({"id": it["id"], "title": it["title"], "status": it["status"], "owner": it.get("owner", "")})
