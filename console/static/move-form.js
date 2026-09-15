@@ -23,7 +23,10 @@
     const [needs, setNeeds] = useState(null), [fields, setFields] = useState({}), [per, setPer] = useState({}), [note, setNote] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState("");
     const kinds = [...new Set(items.map(i => i.kind))];
     useEffect(() => { S.post("/api/needs", { ids: mv.ids, to: mv.to, fields: {} }).then(r => setNeeds(r.needs)).catch(e => setErr(e.message)); }, [mv.ids.join(","), mv.to]);
-    if (!needs) return html`<div class="modal"><div class="dlg"><div class="muted">Checking what ${mv.to} needs…</div></div></div>`;
+    if (!needs) return html`<div class="modal" onClick=${MoveForm.close}><div class="dlg" onClick=${e => e.stopPropagation()}>
+      <div class="dlg-b">${err ? html`<div class="miss">${err}</div>` : html`<div class="muted">Checking what ${mv.to} needs…</div>`}</div>
+      <div class="dlg-f"><div class="sp"></div><button class="btn" onClick=${MoveForm.close}>Cancel</button></div>
+    </div></div>`;
     // Shared: a label missing on every item of the same kind. Per item: the rest.
     const missing = id => (needs[id]?.missing || []).filter(x => !x.includes("not an allowed move"));
     const shared = kinds.length === 1 ? missing(items[0].id).filter(l => items.every(i => missing(i.id).includes(l))) : [];
@@ -53,24 +56,24 @@
       } catch (e) { setErr(e.message); await S.load(); }
       setBusy(false);
     };
-    const input = (label, get, set) => {
-      const k = keyFor(kinds[0], mv.to, label);
+    const input = (label, get, set, kind) => {
+      const k = keyFor(kind, mv.to, label);
       const opts = k.field && (S.model.choices[k.field] || (k.field === "scope" ? S.model.scopes : k.field === "phase" ? S.model.phases : k.field === "owner" ? S.model.owners : null));
-      if (k.link) return html`<${Picker.Inline} word=${k.link} kind=${kinds[0]} value=${get()} onPick=${set} />`;
+      if (k.link) return html`<${Picker.Inline} word=${k.link} kind=${kind} value=${get()} onPick=${set} />`;
       if (opts && opts.length) return html`<select class="inp" value=${get()} onChange=${e => set(e.target.value)}><option value="">–</option>${opts.map(o => html`<option value=${o}>${o}</option>`)}</select>`;
-      if (k.field && S.model.long[kinds[0]].includes(k.field)) return html`<textarea class="inp" value=${get()} onInput=${e => set(e.target.value)} />`;
+      if (k.field && S.model.long[kind].includes(k.field)) return html`<textarea class="inp" value=${get()} onInput=${e => set(e.target.value)} />`;
       return html`<input class="inp" value=${get()} onInput=${e => set(e.target.value)} placeholder=${k.prefix || ""} />`;
     };
     return html`<div class="modal" onClick=${MoveForm.close}><div class="dlg" onClick=${e => e.stopPropagation()}>
       <div class="dlg-h"><span class="h2">Move ${items.length} ${labelKind} to ${mv.to}</span>
         <span class="muted small">${shared.length ? "Shared: " + shared.join(", ") + "." : "Nothing shared to ask."}</span></div>
       <div class="dlg-b">
-        ${!S.ui.madeBy ? html`<div class="field"><label>Made by</label><input class="inp" value=${S.ui.madeBy} onInput=${e => { S.ui.madeBy = e.target.value; try { localStorage.setItem("madeBy", e.target.value); } catch {} }} /></div>` : null}
-        ${shared.length ? html`<div class="grid2">${shared.map(l => html`<div class="field"><label>${l} · required for ${mv.to}</label>${input(l, () => fields[l] || "", v => setFields({ ...fields, [l]: v }))}</div>`)}</div>` : null}
+        ${!S.ui.madeBy ? html`<div class="field"><label>Made by</label><input class="inp" value=${S.ui.madeBy} onInput=${e => { S.set({ madeBy: e.target.value }); try { localStorage.setItem("madeBy", e.target.value); } catch {} }} /></div>` : null}
+        ${shared.length ? html`<div class="grid2">${shared.map(l => html`<div class="field"><label>${l} · required for ${mv.to}</label>${input(l, () => fields[l] || "", v => setFields({ ...fields, [l]: v }), kinds[0])}</div>`)}</div>` : null}
         <div class="field"><label>Per item</label><div class="card tight">
           ${items.map(i => html`<div class="prow"><span class=${"pill " + i.kind}>${i.id}</span><span class="small">${needs[i.id]?.from} → ${mv.to}</span>
             ${blocked.includes(i) ? html`<span class="miss small">${needs[i.id].missing[0]}</span>` : null}
-            ${missing(i.id).filter(l => !shared.includes(l)).map(l => html`<span class="miss small">${l}</span>${input(l, () => per[i.id]?.[l] || "", v => setPer({ ...per, [i.id]: { ...(per[i.id] || {}), [l]: v } }))}`)}
+            ${missing(i.id).filter(l => !shared.includes(l)).map(l => html`<span class="miss small">${l}</span>${input(l, () => per[i.id]?.[l] || "", v => setPer({ ...per, [i.id]: { ...(per[i.id] || {}), [l]: v } }), i.kind)}`)}
             ${!blocked.includes(i) && !missing(i.id).filter(l => !shared.includes(l)).length ? html`<span class="muted small">ready</span>` : null}</div>`)}
         </div></div>
         <div class="field"><label>History note · applied to each item</label><input class="inp" value=${note} onInput=${e => setNote(e.target.value)} /></div>

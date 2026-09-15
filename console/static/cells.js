@@ -3,6 +3,11 @@
   const { useState, useEffect, useRef } = preactHooks;
   const CHOICE_FIELDS = k => Store.model.choices[k] || (k === "scope" ? Store.model.scopes : k === "phase" ? Store.model.phases : k === "owner" ? Store.model.owners : null);
   async function write(item, field, value) {
+    if (!Store.ui.madeBy?.trim()) {
+      Store.toast("Set Made by first, at the top of the table.");
+      document.querySelector(".inp.madeby")?.focus();
+      return;
+    }
     try { await Store.post("/api/edit", { id: item.id, fields: { [Store.model.labels[field] || field]: value }, gist: `${Store.model.labels[field] || field} set` }); await Store.load(); }
     catch (e) { Store.toast(e.message); }
   }

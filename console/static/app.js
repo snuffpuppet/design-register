@@ -17,7 +17,7 @@
     if (e.key === "j") Store.set({ focus: rows[Math.min(at + 1, rows.length - 1)]?.id || null });
     if (e.key === "k") Store.set({ focus: rows[Math.max(at - 1, 0)]?.id || null });
     if (e.key === "/") { e.preventDefault(); document.querySelector(".search")?.focus(); }
-    if (e.key === "Escape") Store.set({ open: null, selection: new Set() });
+    if (e.key === "Escape") Store.set({ move: null, open: null, selection: new Set() });
     if (e.key === "Enter" && Store.ui.focus) Store.set({ open: Store.ui.focus });
     if (e.key === "e" && Store.ui.focus) document.querySelector("tr.focus .c-title .ed")?.click();
     if (e.key === "m" && Store.ui.focus) document.querySelector("tr.focus .st")?.click();
