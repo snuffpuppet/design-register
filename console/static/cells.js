@@ -13,11 +13,21 @@
   }
   // Text, date and choice editors. Saves on blur or Enter; Esc abandons.
   function Editor({ item, field, onDone, long }) {
-    const [v, setV] = useState(item[field] || ""); const ref = useRef();
+    const [v, setV] = useState(item[field] || ""); const ref = useRef(); const doneRef = useRef(false);
     useEffect(() => { ref.current?.focus(); ref.current?.select?.(); }, []);
-    const done = async save => { if (save && v !== (item[field] || "")) await write(item, field, v); onDone(); };
+    // Guarded so Escape's cancel always wins: removing the input on done(false) can itself raise
+    // a blur, which would otherwise call done(true) a second time and save what Escape abandoned.
+    const done = async save => {
+      if (doneRef.current) return; doneRef.current = true;
+      if (save && v !== (item[field] || "")) await write(item, field, v);
+      onDone();
+    };
     const opts = CHOICE_FIELDS(field);
-    if (opts && opts.length && !long) return html`<select ref=${ref} class="inp cell" value=${v} onChange=${e => { setV(e.target.value); write(item, field, e.target.value).then(onDone); }} onBlur=${() => onDone()}>
+    if (opts && opts.length && !long) return html`<select ref=${ref} class="inp cell" value=${v} onChange=${e => {
+        const val = e.target.value; setV(val);
+        if (doneRef.current) return; doneRef.current = true;
+        write(item, field, val).then(onDone);
+      }} onBlur=${() => done(false)}>
       <option value="">–</option>${opts.map(o => html`<option value=${o}>${o}</option>`)}${v && !opts.includes(v) ? html`<option value=${v}>${v}</option>` : null}</select>`;
     if (long) return html`<textarea ref=${ref} class="inp cell long" value=${v} onInput=${e => setV(e.target.value)} onBlur=${() => done(true)}
       onKeyDown=${e => { if (e.key === "Escape") done(false); if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) done(true); }} />`;
