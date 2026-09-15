@@ -36,3 +36,10 @@ class Provenance(unittest.TestCase):
 
     def test_item_with_no_links_has_empty_chains(self):
         self.assertEqual(self.p["OI-0011"], {"back": [], "forward": [], "dangling": []})
+
+    def test_link_with_word_but_no_id_token_is_dangling(self):
+        # "triggered by nothing here" has the word but no id, should go to dangling
+        items = [it("CR-0001", "Open", ["triggered by nothing here"])]
+        by = {x["id"]: x for x in items}
+        p = I.provenance(items, by)
+        self.assertEqual(p["CR-0001"]["dangling"], ["triggered by nothing here"])

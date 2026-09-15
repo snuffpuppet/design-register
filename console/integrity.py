@@ -330,16 +330,13 @@ def provenance(items, by_id):
             m = LINK_ID.search(l[len(word):])
             tid = m.group(1) if m else None
             tgt = by_id.get(tid) if tid else None
-            if tid and not tgt:
-                if word in M.BACKWARD.get(k, []) or word in M.FORWARD.get(k, []):
-                    dang.append(l)
-                continue
-            if not tgt:
-                continue
-            hop = {"id": tgt["id"], "word": word, "title": tgt.get("title", ""), "status": tgt.get("status", ""), "kind": tgt["kind"]}
-            if word in M.BACKWARD.get(k, []) and hop["id"] not in [b["id"] for b in back]:
-                back.append(hop)
-            elif word in M.FORWARD.get(k, []) and hop["id"] not in [f["id"] for f in fwd]:
-                fwd.append(hop)
+            if tgt:
+                hop = {"id": tgt["id"], "word": word, "title": tgt.get("title", ""), "status": tgt.get("status", ""), "kind": tgt["kind"]}
+                if word in M.BACKWARD.get(k, []) and hop["id"] not in [b["id"] for b in back]:
+                    back.append(hop)
+                elif word in M.FORWARD.get(k, []) and hop["id"] not in [f["id"] for f in fwd]:
+                    fwd.append(hop)
+            elif word in M.BACKWARD.get(k, []) or word in M.FORWARD.get(k, []):
+                dang.append(l)
         out[it["id"]] = {"back": back, "forward": fwd, "dangling": dang}
     return out
