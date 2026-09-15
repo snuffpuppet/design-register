@@ -7,7 +7,7 @@
           selection: new Set(), focus: null, open: null, groupBy: "", columns: null, madeBy: "" },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     emit() { listeners.forEach(fn => fn()); },
-    set(patch) { Object.assign(Store.ui, patch); Store.emit(); },
+    set(patch) { if ("view" in patch) Store.display = null; Object.assign(Store.ui, patch); Store.emit(); },
     async load() {
       const [s, m, v, b] = await Promise.all([fetch("/api/state").then(r => r.json()), fetch("/api/model").then(r => r.json()), fetch("/api/views").then(r => r.json()), fetch("/api/baseline").then(r => r.json())]);
       Store.state = s; Store.model = m; Store.views = v.views; Store.baseline = b;

@@ -17,9 +17,9 @@
   }
   document.addEventListener("keydown", e => {
     const modal = Store.ui.move || Store.ui.create;
-    const blocking = modal || Store.ui.open;
-    // Escape reaches through a modal's or the panel's own input; a plain table cell edit is left to cells.js.
-    if (e.key === "Escape" && blocking) { Store.set({ move: null, create: null, open: null, selection: new Set() }); return; }
+    // Escape reaches through a modal's own input. An input in the panel or a table cell keeps its own Escape
+    // (cells.js cancels the edit); the panel closes on Escape only from outside an input.
+    if (e.key === "Escape" && modal) { Store.set({ move: null, create: null }); return; }
     if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
     if (modal) return;
     const rows = Store.display || Store.rows(); const cur = Store.ui.open || Store.ui.focus; const at = rows.findIndex(r => r.id === cur);
