@@ -13,7 +13,7 @@
       ${open ? html`<div class="menu pk">
         ${hits.map(h => html`<div class="mi" onMouseDown=${() => { onPick(h.id); setQ(h.id); setOpen(false); }}><span><span class=${"pill " + h.kind}>${h.id}</span> ${h.title}</span><span class="muted">${h.status}</span></div>`)}
         ${!hits.length ? html`<div class="mi off">No match</div>` : null}
-        ${types.length === 1 ? html`<div class="mi new" onMouseDown=${() => CreateForm.open({ kind: types[0], prefill: { title: q }, onCreated: id => { onPick(id); setQ(id); } })}>+ New ${Store.model.names[types[0]].toLowerCase()}</div>` : null}
+        ${types.map(t => html`<div class="mi new" onMouseDown=${() => CreateForm.open({ kind: t, prefill: { title: q }, onCreated: id => { onPick(id); setQ(id); } })}>+ New ${Store.model.names[t].toLowerCase()}</div>`)}
       </div>` : null}</span>`;
   }
   function LinkTo({ item, word: initialWord, onClose }) {
@@ -34,6 +34,9 @@
   function Create() {
     const S = Store, c = S.ui.create; if (!c) return null;
     const [kind, setKind] = useState(c.kind || "OI"), [f, setF] = useState(c.prefill || {}), [err, setErr] = useState("");
+    // A create dialog can already be open when a picker's "+ New" row opens another one (a link field
+    // inside this very form); resync local state whenever CreateForm.open hands us a new request object.
+    useEffect(() => { setKind(c.kind || "OI"); setF(c.prefill || {}); setErr(""); }, [c]);
     const req = S.model.create[kind] || [];
     const key = x => x.startsWith("link:") ? null : x;
     const opts = k => S.model.choices[k] || (k === "scope" ? S.model.scopes : k === "phase" ? S.model.phases : k === "owner" ? S.model.owners : null);
