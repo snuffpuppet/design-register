@@ -330,6 +330,8 @@ class H(SimpleHTTPRequestHandler):
             return self.send_json(self.search_items({"q": qs.get("q", [""])[0], "types": [t for t in qs.get("types", [""])[0].split(",") if t], "exclude": qs.get("exclude", [""])[0]}))
         if p == "/":
             self.path = "/index.html"
+        if p == "/old/":
+            self.path = "/old/index.html"
         return super().do_GET()
 
     def do_POST(self):

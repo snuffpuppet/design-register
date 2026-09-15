@@ -1,0 +1,54 @@
+(function () {
+  const html = htm.bind(preact.h);
+  const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
+  function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues" }[k] || Store.model.labels[k] || k; }
+  function cell(i, k) {
+    if (k === "id") return html`<span class=${"pill " + i.kind}>${i.id}</span>`;
+    if (k === "status") return html`<span class="st">${i.status}</span>`;
+    if (k === "links") return html`<span class="mono muted">${i.links.length || "—"}</span>`;
+    if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">—</span>`; }
+    const v = i[k]; return v ? v : html`<span class="muted">—</span>`;
+  }
+  function Chip({ label, value, onClear }) {
+    return html`<span class="chip">${label} ${value ? html`<b>${value}</b>` : null}${onClear ? html`<span class="x" onClick=${onClear}>×</span>` : null}</span>`;
+  }
+  function Table() {
+    const S = Store, ui = S.ui, rows = S.rows();
+    const cols = ui.columns || DEFAULT_COLS;
+    const f = ui.filter;
+    const setF = patch => S.set({ filter: { ...f, ...patch } });
+    const title = ui.view === "all" ? "All items" : S.model.names[ui.view] ? S.model.names[ui.view] + "s" : ui.view[0].toUpperCase() + ui.view.slice(1);
+    return html`<div class="main-col">
+      <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
+        <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} /></div>
+      <div class="bar chips">
+        ${f.types.length ? html`<${Chip} label="Type" value=${f.types.join(", ")} onClear=${() => setF({ types: [] })} />` : null}
+        ${f.statuses.length ? html`<${Chip} label="Status" value=${f.statuses.join(", ")} onClear=${() => setF({ statuses: [] })} />` : null}
+        ${f.scopes.length ? html`<${Chip} label="Scope" value=${f.scopes.join(", ")} onClear=${() => setF({ scopes: [] })} />` : null}
+        ${f.owners.length ? html`<${Chip} label="Owner" value=${f.owners.join(", ")} onClear=${() => setF({ owners: [] })} />` : null}
+        ${f.rule ? html`<${Chip} label="Failing" value=${f.rule} onClear=${() => setF({ rule: "" })} />` : null}
+        <${FilterAdd} setF=${setF} f=${f} />
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
+        <tbody>${rows.map(i => html`<tr key=${i.id} class=${ui.focus === i.id ? "focus" : ""} onClick=${() => S.set({ focus: i.id })}>
+          ${cols.map(k => html`<td class=${"c-" + k}>${cell(i, k)}</td>`)}</tr>`)}</tbody>
+      </table></div>
+      <div class="bar foot muted">${rows.length} of ${S.state.items.length} · j/k move · Enter opens · / search</div>
+    </div>`;
+  }
+  // One "+ Filter" control: pick a facet, then a value from what the data holds.
+  function FilterAdd({ setF, f }) {
+    const [facet, setFacet] = preactHooks.useState("");
+    const S = Store;
+    const values = { types: Object.keys(S.model.names), statuses: [...new Set(S.state.items.map(i => i.status))].sort(),
+                     scopes: S.model.scopes, owners: S.model.owners, rule: Object.keys(S.counts().byRule).sort() };
+    if (!facet) return html`<select class="chip add" value="" onChange=${e => setFacet(e.target.value)}>
+      <option value="">+ Filter</option><option value="types">Type</option><option value="statuses">Status</option>
+      <option value="scopes">Scope</option><option value="owners">Owner</option><option value="rule">Failing rule</option></select>`;
+    return html`<select class="chip add" value="" onChange=${e => { const v = e.target.value; setFacet(""); if (!v) return;
+        facet === "rule" ? setF({ rule: v }) : setF({ [facet]: [...new Set([...f[facet], v])] }); }}>
+      <option value="">${label(facet)}…</option>${values[facet].map(v => html`<option value=${v}>${v}</option>`)}</select>`;
+  }
+  window.Table = Table;
+})();
