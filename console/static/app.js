@@ -174,7 +174,12 @@ function renderDetail() {
   d.innerHTML = itemPanel(i, true);
   wire(d);
 }
-function itemPanel(i, closable) {
+/* Why merge and delete are off in change-sets mode: the ingester has no block for either. */
+const NO_MERGE = "This engagement writes change sets, which have no block for a merge";
+const NO_DELETE = "This engagement writes change sets, which have no block for a delete";
+/* controls: false renders the item as a read-only card. The Rationalise walk uses it, where the panel's own
+   buttons would act on the drawer's open item rather than the walked one, so they are left off. */
+function itemPanel(i, closable, controls = true) {
   const k = i.kind, changed = new Set();
   i.pending.forEach(p => { const b = S.change_sets.find(c => c.id === p.cs)?.blocks.find(b => b.n === p.n); if (b) Object.keys(b.fields).forEach(f => changed.add(f.toLowerCase())); });
   const fld = (key, v) => `<div class="field ${changed.has(key) ? "changed" : ""}"><label>${esc(S.model.labels[key] || key)}</label><div class="v">${esc(v) || '<span class="muted">—</span>'}</div></div>`;
@@ -184,16 +189,16 @@ function itemPanel(i, closable) {
     <h2>${idTag(i)} ${esc(i.title)}</h2>
     <div class="st">${esc(i.status)}${S.model.terminal[k].includes(i.status) ? " (terminal)" : ""}</div>
     ${i.pending.map(p => `<div class="pend"><b>${p.cs} item ${p.n}</b>${p.from ? ` · ${esc(p.from)} → ${esc(p.status)}` : ""}<br>${esc(p.gist)}</div>`).join("")}
-    ${supportsPanel(i)}
-    ${moves.length ? `<h3>Move to</h3><div class="moves" style="${COLOR(k)}">${moves.map(m => `<button data-move="${m}" class="${form?.to === m ? "on" : ""}">${m}</button>`).join("")}</div>` : ""}
-    ${form && form.mode === "move" ? moveForm(i) : ""}
+    ${controls ? supportsPanel(i) : ""}
+    ${controls && moves.length ? `<h3>Move to</h3><div class="moves" style="${COLOR(k)}">${moves.map(m => `<button data-move="${m}" class="${form?.to === m ? "on" : ""}">${m}</button>`).join("")}</div>` : ""}
+    ${controls && form && form.mode === "move" ? moveForm(i) : ""}
     ${S.model.short[k].filter(f => f !== "scope" || (S.engagement.scopes || []).length).map(f => fld(f, i[f])).join("")}
     <div class="field ${changed.has("links") ? "changed" : ""}"><label>Links</label><ul class="links">${i.links.map(l => { const m = l.match(/([A-Z]+-\d{4}(?:\.\d+)?)/); return `<li>${m && S.byId[m[1]] ? esc(l.replace(m[1], "")) + `<a href="#" data-open="${m[1]}">${m[1]}</a>` : esc(l)}</li>`; }).join("") || '<li class="muted">none</li>'}</ul></div>
     ${S.model.long[k].map(f => fld(f, i[f])).join("")}
     ${fld("raised-on", i["raised-on"])}${fld("closed-on", i["closed-on"])}
     ${i.history?.length ? `<div class="field"><label>History</label><ul class="small muted hist">${i.history.map(h => `<li>${esc(h)}</li>`).join("")}</ul></div>` : ""}
     <div class="small muted">updated ${esc(i.updated || "")}</div>
-    ${form && form.mode === "edit" ? editForm(i) : form && form.mode === "merge" ? mergeForm(i) : form && form.mode === "delete" ? deleteForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button> ${S.engagement.writes === "direct" ? `<button class="ghost" id="merge-btn">Merge into…</button> <button class="ghost" id="delete-btn">Delete…</button>` : `<button class="ghost" disabled title="This engagement writes change sets, which have no block for a merge">Merge into…</button> <button class="ghost" disabled title="This engagement writes change sets, which have no block for a delete">Delete…</button>`}</div>`}`;
+    ${!controls ? "" : form && form.mode === "edit" ? editForm(i) : form && form.mode === "merge" ? mergeForm(i) : form && form.mode === "delete" ? deleteForm(i) : `<div class="form"><button id="edit-btn">Edit fields</button> ${S.engagement.writes === "direct" ? `<button class="ghost" id="merge-btn">Merge into…</button> <button class="ghost" id="delete-btn">Delete…</button>` : `<button class="ghost" disabled title="${NO_MERGE}">Merge into…</button> <button class="ghost" disabled title="${NO_DELETE}">Delete…</button>`}</div>`}`;
 }
 /* What section 9 and the SUPPORTS table say this item still needs. Accepting writes the offer as a new
    provisional item and links the two; dismissing keeps the reason beside the register. */
@@ -819,7 +824,7 @@ function wireBaseline(m) {
   }
   const fz = $("#bl-freeze", m); if (fz) fz.onclick = () => { if (!madeBy()) return toast("Say who you are first (Made by)"); BF.confirmFreeze = true; render(); };
   const fno = $("#bl-freeze-no", m); if (fno) fno.onclick = () => { BF.confirmFreeze = false; render(); };
-  const fgo = $("#bl-freeze-go", m); if (fgo) fgo.onclick = async () => { try { const r = await post("/api/baseline/freeze", {}); BF.confirmFreeze = false; toast(`Frozen: ${r.written} items written, ${r.rejected} rejected, ${r.unreviewed} unreviewed, ${r.supportsFail} supports needed, ${r.offScope} off-list scopes`); BF.tab = "dups"; view = "rationalise"; await load(); } catch (e) { BF.confirmFreeze = false; toast(e.message); render(); } };
+  const fgo = $("#bl-freeze-go", m); if (fgo) fgo.onclick = async () => { try { const r = await post("/api/baseline/freeze", {}); BF.confirmFreeze = false; toast(`Frozen: ${r.written} items written, ${r.rejected} rejected, ${r.unreviewed} unreviewed, ${r.supportsFail} supports needed, ${r.offScope} off-list scopes`); RF.tab = "dups"; view = "rationalise"; await load(); } catch (e) { BF.confirmFreeze = false; toast(e.message); render(); } };
 }
 
 /* ---------- rationalise: the same work as the baseline tabs, over the item files ---------- */
@@ -835,9 +840,10 @@ function rationaliseView() {
 }
 function rDupes(unrev) {
   if (!S.dupes.length) return `<p class="muted">No duplicate groups left to decide.</p>`;
-  return `<div class="section"><p class="small muted">Groups whose titles overlap. Tick the items that are the same, then choose which one leads; the rest fold into it and their files are removed.</p>
+  const direct = S.engagement.writes === "direct";
+  return `<div class="section"><p class="small muted">Groups whose titles overlap. Tick the items that are the same, then choose which one leads; the rest fold into it and their files are removed${S.dupes.length > 25 ? `; showing the first 25 of ${S.dupes.length}` : ""}.</p>
     ${S.dupes.slice(0, 25).map(g => `<div class="cs"><div class="small muted"><button class="ghost" data-rnotdup="${g.join(",")}">Not duplicates</button></div>
-      ${g.map(id => { const i = S.byId[id]; if (!i) return ""; return `<div class="blk"><label class="dup"><input type="checkbox" data-rdup="${id}" checked> same</label> <button class="ghost" data-rlead="${id}">This one leads</button> ${idTag(i)} ${esc(i.title)} <span class="small muted">${esc(i.status)}${unrev.has(id) ? " · unreviewed" : ""}</span></div>`; }).join("")}</div>`).join("")}</div>`;
+      ${g.map(id => { const i = S.byId[id]; if (!i) return ""; return `<div class="blk"><label class="dup"><input type="checkbox" data-rdup="${id}" checked> same</label> <button class="ghost" data-rlead="${id}" title="${direct ? "" : esc(NO_MERGE)}" ${direct ? "" : "disabled"}>This one leads</button> ${idTag(i)} ${esc(i.title)} <span class="small muted">${esc(i.status)}${unrev.has(id) ? " · unreviewed" : ""}</span></div>`; }).join("")}</div>`).join("")}</div>`;
 }
 function rRows(unrev) {
   const q = S.items.filter(i => i.kind === RF.kind && (!RF.onlyUnrev || unrev.has(i.id)));
@@ -845,14 +851,15 @@ function rRows(unrev) {
     <label class="small"><input type="checkbox" id="rf-unrev" ${RF.onlyUnrev ? "checked" : ""}> unreviewed only</label><span class="small muted">${q.length} to walk</span></div>`;
   if (!q.length) return bar + `<p class="muted">Nothing here.</p>`;
   RF.pos = Math.min(RF.pos, q.length - 1);
-  const i = q[RF.pos], same = S.items.filter(x => x.kind === i.kind && x.id !== i.id);
+  const i = q[RF.pos], same = S.items.filter(x => x.kind === i.kind && x.id !== i.id), direct = S.engagement.writes === "direct";
   const near = S.dupes.find(g => g.includes(i.id))?.filter(id => id !== i.id).map(id => S.byId[id]).filter(Boolean) || [];
   return bar + `<div class="progress"><div style="width:${Math.round(100 * RF.pos / q.length)}%"></div></div>
-    <div class="triage"><div class="tq-main">${itemPanel(i, false)}
+    <div class="triage"><div class="tq-main">${itemPanel(i, false, false)}
       <div class="moves" style="--c:var(--cs)">
         <button data-rv="reviewed" title="a">Mark reviewed <kbd>a</kbd></button>
-        <select id="rf-merge"><option value="">merge into…</option>${same.map(x => `<option value="${x.id}">${x.id} ${esc(x.title.slice(0, 50))}</option>`).join("")}</select><button data-rv="merge" title="m">Merge <kbd>m</kbd></button>
-        <input id="rf-reason" placeholder="reason to delete" style="width:200px"><button class="ghost" data-rv="delete" title="d">Delete <kbd>d</kbd></button>
+        <button data-rv="edit" title="e">Edit <kbd>e</kbd></button>
+        <select id="rf-merge" ${direct ? "" : "disabled"}><option value="">merge into…</option>${same.map(x => `<option value="${x.id}">${x.id} ${esc(x.title.slice(0, 50))}</option>`).join("")}</select><button data-rv="merge" title="${direct ? "m" : esc(NO_MERGE)}" ${direct ? "" : "disabled"}>Merge <kbd>m</kbd></button>
+        <input id="rf-reason" placeholder="reason to delete" style="width:200px" ${direct ? "" : "disabled"}><button class="ghost" data-rv="delete" title="${direct ? "d" : esc(NO_DELETE)}" ${direct ? "" : "disabled"}>Delete <kbd>d</kbd></button>
         <span class="sep"></span><button class="ghost" data-rv="prev" title="k">← <kbd>k</kbd></button><button class="ghost" data-rv="next" title="j">Skip <kbd>j</kbd> →</button></div>
       <span class="small muted">${RF.pos + 1} of ${q.length}</span></div>
       <div class="tq-side"><h3>Looks like</h3>${near.map(n => `<div class="ctx">${idTag(n)}<div>${esc(n.title)}</div></div>`).join("") || '<p class="small muted">No suggested duplicate.</p>'}</div></div>`;
@@ -873,9 +880,11 @@ async function rAct(what) {
   const i = q[Math.min(RF.pos, q.length - 1)]; if (!i) return;
   if (what === "next") { RF.pos = Math.min(q.length - 1, RF.pos + 1); render(); return; }
   if (what === "prev") { RF.pos = Math.max(0, RF.pos - 1); render(); return; }
+  // the card is read only; editing, moving and the supports offers happen in the drawer, which is wired
+  if (what === "edit") { openItem(i.id); return; }
   if (what === "reviewed") return rPost("/api/rationalise/reviewed", {id: i.id}, `${i.id} marked reviewed`);
-  if (what === "merge") { const into = $("#rf-merge")?.value; if (!into) return toast("Pick the item to merge into"); return rPost("/api/merge", {survivor: into, losers: [i.id], evidence: ""}, `${i.id} folded into ${into}`); }
-  if (what === "delete") { const reason = $("#rf-reason")?.value.trim(); if (!reason) return toast("Give a reason to delete"); return rPost("/api/delete", {id: i.id, reason, evidence: ""}, `${i.id} deleted`); }
+  if (what === "merge") { if (S.engagement.writes !== "direct") return toast(NO_MERGE); const into = $("#rf-merge")?.value; if (!into) return toast("Pick the item to merge into"); return rPost("/api/merge", {survivor: into, losers: [i.id], evidence: ""}, `${i.id} folded into ${into}`); }
+  if (what === "delete") { if (S.engagement.writes !== "direct") return toast(NO_DELETE); const reason = $("#rf-reason")?.value.trim(); if (!reason) return toast("Give a reason to delete"); return rPost("/api/delete", {id: i.id, reason, evidence: ""}, `${i.id} deleted`); }
 }
 function wireRationalise(m) {
   m.querySelectorAll("[data-rtab]").forEach(el => el.onclick = () => { RF.tab = el.dataset.rtab; RF.pos = 0; render(); });
@@ -894,5 +903,5 @@ function wireRationalise(m) {
 }
 document.addEventListener("keydown", e => {
   if (view !== "rationalise" || RF.tab !== "rows" || ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
-  const k = {a: "reviewed", m: "merge", d: "delete", j: "next", k: "prev"}[e.key]; if (k) { e.preventDefault(); rAct(k); }
+  const k = {a: "reviewed", e: "edit", m: "merge", d: "delete", j: "next", k: "prev"}[e.key]; if (k) { e.preventDefault(); rAct(k); }
 });
