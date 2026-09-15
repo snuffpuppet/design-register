@@ -47,7 +47,11 @@
       </div>
       <${Bulk} />
       <div class="tbl-wrap"><table>
-        <thead><tr><th class="c-sel"><span class=${"cb" + (rows.length && rows.every(r => ui.selection.has(r.id)) ? " on" : "")} onClick=${() => S.set({ selection: rows.length && rows.every(r => ui.selection.has(r.id)) ? new Set() : new Set(rows.map(r => r.id)) })}></span></th>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
+        <thead><tr><th class="c-sel"><span class=${"cb" + (rows.length && rows.every(r => ui.selection.has(r.id)) ? " on" : "")} onClick=${() => {
+          const all = rows.length && rows.every(r => ui.selection.has(r.id)), sel = new Set(ui.selection);
+          rows.forEach(r => all ? sel.delete(r.id) : sel.add(r.id));
+          S.set({ selection: sel });
+        }}></span></th>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
         <tbody>${rows.map(i => html`<tr key=${i.id} class=${(ui.focus === i.id ? "focus " : "") + (ui.selection.has(i.id) ? "sel" : "")} onClick=${() => S.set({ focus: i.id })}>
           <td class="c-sel"><span class=${"cb" + (ui.selection.has(i.id) ? " on" : "")} onClick=${e => { e.stopPropagation(); toggle(i.id, e.shiftKey); }}></span></td>
           ${cols.map(k => html`<td class=${"c-" + k}><${Cell} i=${i} k=${k} /></td>`)}</tr>`)}</tbody>

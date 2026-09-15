@@ -26,7 +26,7 @@
         <button class="btn" onClick=${guarded(() => bulk({ op: "withdraw", gist: "withdrawn in bulk" }))}>Withdraw</button>
         <button class="btn ghost danger" onClick=${() => setMode("delete")}>Delete</button>` : null}
       ${mode === "set" ? html`<select class="inp" value=${field} onChange=${e => { setField(e.target.value); setValue(""); }}><option value="">field…</option>${fields.map(f => html`<option value=${f}>${S.model.labels[f] || f}</option>`)}</select>
-        ${field && opts(field)?.length ? html`<select class="inp" value=${value} onChange=${e => setValue(e.target.value)}><option value="">—</option>${opts(field).map(o => html`<option value=${o}>${o}</option>`)}</select>` : html`<input class="inp" value=${value} onInput=${e => setValue(e.target.value)} placeholder="value" />`}
+        ${field && opts(field)?.length ? html`<select class="inp" value=${value} onChange=${e => setValue(e.target.value)}><option value="">–</option>${opts(field).map(o => html`<option value=${o}>${o}</option>`)}</select>` : html`<input class="inp" value=${value} onInput=${e => setValue(e.target.value)} placeholder="value" />`}
         <button class="btn pri" disabled=${!field || !value.trim()} onClick=${guarded(() => bulk({ op: "set", fields: { [S.model.labels[field] || field]: value }, gist: (S.model.labels[field] || field) + " set in bulk" }))}>Apply to ${items.length}</button>` : null}
       ${mode === "move" ? html`<select class="inp" value="" onChange=${e => { if (e.target.value) { MoveForm.open({ ids, to: e.target.value }); setMode(null); } }}><option value="">state…</option>${states.map(s => html`<option value=${s}>${s}</option>`)}</select>` : null}
       ${mode === "link" ? html`<select class="inp" value=${word} onChange=${e => setWord(e.target.value)}><option value="">link word…</option>${words.map(w => html`<option value=${w}>${w}</option>`)}</select>
@@ -35,7 +35,7 @@
       ${mode === "merge" ? html`<span class="small">Survivor</span><select class="inp" value=${survivor} onChange=${e => setSurvivor(e.target.value)}><option value="">pick…</option>${items.map(i => html`<option value=${i.id}>${i.id} ${i.title}</option>`)}</select>
         <button class="btn pri" disabled=${!survivor} onClick=${() => run(() => S.post("/api/merge", { survivor, losers: ids.filter(x => x !== survivor) }))}>Merge ${items.length - 1} into ${survivor || "…"}</button>` : null}
       ${mode === "delete" ? html`<input class="inp" value=${reason} onInput=${e => setReason(e.target.value)} placeholder="reason, goes into History" />
-        <button class="btn pri danger" disabled=${!reason.trim()} onClick=${guarded(async () => { for (const id of ids) await S.post("/api/delete", { id, reason }); })}>Delete ${items.length}</button>` : null}
+        <button class="btn pri danger" disabled=${!reason.trim()} onClick=${guarded(async () => { let n = 0; for (const id of ids) { try { await S.post("/api/delete", { id, reason }); n++; } catch (e) { throw new Error(`Deleted ${n}; stopped at ${id}: ${e.message}`); } } })}>Delete ${items.length}</button>` : null}
       ${mode ? html`<button class="btn ghost" onClick=${() => { setMode(null); setErr(""); }}>Cancel</button>` : null}
       ${err ? html`<span class="miss small">${err}</span>` : null}
       <div class="sp"></div><span class="muted small">Esc to clear</span>
