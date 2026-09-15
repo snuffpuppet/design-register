@@ -54,6 +54,16 @@ class Renumber(unittest.TestCase):
         open(os.path.join(self.d, "scratch.txt"), "w").write("x")
         with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam"})
 
+    def test_refuses_when_not_a_git_repository(self):
+        d = tempfile.mkdtemp()
+        try:
+            use(d)
+            write_item(d, "REQ-0005", "Five", "Draft", **{"raised-on": "1 September 2026"})
+            with self.assertRaises(ValueError) as cm: self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+            self.assertIn("not a git repository", str(cm.exception))
+        finally:
+            use(self.d); shutil.rmtree(d)
+
     def test_renames_files_rewrites_links_and_writes_the_map(self):
         r = self.h.renumber({"type": "REQ", "madeBy": "Adam"})
         self.assertEqual(r["map"], {"REQ-0005": "REQ-0001"})

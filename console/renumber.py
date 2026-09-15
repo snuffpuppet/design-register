@@ -19,9 +19,14 @@ def plan(items, kind):
 
 
 def dirty(eng):
-    """True unless `eng` is a git working tree with nothing uncommitted."""
+    """None when `eng` is a git working tree with nothing uncommitted; otherwise a reason string
+    saying why renumber cannot run."""
     try:
         r = subprocess.run(["git", "-C", eng, "status", "--porcelain"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.SubprocessError):
-        return True
-    return r.returncode != 0 or bool(r.stdout.strip())
+        return "The engagement folder is not a git repository the console can see; commit it in its own repository or run renumber from the host."
+    if r.returncode != 0:
+        return "The engagement folder is not a git repository the console can see; commit it in its own repository or run renumber from the host."
+    if r.stdout.strip():
+        return "Commit the engagement folder first; renumber needs a clean working tree to roll back to."
+    return None

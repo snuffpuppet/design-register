@@ -55,7 +55,7 @@
     const S = Store, c = S.counts(), ui = S.ui;
     const [savingView, setSavingView] = useState(false), [viewName, setViewName] = useState("");
     const go = (view, extra = {}) => () => S.set({ view, selection: new Set(), open: null, filter: { ...S.ui.filter, rule: "", ...extra } });
-    const rules = Object.entries(c.byRule || {}).sort((a, b) => b[1] - a[1]);
+    const rules = Object.entries(c.byRuleItems || {}).sort((a, b) => b[1] - a[1]);
     const saveCurrent = async () => {
       const name = viewName.trim(); if (!name) return;
       // A register tab (view is a type code, e.g. "REQ") is not itself part of the chip filter, so fold it
@@ -72,7 +72,7 @@
       <div class="grp"><span class="lbl">Engagement</span><div class="rl-eng">${S.state.engagement.name}</div></div>
       <div class="grp"><span class="lbl">Work</span>
         <${Item} label="Outstanding" n=${c.outstanding} on=${ui.view === "outstanding"} onClick=${go("outstanding")} />
-        <${Item} label="Integrity" n=${S.state.integrity.failures.length} on=${ui.view === "integrity" && !ui.filter.rule} onClick=${go("integrity")} />
+        <${Item} label="Integrity" n=${c.integrity} on=${ui.view === "integrity" && !ui.filter.rule} onClick=${go("integrity")} />
         ${ui.view === "integrity" ? rules.map(([r, n]) => html`<${Item} label=${r + " " + (S.model.rules[r] || "").split(" ").slice(0, 4).join(" ")} n=${n} on=${ui.filter.rule === r} onClick=${go("integrity", { rule: r })} />`) : null}
         <${Item} label="Suggested supports" n=${c.supports} on=${ui.view === "supports"} onClick=${go("supports")} />
         <${Item} label="Duplicates" n=${c.duplicates} on=${ui.view === "duplicates"} onClick=${go("duplicates")} />

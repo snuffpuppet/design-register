@@ -74,7 +74,8 @@
     const fails = S.failuresById[id] || [], sugg = S.suggestionsById[id] || [];
     const moves = S.model.transitions[i.kind]?.[i.status] || [];
     const needs = to => S.model.required[i.kind]?.[to] || [];
-    const need = to => needs(to).map(f => f.startsWith("link:") ? "link " + f.slice(5) : S.model.labels[f] || f).join(", ");
+    const specials = to => (S.model.specials || []).filter(sp => sp.kind === i.kind && sp.state === to).map(sp => sp.text);
+    const need = to => needs(to).map(f => f.startsWith("link:") ? "link " + f.slice(5) : S.model.labels[f] || f).concat(specials(to)).join(", ");
     const short = S.model.short[i.kind].filter(k => k !== "scope"), long = S.model.long[i.kind];
     // Words a later state will need, drawn as dashed slots in the forward column.
     const later = Object.entries(S.model.required[i.kind] || {}).flatMap(([st, fs]) => fs.filter(f => f.startsWith("link:")).map(f => ({ st, word: f.slice(5).split(":")[0] })))
@@ -116,7 +117,7 @@
             : dismissingKey === s.key ? html`<div class="mini"><input class="inp" value=${dismissReason} onInput=${e => setDismissReason(e.target.value)} placeholder="reason" />
               <button class="btn pri danger" disabled=${!dismissReason.trim()} onClick=${() => dismiss(s)}>Dismiss</button>
               <button class="btn ghost" onClick=${() => { setDismissingKey(null); setDismissReason(""); }}>Cancel</button></div>`
-            : linkingKey === s.key ? html`<div class="mini"><${Picker.Inline} kind=${i.kind} word=${s.link.trim()} value=${linkTarget} onPick=${setLinkTarget} exclude=${i.id} />
+            : linkingKey === s.key ? html`<div class="mini"><${Picker.Inline} kind=${i.kind} types=${[s.kind]} word=${s.link.trim()} value=${linkTarget} onPick=${setLinkTarget} exclude=${i.id} />
               <button class="btn pri" disabled=${!linkTarget.trim()} onClick=${() => linkExisting(s)}>Link</button>
               <button class="btn ghost" onClick=${() => { setLinkingKey(null); setLinkTarget(""); }}>Cancel</button></div>`
             : html`<div class="mini">

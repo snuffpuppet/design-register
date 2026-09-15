@@ -748,8 +748,9 @@ class H(SimpleHTTPRequestHandler):
         kind = req.get("type")
         if kind not in M.DIRS:
             raise ValueError("Say which register to renumber.")
-        if R.dirty(ENG):
-            raise ValueError("Commit the engagement folder first; renumber needs a clean working tree to roll back to.")
+        reason = R.dirty(ENG)
+        if reason:
+            raise ValueError(reason)
         items = load_registers()
         p = R.plan(items, kind)
         if not p["map"]:

@@ -92,6 +92,8 @@
     const title = ui.view === "integrity" && f.rule ? `${f.rule} · ${S.model.rules[f.rule] || ""}`
       : ui.view === "all" ? "All items" : S.model.names[ui.view] ? S.model.names[ui.view] + "s" : ui.view[0].toUpperCase() + ui.view.slice(1);
     const disp = grouped(rows, ui.groupBy);
+    // The screen order j/k should follow: the grouped, sorted rows, headers left out.
+    Store.display = disp.filter(d => d.header === undefined).map(d => d.row);
     return html`<div class="main-col">
       <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
         <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} />

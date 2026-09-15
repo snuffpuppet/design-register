@@ -16,12 +16,17 @@
     preact.render(html`<${App} />`, document.getElementById("root"));
   }
   document.addEventListener("keydown", e => {
+    const modal = Store.ui.move || Store.ui.create;
+    const blocking = modal || Store.ui.open;
+    // Escape reaches through a modal's or the panel's own input; a plain table cell edit is left to cells.js.
+    if (e.key === "Escape" && blocking) { Store.set({ move: null, create: null, open: null, selection: new Set() }); return; }
     if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
-    const rows = Store.rows(); const cur = Store.ui.open || Store.ui.focus; const at = rows.findIndex(r => r.id === cur);
+    if (modal) return;
+    const rows = Store.display || Store.rows(); const cur = Store.ui.open || Store.ui.focus; const at = rows.findIndex(r => r.id === cur);
     if (e.key === "j") Store.set({ focus: rows[Math.min(at + 1, rows.length - 1)]?.id || null });
     if (e.key === "k") Store.set({ focus: rows[Math.max(at - 1, 0)]?.id || null });
     if (e.key === "/") { e.preventDefault(); document.querySelector(".search")?.focus(); }
-    if (e.key === "Escape") Store.set({ move: null, open: null, selection: new Set() });
+    if (e.key === "Escape") Store.set({ move: null, create: null, open: null, selection: new Set() });
     if (e.key === "Enter" && Store.ui.focus) Store.set({ open: Store.ui.focus });
     if (e.key === "x" && Store.ui.focus) Table.toggle(Store.ui.focus);
     if (e.key === "e" && Store.ui.focus) document.querySelector("tr.focus .c-title .ed")?.click();

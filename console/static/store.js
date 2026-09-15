@@ -2,7 +2,7 @@
 (function () {
   const listeners = new Set();
   const Store = {
-    state: null, model: null, views: [], baseline: null,
+    state: null, model: null, views: [], baseline: null, display: null,
     ui: { view: "all", filter: { types: [], statuses: [], scopes: [], owners: [], rule: "", since: "", q: "" },
           selection: new Set(), focus: null, open: null, groupBy: "", columns: null, madeBy: "" },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -79,6 +79,9 @@
       c.integrity = Object.keys(Store.failuresById).length; c.supports = Object.keys(Store.suggestionsById).length;
       c.duplicates = S.dupes.length;
       for (const f of S.integrity.failures) c.byRule[f.rule] = (c.byRule[f.rule] || 0) + 1;
+      // Items failing each rule, not failure count: an item with two failures under one rule counts once.
+      c.byRuleItems = {};
+      for (const fails of Object.values(Store.failuresById)) for (const r of new Set(fails.map(f => f.rule))) c.byRuleItems[r] = (c.byRuleItems[r] || 0) + 1;
       return c;
     },
   };

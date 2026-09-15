@@ -37,17 +37,27 @@
       try {
         if (!S.ui.madeBy.trim()) throw new Error("Say who you are first (Made by).");
         if (items.length === 1) {
-          const i = items[0], f = {};
-          for (const l of missing(i.id)) { const k = keyFor(i.kind, mv.to, l); if (k.field) f[S.model.labels[k.field] || k.field] = value(i.id, l); }
-          const links = missing(i.id).map(l => keyFor(i.kind, mv.to, l)).filter(k => k.link).map(k => k.link + " " + value(items[0].id, "Links: " + k.link + " …"));
+          const i = items[0], f = {}, links = [];
+          for (const l of missing(i.id)) {
+            const k = keyFor(i.kind, mv.to, l);
+            if (k.field) f[S.model.labels[k.field] || k.field] = value(i.id, l);
+            else if (k.link) links.push(k.link + " " + value(i.id, l));
+          }
           await S.post("/api/transition", { id: i.id, to: mv.to, fields: f, links, gist: note });
         } else {
-          const f = {}; for (const l of shared) { const k = keyFor(kinds[0], mv.to, l); if (k.field) f[S.model.labels[k.field] || k.field] = fields[l]; }
+          const f = {}, links = [];
+          for (const l of shared) {
+            const k = keyFor(kinds[0], mv.to, l);
+            if (k.field) f[S.model.labels[k.field] || k.field] = fields[l];
+            else if (k.link) links.push(k.link + " " + fields[l]);
+          }
           // Per-item gaps first, as single edits, then the shared move in one bulk call.
           for (const i of items) for (const l of missing(i.id)) if (!shared.includes(l) && per[i.id]?.[l]) {
-            const k = keyFor(i.kind, mv.to, l); if (k.field) await S.post("/api/edit", { id: i.id, fields: { [S.model.labels[k.field] || k.field]: per[i.id][l] }, gist: "set before " + mv.to });
+            const k = keyFor(i.kind, mv.to, l);
+            if (k.field) await S.post("/api/edit", { id: i.id, fields: { [S.model.labels[k.field] || k.field]: per[i.id][l] }, gist: "set before " + mv.to });
+            else if (k.link) await S.post("/api/edit", { id: i.id, links: [k.link + " " + per[i.id][l]], gist: "set before " + mv.to });
           }
-          const r = await S.post("/api/bulk", { ids: items.map(i => i.id), op: "transition", to: mv.to, fields: f, gist: note });
+          const r = await S.post("/api/bulk", { ids: items.map(i => i.id), op: "transition", to: mv.to, fields: f, links, gist: note });
           if (r.failed) throw new Error(`Wrote ${r.written.length}; stopped at ${r.failed.id}: ${r.failed.error}`);
         }
         await S.load(); MoveForm.close();
