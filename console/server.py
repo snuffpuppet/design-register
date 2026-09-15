@@ -11,7 +11,7 @@ Usage: server.py <engagement-dir> [port]
 """
 import json, os, re, sys, glob, datetime, threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 import model as M
 import baseline as B
 import integrity as I
@@ -225,6 +225,13 @@ def append_block(cs, kind, target, fields, links, evidence, gist, frm=None, base
     return n
 
 
+def state_model(eng):
+    return {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
+            "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
+            "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k, eng["scopes"]) for k in M.DIRS},
+            "first": M.FIRST_STATE, "names": M.NAMES, "linkWords": M.LINK_WORDS, "closes": {k: sorted(v) for k, v in M.CLOSES.items()}}
+
+
 def state():
     items = overlay(load_registers(), load_change_sets())
     eng = load_engagement()
@@ -234,10 +241,7 @@ def state():
             "dupes": B.clusters([i for i in items.values() if not i.get("provisional")], set(load_dup_dismissed())),
             "unreviewed": sorted(B.unreviewed_ids(B_DIR) & set(items)),
             "change_sets": load_change_sets(), "today": today(),
-            "model": {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
-                      "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
-                      "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k, eng["scopes"]) for k in M.DIRS},
-                      "first": M.FIRST_STATE, "names": M.NAMES, "linkWords": M.LINK_WORDS, "closes": {k: sorted(v) for k, v in M.CLOSES.items()}}}
+            "model": state_model(eng)}
 
 
 def load_dismissed():
@@ -314,6 +318,11 @@ class H(SimpleHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", "text/markdown; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         if p == "/api/baseline":
             return self.send_json(self.baseline_state())
+        if p == "/api/model":
+            return self.send_json(self.model_payload())
+        if p == "/api/items":
+            qs = parse_qs(urlparse(self.path).query)
+            return self.send_json(self.search_items({"q": qs.get("q", [""])[0], "types": [t for t in qs.get("types", [""])[0].split(",") if t], "exclude": qs.get("exclude", [""])[0]}))
         if p == "/":
             self.path = "/index.html"
         return super().do_GET()
@@ -330,6 +339,8 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.create(req))
                 if p == "/api/edit":
                     return self.send_json(self.edit(req))
+                if p == "/api/needs":
+                    return self.send_json(self.needs(req))
                 if p == "/api/merge":
                     return self.send_json(self.merge(req))
                 if p == "/api/delete":
@@ -684,6 +695,43 @@ class H(SimpleHTTPRequestHandler):
                 "dismissed": len(v.get(B.DISMISSED, [])), "frozen": B.frozen(B_DIR), "states": M.STATES,
                 "reasons": B.REJECT_REASONS, "pages": sorted(set(c["page"] for c in cands)),
                 "skipped": B.load_skips(B_DIR), "allPages": B.page_titles(B_DIR)}
+
+    def model_payload(self):
+        eng = load_engagement()
+        items = overlay(load_registers(), load_change_sets())
+        owners = {s["name"] for s in load_stakeholders()} | {i.get("owner", "") for i in items.values()}
+        m = dict(state_model(eng))
+        m.update({"specials": M.SPECIAL_ON_ENTRY, "withdraws": M.WITHDRAWS, "backward": M.BACKWARD, "forward": M.FORWARD,
+                  "rules": M.RULES, "scopes": eng["scopes"], "phases": eng["phases"], "owners": sorted(o for o in owners if o)})
+        return m
+
+    def needs(self, req):
+        """What each id still lacks to enter `to`, without writing anything. The move form draws itself from this."""
+        items = overlay(load_registers(), load_change_sets())
+        to, out = req["to"], {}
+        for id in req.get("ids", []):
+            it = items.get(id)
+            if not it:
+                out[id] = {"ok": False, "missing": ["No such item"], "from": ""}
+                continue
+            frm = it["status"]
+            if to not in M.TRANSITIONS.get(it["kind"], {}).get(frm, []):
+                out[id] = {"ok": False, "missing": [f"{frm} → {to} is not an allowed move for a {M.NAMES[it['kind']]} (I20)"], "from": frm}
+                continue
+            merged = dict(it); merged.update({field_key(k): v for k, v in req.get("fields", {}).items() if str(v).strip()})
+            missing = M.missing_for(it["kind"], to, merged)
+            out[id] = {"ok": not missing, "missing": missing, "from": frm}
+        return {"needs": out}
+
+    def search_items(self, req):
+        items = overlay(load_registers(), load_change_sets())
+        q = str(req.get("q", "")).strip().lower()
+        types = [t for t in req.get("types", []) if t]
+        ex = req.get("exclude", "")
+        hits = [i for i in items.values() if i["id"] != ex and (not types or i["kind"] in types)
+                and (not q or q in i["id"].lower() or q in str(i.get("title", "")).lower())]
+        hits.sort(key=lambda i: i["id"])
+        return {"items": [{"id": i["id"], "kind": i["kind"], "title": i.get("title", ""), "status": i.get("status", "")} for i in hits[:50]]}
 
     def baseline_export(self, req):
         cands = B.load_candidates(B_DIR); v = B.load_verdicts(B_DIR)
