@@ -4,7 +4,7 @@ Read `README.md` first for what is here and how the pieces fit. This file is wha
 
 ## What this repository is for
 
-The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.28), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
+The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.29), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
 
 The sibling repository `../solution-register` holds the ingester that writes register item files from transcripts. It is at model 2.20 and is **never edited from here**. Adam ports the model to it when he chooses. The two repositories share nothing but the model document and the change set file format (model section 11).
 
@@ -50,6 +50,6 @@ The model document's version notes at the top say why each change was made. The 
 The active handoff `handoffs/baseline-abb-nokia.md` holds the ordered next steps for the real engagement; the threads below are the standing ones.
 
 - Connect a Confluence connector and set `parent_page_url`, then run `/import-confluence <engagement>` for the first real pull. Expect to add column words to `COLS` in `baseline.py` on the first real page.
-- The ingester still parses model 2.20. The model here is at 2.28. It is needed only by engagements in change-sets mode; direct mode is the default. Porting it (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage, and the supports rules I21 to I23 with the link words `mitigated by` and `needs`) is Adam's call and happens in the other repository.
+- The ingester still parses model 2.20. The model here is at 2.29. It is needed only by engagements in change-sets mode; direct mode is the default. Porting it (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage, and the supports rules I21 to I23 with the link words `mitigated by` and `needs`) is Adam's call and happens in the other repository.
 - The push back to Confluence is built (`push-pages.py` and `/push-confluence`) but has never run against a live connector. The first real run will show whether the connector's update call wants the body in storage format as written, and whether the version check reads as expected.
 - `baseline/skip-pages.txt` names the pages that are views rather than registers. The test engagement has its four. On the first pull of a new source, expect to add them after seeing them.

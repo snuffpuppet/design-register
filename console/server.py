@@ -15,6 +15,7 @@ from urllib.parse import urlparse, parse_qs
 import model as M
 import baseline as B
 import integrity as I
+import renumber as R
 import views as V
 from items import parse_item, render_item, item_path
 
@@ -347,6 +348,8 @@ class H(SimpleHTTPRequestHandler):
                     return self.send_json(self.needs(req))
                 if p == "/api/bulk":
                     return self.send_json(self.bulk(req))
+                if p == "/api/renumber":
+                    return self.send_json(self.renumber(req))
                 if p == "/api/views":
                     if not writes_direct():
                         raise ValueError("Saved views are a direct-mode file.")
@@ -730,6 +733,52 @@ class H(SimpleHTTPRequestHandler):
                 return {"written": written, "failed": {"id": id, "error": str(e)}}
             written.append(id)
         return {"written": written, "failed": None}
+
+    def renumber(self, req):
+        """Compact one register's ids. Two-phase so no new id collides with an old one still on disk: every
+        affected file moves to a temporary id first, then to its final id, with links rewritten at each step.
+        Direct mode only, and only on a clean working tree so there is always a rollback point."""
+        if not writes_direct():
+            raise ValueError("Renumber is a direct write; this engagement writes change sets.")
+        self.evidence(req)
+        kind = req.get("type")
+        if kind not in M.DIRS:
+            raise ValueError("Say which register to renumber.")
+        if R.dirty(ENG):
+            raise ValueError("Commit the engagement folder first; renumber needs a clean working tree to roll back to.")
+        items = load_registers()
+        p = R.plan(items, kind)
+        if not p["map"]:
+            return {"map": {}, "touched": []}
+        touched = set()
+        # Phase one: old -> temporary (kind-9nnn is never a real id in a register under 9000 items).
+        tmp = {old: f"{kind}-9{new[-3:]}" for old, new in p["map"].items()}
+        for old, t in tmp.items():
+            touched |= set(self.move_id(old, t, req, f"renumbered from {old}", f"link renumbered from {old}"))
+        for old, new in p["map"].items():
+            touched |= set(self.move_id(tmp[old], new, req, "", f"link renumbered from {old}"))
+        lines = ["# Renumbered", "", f"{today()} · {M.NAMES[kind]} register · by {req['madeBy'].strip()}", ""] + \
+                [f"- {old} → {new}" for old, new in p["map"].items()] + [""]
+        path = os.path.join(ENG, "renumbered.md")
+        prior = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+        open(path, "w", encoding="utf-8").write("\n".join(lines) + ("\n" + prior if prior else ""))
+        return {"map": p["map"], "touched": sorted(touched - set(p["map"]) - set(p["map"].values()))}
+
+    def move_id(self, old, new, req, item_gist, link_gist):
+        """Rename one item file to `new`, rewrite every link that named `old`, and record the move in the
+        item's History, then return the ids whose links changed. The one write that bypasses commit(): commit()
+        keys the file it writes on the item's id and cannot rename, so this is the one ruled exception to
+        "every Live write goes through commit()"."""
+        items = load_registers()
+        it = parse_item(item_path(ENG, old))
+        it["id"] = new
+        it["updated"] = today()
+        if item_gist:
+            it["history"].append(" | ".join([today(), req["madeBy"].strip(), item_gist, self.evidence(req)[0].split(" | ", 2)[2]]))
+        newp = item_path(ENG, new); os.makedirs(os.path.dirname(newp), exist_ok=True)
+        open(newp, "w", encoding="utf-8").write(render_item(it))
+        os.remove(item_path(ENG, old))
+        return self.rewrite_links(items, old, new, link_gist, req)
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):

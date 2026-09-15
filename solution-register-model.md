@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.28, 15 September 2026. Owner: Adam Moyes.
+Version 2.29, 15 September 2026. Owner: Adam Moyes.
+
+Version 2.29 adds to section 7 what a tool that renumbers a register leaves behind: every link that named a renamed id rewritten, a History line on each renamed item, and the map of old to new ids kept beside the registers. Nothing in sections 4, 5 or 9 changes.
 
 Version 2.28 lets an import be written into the registers before its review is complete and rationalised in place. Section 11 says a row that was neither rejected nor folded becomes an item and the review continues over the items, with the tool keeping its own record of what is still unreviewed. Section 7 says what a merge or a delete leaves behind in History and in version control. Nothing in sections 4, 5 or 9 changes.
 
@@ -195,7 +197,7 @@ An engagement with one service declares no scopes. Its items carry no Scope, not
 
 One file per item, named by its id, in a folder per type: `requirements/REQ-0004.md`, `decisions/`, `limitations/`, `risks/`, `open-items/`, `change-requests/`. The file opens with a YAML frontmatter block holding the header fields in 4.1 and the short type-specific fields, in kebab-case (`raised-on`, `closed-on`, `implemented-by`, `vendor-ref`, `links` as a list). Long fields sit in the body under fixed headings: Source (one citation or reference per line), Rationale, Impact, Options, Reason, Trigger, Mitigation, Next action, Notes, and optionally History, one line per write made by a tool in the form `date | person | move | gist | evidence`. A change to one item is a change to one file, and the item's history is that section together with the file's history in version control.
 
-When a tool merges one item into another or deletes one, the surviving item's History line says what was folded in or removed, every item whose Links named the removed id has that link rewritten or dropped with a History line of its own, and version control holds the removed file.
+When a tool merges one item into another or deletes one, the surviving item's History line says what was folded in or removed, every item whose Links named the removed id has that link rewritten or dropped with a History line of its own, and version control holds the removed file. When a tool renumbers a register it rewrites every link that named a renamed id, writes a History line on each renamed item, and keeps the map of old to new ids beside the registers.
 
 Frontmatter per type, in this order:
 

@@ -79,9 +79,10 @@ status:
 sample:
 	python3 console/make-sample.py
 
-# Unit tests for the console, run in the official python image. No host python.
+# Unit tests for the console, run in the official python image. No host python. Renumber's tests
+# shell out to git, so the image needs it installed first.
 test:
-	docker run --rm -v "$(CURDIR)/console:/app" -w /app python:3.12-slim python -m unittest discover -s tests -v
+	docker run --rm -v "$(CURDIR)/console:/app" -w /app python:3.12-slim sh -c "apt-get update -qq >/dev/null && apt-get install -y -qq git >/dev/null && python -m unittest discover -s tests -v"
 
 # A shareable copy of an engagement: every company, person, product and technical term
 # replaced by a haberdashery one, and the baseline verdicts re-keyed onto it. The tool and
