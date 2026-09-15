@@ -41,7 +41,11 @@
     const rules = Object.entries(c.byRule || {}).sort((a, b) => b[1] - a[1]);
     const saveCurrent = async () => {
       const name = viewName.trim(); if (!name) return;
-      const view = { name, filter: S.ui.filter, columns: S.ui.columns || S.columnsFor() || DEFAULT_COLUMNS, groupBy: S.ui.groupBy, sections: ["table"] };
+      // A register tab (view is a type code, e.g. "REQ") is not itself part of the chip filter, so fold it
+      // in here; a work queue (outstanding, integrity, …) has no type of its own and is left as is.
+      const filter = { ...S.ui.filter };
+      if (S.model.states[S.ui.view] && !filter.types.length) filter.types = [S.ui.view];
+      const view = { name, filter, columns: S.ui.columns || S.columnsFor() || DEFAULT_COLUMNS, groupBy: S.ui.groupBy, sections: ["table"] };
       const vs = S.views.concat([view]);
       const r = await S.post("/api/views", { views: vs });
       S.views = r.views; setSavingView(false); setViewName("");
