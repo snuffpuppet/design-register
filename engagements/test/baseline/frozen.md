@@ -1,0 +1,337 @@
+# Baseline frozen
+
+- Frozen on: 15 September 2026
+- Frozen by: Jundig Sazzlepot
+- Items written: 57 change requests, 59 decisions, 19 limitations, 75 open items, 92 requirements, 18 risks
+- Items by type: CR=57, DEC=59, LIM=19, OI=75, REQ=92, RSK=18
+- Rejected: 0
+- Unreviewed: 319
+- Supports missing: 185 needed, 0 suggested
+- Off-list scopes: 0
+
+The registers above this folder started from these items. Every change since is a write to an item file, held in version control.
+
+## Id map
+
+| Source id | Item |
+|---|---|
+| CRs Register · 1 | CR-0001 |
+| CRs Register · 2 | CR-0002 |
+| CRs Register · 3 | CR-0003 |
+| CRs Register · 4 | CR-0004 |
+| CRs Register · 5 | CR-0005 |
+| CRs Register · 6 | CR-0006 |
+| CRs Register · 7 | CR-0007 |
+| CRs Register · 8 | CR-0008 |
+| CRs Register · 9 | CR-0009 |
+| CRs Register · 10 | CR-0010 |
+| CRs Register · 11 | CR-0011 |
+| CRs Register · 12 | CR-0012 |
+| CRs Register · 13 | CR-0013 |
+| CRs Register · 14 | CR-0014 |
+| CRs Register · 15 | CR-0015 |
+| CRs Register · 16 | CR-0016 |
+| CRs Register · 17 | CR-0017 |
+| CRs Register · 18 | CR-0018 |
+| CRs Register · 19 | CR-0019 |
+| CR-001 | CR-0020 |
+| CR-002 | CR-0021 |
+| CR-003 | CR-0022 |
+| CR-004 | CR-0023 |
+| CR-005 | CR-0024 |
+| CR-006 | CR-0025 |
+| CR-007 | CR-0026 |
+| CR-008 | CR-0027 |
+| CR-009 | CR-0028 |
+| CR-010 | CR-0029 |
+| CR-011 | CR-0030 |
+| CR-012 | CR-0031 |
+| CR-013 | CR-0032 |
+| CR-014 | CR-0033 |
+| CR-015 | CR-0034 |
+| CR-016 | CR-0035 |
+| CR-017 | CR-0036 |
+| CR-018 | CR-0037 |
+| CR-019 | CR-0038 |
+| CR-020 | CR-0039 |
+| CR-021 | CR-0040 |
+| CR-022 | CR-0041 |
+| CR-023 | CR-0042 |
+| CR-024 | CR-0043 |
+| CR-025 | CR-0044 |
+| CR-026 | CR-0045 |
+| CR-027 | CR-0046 |
+| CR-028 | CR-0047 |
+| CR-029 | CR-0048 |
+| CR-030 | CR-0049 |
+| CR-031 | CR-0050 |
+| CR-032 | CR-0051 |
+| CR-033 | CR-0052 |
+| CR-034 | CR-0053 |
+| CR-035 | CR-0054 |
+| CR-036 | CR-0055 |
+| CR-037 | CR-0056 |
+| CR-038 | CR-0057 |
+| DEC-001 | DEC-0001 |
+| DEC-002 | DEC-0002 |
+| DEC-003 | DEC-0003 |
+| DEC-004 | DEC-0004 |
+| DEC-005 | DEC-0005 |
+| DEC-006 | DEC-0006 |
+| DEC-007 | DEC-0007 |
+| DEC-008 | DEC-0008 |
+| DEC-009 | DEC-0009 |
+| DEC-010 | DEC-0010 |
+| DEC-011 | DEC-0011 |
+| DEC-012 | DEC-0012 |
+| DEC-013 | DEC-0013 |
+| DEC-014 | DEC-0014 |
+| DEC-015 | DEC-0015 |
+| DEC-016 | DEC-0016 |
+| DEC-017 | DEC-0017 |
+| DEC-018 | DEC-0018 |
+| DEC-019 | DEC-0019 |
+| DEC-020 | DEC-0020 |
+| DEC-021 | DEC-0021 |
+| DEC-022 | DEC-0022 |
+| DEC-023 | DEC-0023 |
+| DEC-024 | DEC-0024 |
+| DEC-025 | DEC-0025 |
+| DEC-026 | DEC-0026 |
+| DEC-027 | DEC-0027 |
+| DEC-028 | DEC-0028 |
+| DEC-029 | DEC-0029 |
+| DEC-030 | DEC-0030 |
+| DEC-031 | DEC-0031 |
+| DEC-032 | DEC-0032 |
+| DEC-033 | DEC-0033 |
+| DEC-034 | DEC-0034 |
+| DEC-035 | DEC-0035 |
+| DEC-036 | DEC-0036 |
+| DEC-037 | DEC-0037 |
+| DEC-038 | DEC-0038 |
+| DEC-039 | DEC-0039 |
+| DEC-040 | DEC-0040 |
+| DEC-041 | DEC-0041 |
+| DEC-042 | DEC-0042 |
+| DEC-043 | DEC-0043 |
+| DEC-044 | DEC-0044 |
+| DEC-045 | DEC-0045 |
+| DEC-046 | DEC-0046 |
+| DEC-047 | DEC-0047 |
+| DEC-048 | DEC-0048 |
+| DEC-049 | DEC-0049 |
+| DEC-050 | DEC-0050 |
+| DEC-051 | DEC-0051 |
+| DEC-052 | DEC-0052 |
+| DEC-053 | DEC-0053 |
+| DEC-054 | DEC-0054 |
+| DEC-055 | DEC-0055 |
+| DEC-056 | DEC-0056 |
+| DEC-057 | DEC-0057 |
+| DEC-058 | DEC-0058 |
+| DEC-059 | DEC-0059 |
+| LIM-001 | LIM-0001 |
+| LIM-003 | LIM-0002 |
+| LIM-004 | LIM-0003 |
+| LIM-005 | LIM-0004 |
+| LIM-006 | LIM-0005 |
+| LIM-007 | LIM-0006 |
+| LIM-008 | LIM-0007 |
+| LIM-009 | LIM-0008 |
+| LIM-010 | LIM-0009 |
+| LIM-011 | LIM-0010 |
+| LIM-012 | LIM-0011 |
+| LIM-013 | LIM-0012 |
+| LIM-014 | LIM-0013 |
+| LIM-015 | LIM-0014 |
+| LIM-016 | LIM-0015 |
+| LIM-017 | LIM-0016 |
+| LIM-018 | LIM-0017 |
+| LIM-019 | LIM-0018 |
+| LIM-020 | LIM-0019 |
+| OI-001 | OI-0001 |
+| OI-002 | OI-0002 |
+| OI-003 | OI-0003 |
+| OI-004 | OI-0004 |
+| OI-005 | OI-0005 |
+| OI-006 | OI-0006 |
+| OI-007 | OI-0007 |
+| OI-008 | OI-0008 |
+| OI-009 | OI-0009 |
+| OI-010 | OI-0010 |
+| OI-011 | OI-0011 |
+| OI-012 | OI-0012 |
+| OI-013 | OI-0013 |
+| OI-014 | OI-0014 |
+| OI-015 | OI-0015 |
+| OI-016 | OI-0016 |
+| OI-017 | OI-0017 |
+| OI-018 | OI-0018 |
+| OI-019 | OI-0019 |
+| OI-020 | OI-0020 |
+| OI-021 | OI-0021 |
+| OI-022 | OI-0022 |
+| OI-023 | OI-0023 |
+| OI-024 | OI-0024 |
+| OI-025 | OI-0025 |
+| OI-026 | OI-0026 |
+| OI-027 | OI-0027 |
+| OI-028 | OI-0028 |
+| OI-029 | OI-0029 |
+| OI-030 | OI-0030 |
+| OI-031 | OI-0031 |
+| OI-032 | OI-0032 |
+| OI-033 | OI-0033 |
+| OI-034 | OI-0034 |
+| OI-035 | OI-0035 |
+| OI-036 | OI-0036 |
+| OI-037 | OI-0037 |
+| OI-038 | OI-0038 |
+| OI-039 | OI-0039 |
+| OI-040 | OI-0040 |
+| OI-041 | OI-0041 |
+| OI-042 | OI-0042 |
+| OI-043 | OI-0043 |
+| OI-044 | OI-0044 |
+| OI-045 | OI-0045 |
+| OI-046 | OI-0046 |
+| OI-047 | OI-0047 |
+| OI-048 | OI-0048 |
+| OI-049 | OI-0049 |
+| OI-050 | OI-0050 |
+| OI-051 | OI-0051 |
+| OI-052 | OI-0052 |
+| OI-053 | OI-0053 |
+| OI-054 | OI-0054 |
+| OI-055 | OI-0055 |
+| OI-056 | OI-0056 |
+| OI-057 | OI-0057 |
+| OI-058 | OI-0058 |
+| OI-059 | OI-0059 |
+| OI-060 | OI-0060 |
+| OI-061 | OI-0061 |
+| OI-062 | OI-0062 |
+| OI-067 | OI-0063 |
+| OI-063 | OI-0064 |
+| OI-064 | OI-0065 |
+| OI-065 | OI-0066 |
+| OI-066 | OI-0067 |
+| OI-068 | OI-0068 |
+| OI-069 | OI-0069 |
+| OI-070 | OI-0070 |
+| OI-071 | OI-0071 |
+| OI-072 | OI-0072 |
+| OI-073 | OI-0073 |
+| OI-074 | OI-0074 |
+| OI-075 | OI-0075 |
+| REQ-001 | REQ-0001 |
+| REQ-002 | REQ-0002 |
+| REQ-003 | REQ-0003 |
+| REQ-004 | REQ-0004 |
+| REQ-005 | REQ-0005 |
+| REQ-006 | REQ-0006 |
+| REQ-007 | REQ-0007 |
+| REQ-008 | REQ-0008 |
+| REQ-009 | REQ-0009 |
+| REQ-010 | REQ-0010 |
+| REQ-011 | REQ-0011 |
+| REQ-012 | REQ-0012 |
+| REQ-013 | REQ-0013 |
+| REQ-014 | REQ-0014 |
+| REQ-015 | REQ-0015 |
+| REQ-016 | REQ-0016 |
+| REQ-017 | REQ-0017 |
+| REQ-018 | REQ-0018 |
+| REQ-019 | REQ-0019 |
+| REQ-020 | REQ-0020 |
+| REQ-021 | REQ-0021 |
+| REQ-022 | REQ-0022 |
+| REQ-023 | REQ-0023 |
+| REQ-024 | REQ-0024 |
+| REQ-025 | REQ-0025 |
+| REQ-026 | REQ-0026 |
+| REQ-027 | REQ-0027 |
+| REQ-028 | REQ-0028 |
+| REQ-029 | REQ-0029 |
+| REQ-030 | REQ-0030 |
+| REQ-031 | REQ-0031 |
+| REQ-032 | REQ-0032 |
+| REQ-033 | REQ-0033 |
+| REQ-034 | REQ-0034 |
+| REQ-035 | REQ-0035 |
+| REQ-036 | REQ-0036 |
+| REQ-037 | REQ-0037 |
+| REQ-038 | REQ-0038 |
+| REQ-039 | REQ-0039 |
+| REQ-040 | REQ-0040 |
+| REQ-041 | REQ-0041 |
+| REQ-042 | REQ-0042 |
+| REQ-043 | REQ-0043 |
+| REQ-044 | REQ-0044 |
+| REQ-045 | REQ-0045 |
+| REQ-046 | REQ-0046 |
+| REQ-047 | REQ-0047 |
+| REQ-048 | REQ-0048 |
+| REQ-049 | REQ-0049 |
+| REQ-050 | REQ-0050 |
+| REQ-051 | REQ-0051 |
+| REQ-052 | REQ-0052 |
+| REQ-053 | REQ-0053 |
+| REQ-054 | REQ-0054 |
+| REQ-055 | REQ-0055 |
+| REQ-056 | REQ-0056 |
+| REQ-057 | REQ-0057 |
+| REQ-058 | REQ-0058 |
+| REQ-059 | REQ-0059 |
+| REQ-060 | REQ-0060 |
+| REQ-061 | REQ-0061 |
+| REQ-062 | REQ-0062 |
+| REQ-063 | REQ-0063 |
+| REQ-064 | REQ-0064 |
+| REQ-065 | REQ-0065 |
+| REQ-066 | REQ-0066 |
+| REQ-067 | REQ-0067 |
+| REQ-068 | REQ-0068 |
+| REQ-069 | REQ-0069 |
+| REQ-070 | REQ-0070 |
+| REQ-071 | REQ-0071 |
+| REQ-072 | REQ-0072 |
+| REQ-073 | REQ-0073 |
+| REQ-074 | REQ-0074 |
+| REQ-075 | REQ-0075 |
+| REQ-076 | REQ-0076 |
+| REQ-077 | REQ-0077 |
+| REQ-078 | REQ-0078 |
+| REQ-079 | REQ-0079 |
+| REQ-080 | REQ-0080 |
+| REQ-081 | REQ-0081 |
+| REQ-082 | REQ-0082 |
+| REQ-083 | REQ-0083 |
+| REQ-084 | REQ-0084 |
+| REQ-085 | REQ-0085 |
+| REQ-086 | REQ-0086 |
+| REQ-087 | REQ-0087 |
+| REQ-088 | REQ-0088 |
+| REQ-089 | REQ-0089 |
+| REQ-090 | REQ-0090 |
+| REQ-091 | REQ-0091 |
+| REQ-092 | REQ-0092 |
+| RSK-013 | RSK-0001 |
+| RSK-014 | RSK-0002 |
+| RSK-015 | RSK-0003 |
+| RSK-016 | RSK-0004 |
+| RSK-017 | RSK-0005 |
+| RSK-018 | RSK-0006 |
+| RSK-007 | RSK-0007 |
+| RSK-008 | RSK-0008 |
+| RSK-009 | RSK-0009 |
+| RSK-010 | RSK-0010 |
+| RSK-011 | RSK-0011 |
+| RSK-012 | RSK-0012 |
+| RSK-001 | RSK-0013 |
+| RSK-002 | RSK-0014 |
+| RSK-003 | RSK-0015 |
+| RSK-004 | RSK-0016 |
+| RSK-005 | RSK-0017 |
+| RSK-006 | RSK-0018 |
