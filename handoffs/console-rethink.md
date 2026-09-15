@@ -2,7 +2,7 @@
 objective: console-rethink
 title: Rethink the console on a model-driven table
 written: 16 September 2026
-commit: 41192c2
+commit: 70213a0
 branch: main
 status: active
 model-version: 2.29
@@ -56,6 +56,6 @@ Replace the console's one-view-per-screen front end with one table, filtered and
 ## Anchors
 
 - files: console/static/app.js, console/static/store.js, console/static/rail.js, console/static/table.js, console/static/panel.js, console/static/move-form.js, console/static/bulk.js, console/static/report.js, console/model.py, console/views.py, console/renumber.py, console/server.py, console/static/old/app.js
-- docs: console/README.md, CLAUDE.md, console/static/guide.html, solution-register-model.md, docs/superpowers/specs/2026-09-15-console-rethink-design.md, docs/superpowers/plans/2026-09-15-console-rethink.md, .superpowers/sdd/2026-09-15-console-rethink/progress.md
+- docs: README.md, ARCHITECTURE.md, console/README.md, CLAUDE.md, console/static/guide.html, solution-register-model.md, docs/superpowers/specs/2026-09-15-console-rethink-design.md, docs/superpowers/plans/2026-09-15-console-rethink.md, .superpowers/sdd/2026-09-15-console-rethink/progress.md
 - config: none changed by this branch
 - external: `main` branch to merge into; the work laptop's `engagements/abb-nokia`, out of scope for this branch and covered by `handoffs/baseline-abb-nokia.md`
