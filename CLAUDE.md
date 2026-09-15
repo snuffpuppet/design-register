@@ -17,6 +17,7 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 - **Scope is declared per engagement, not by the model.** A `## Scopes` section in `engagement.md` names the values; an engagement without one carries no Scope, is never asked for one, and I24 never fires. `required_on_create()` in `server.py` is the only place that conditionality lives.
 - **The Confluence import is gated.** `confluence.json` names the connector, the parent page and read and write permissions. `ask` means ask in chat and record the answer in `log`. Only the parent page and its direct children are ever read or written. No connector was available as of 12 September 2026, so no real pull has run.
 - **The baseline never trusts its input.** In Baseline mode every table row is a candidate whatever id or status it claims. Source ids are kept as references in Notes and become our ids only at the freeze. A source status is kept at the freeze only if it is one of the model's own states for that type, otherwise the item starts at its first state; the reviewer can set the status in the candidate editor before freezing. Do not create the engagement folder or write placeholder pages when nothing was pulled.
+- **Renumber refuses on a dirty engagement tree and rewrites ids in two phases through a temporary kind-9nnn id so no new id collides with an old file; it also refuses if that staging range is occupied.**
 
 ## Layout worth knowing
 
@@ -27,7 +28,18 @@ The sibling repository `../solution-register` holds the ingester that writes reg
 | `console/baseline.py` | Tolerant table import, duplicate suggestions, verdicts and edits in `baseline/verdicts.json`, freeze. Column heuristics are the `COLS` table at the top; add words there when a real page uses a header the mapping misses. `EDITABLE` lists what the editor may change. `skip-pages.txt` in the baseline folder names pages that produce no candidates. |
 | `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
 | `console/push-pages.py` | Builds the Confluence push from the registers as they stand into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
-| `console/static/app.js` | One file, vanilla JS. Views: outstanding, triage, meeting report, weekly SLT report, baseline before the first item (tabs: candidates, duplicates, row by row, missing supports), rationalise after it (duplicates, row by row, missing supports, scopes), one per register, change sets. `stage()` decides Baselining or Live and the opening view. `guide.html` is the lifecycle explanation served alongside and shares the theme choice. |
+| `console/static/app.js` | Boot: fetches state, model, views and baseline presence, then mounts; the keyboard handler; the full-page notice and hand-off to `/old/` when `Store.baseline.present` and no item exists yet. |
+| `console/static/store.js` | `Store.load()` fetches `/api/state`, `/api/model`, `/api/views` and `/api/baseline` in parallel; every write posts then reloads state, no optimistic update. |
+| `console/static/rail.js` | Work queues and Registers with counts, the per-register ⋯ menu's Renumber, Reports, and the rail foot: a Guide link and the Light/Auto/Dark theme switch, sharing the `theme` localStorage key with `/old/`. |
+| `console/static/table.js` | Columns, filter chips, group-by, sort, selection and keyboard; `Store.columnsFor()` in `store.js` picks the column set per view. |
+| `console/static/cells.js` | One inline editor per field kind; the status cell greys states not reachable from the current one and opens the move form for any that needs fields. |
+| `console/static/panel.js` | The side panel: chips, Next moves, the provenance chains from `/api/state`'s `provenance`, and Gaps from integrity failures and support suggestions. |
+| `console/static/move-form.js` | The one generated move and create form, opened by the status cell, the panel and the bulk bar alike, reading `REQUIRED_ON_ENTRY` and friends from `/api/model`. |
+| `console/static/picker.js` | The link picker: search over `/api/items` typed by the link word, with create-new as the fallback row. |
+| `console/static/bulk.js` | The bulk bar's five actions; all but Merge and Delete go through `/api/bulk`, which refuses in change-sets mode. |
+| `console/static/report.js` | Renders a saved view's sections, drafts the email summary text, and calls the push build. |
+| `console/views.py` | `<engagement>/views.json` load and save, a view's filter applied over items, its sections rendered, the summary text drafted. Direct-mode file, never a change set. |
+| `console/renumber.py` | Compacts one register's ids in raised-on order through a temporary staging id, rewrites links, writes `renumbered.md`. Refuses on a dirty tree or in change-sets mode. |
 | `.claude/settings.json`, `.claude/hooks/` | A SessionStart hook prints the project's slash commands at the start of every session, read from each skill's `usage:` line. Add a `usage:` line to any new skill. |
 | `handoffs/` | One file per objective written by `/handoff`, read by `/resume`, which checks relevance against the commit, anchors and date before acting. Start a session with `/resume` when a handoff is active. |
 | `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
@@ -45,11 +57,12 @@ Australian English. No em dashes. No rhyming patterns of three, no "not x but y"
 
 The model document's version notes at the top say why each change was made. The console README says what each mode does. `console/confluence-runbook.md` says how pull, baseline, apply and push fit together. The artifact "Two Ways Into the Registers" is the same content as `console/static/guide.html`.
 
-## Open threads as of 14 September 2026
+## Open threads as of 16 September 2026
 
-The active handoff `handoffs/baseline-abb-nokia.md` holds the ordered next steps for the real engagement; the threads below are the standing ones.
+The active handoff `handoffs/baseline-abb-nokia.md` holds the ordered next steps for the real engagement; `handoffs/console-rethink.md` holds the next steps for the console work; the threads below are the standing ones.
 
 - Connect a Confluence connector and set `parent_page_url`, then run `/import-confluence <engagement>` for the first real pull. Expect to add column words to `COLS` in `baseline.py` on the first real page.
 - The ingester still parses model 2.20. The model here is at 2.29. It is needed only by engagements in change-sets mode; direct mode is the default. Porting it (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage, and the supports rules I21 to I23 with the link words `mitigated by` and `needs`) is Adam's call and happens in the other repository.
 - The push back to Confluence is built (`push-pages.py` and `/push-confluence`) but has never run against a live connector. The first real run will show whether the connector's update call wants the body in storage format as written, and whether the version check reads as expected.
 - `baseline/skip-pages.txt` names the pages that are views rather than registers. The test engagement has its four. On the first pull of a new source, expect to add them after seeing them.
+- The baseline screens still run in `console/static/old/`. Porting them into the table shell removes the last of the old front end.
