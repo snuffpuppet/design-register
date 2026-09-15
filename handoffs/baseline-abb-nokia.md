@@ -1,71 +1,67 @@
 ---
 objective: baseline-abb-nokia
 title: Baseline the abb-nokia registers from Confluence and start running them
-written: 14 September 2026
-commit: 352fe8d
-branch: scope-field
+written: 15 September 2026
+commit: aeb29e1
+branch: main
 status: active
-model-version: 2.27
+model-version: 2.28
 ---
 
 ## Objective
 
-Turn the registers already held in the oss-kb Confluence Design Register, part pipeline-generated and part hand-written, into the abb-nokia engagement's starting registers: reconcile and de-duplicate them in the console, correct what is at the wrong altitude, freeze the result as item files, push the frozen tables back to the same Confluence pages, and from then on run the engagement through meetings with every change written straight into the item files and pushed back.
+Turn the registers held in the oss-kb Confluence Design Register into the abb-nokia engagement's working registers and run the engagement from them: freeze what was pulled, keep rationalising in place (duplicates, merges, deletes, missing supports) while new items are raised, push the tables back to Confluence, and from then on write every meeting's changes straight into the item files.
 
-**Read this first: the work is on an unmerged branch with a Critical finding outstanding.** `scope-field` holds ten commits and is not merged into `main`. Nothing is pushed. The baseline cannot be frozen until that branch lands, because the Scope field it adds is now required.
+**Read this first: the freeze no longer waits for the review to finish.** As of model 2.28 and commit aeb29e1 on `main`, the freeze writes every candidate not rejected, merged or discarded, reports what is left, and the console is Live from the first item with a Rationalise view over the item files. The previous handoff's steps 5 and 6 (work the baseline to zero, then freeze) are no longer the order of work. Spec: `docs/superpowers/specs/2026-09-15-rationalise-in-place-design.md`.
 
 ## Where things stand
 
-- **The view pages are named.** `engagements/abb-nokia/baseline/skip-pages.txt` lists the four: Outstanding, Next Phase, Register Conventions, Scope Taxonomy. Seven register pages produce 320 candidates. This was the old next step 2 and is done.
-- **The column mapping needed no work.** Contrary to the previous handoff's expectation, Owner, Status, MoSCoW and Phase all fill from the real pages where the source carries them. `Links` staying in Notes and `Vendor ref` being CR-only are both deliberate model behaviour, not misses. The one real gap was Scope, which the model had no field for.
-- **Scope is built, on the branch.** Model 2.27 gives every item a Scope whose vocabulary each engagement declares in a `## Scopes` section of `engagement.md`. An engagement that declares none behaves as it did under 2.26. Spec and plan are committed at `docs/superpowers/specs/2026-09-14-scope-field-design.md` and `docs/superpowers/plans/2026-09-14-scope-field.md`. 130 tests pass. Verified in a browser both with scopes declared (abb-nokia) and without (`engagements/test`).
-- **abb-nokia declares its sixteen scopes** in `engagements/abb-nokia/engagement.md`, seeded from the Scope Taxonomy page, which stays a skipped view page. That file is untracked and gitignored, so it exists only on this machine.
-- **All 320 candidates now carry a scope, none blank.** The `CRs Register` page's `Domain` column folds into the same field, which is why `domain` is a word in the `COLS` entry.
-- **Three candidates carry a scope outside the vocabulary** and will block the freeze: `NBN TC4 Access` on DEC-059 (a typo for `NbnTC4Access`), `Pool Management` on CR 14 (TMF685 resourcePoolManagement), and `Location Management` on CR 15 (TMF674 geographicSite).
-- **`baseline/verdicts.json` holds 214 entries of which 211 attach to nothing.** All 211 came from pages now on the skip list and 210 were Discards. They are harmless and were left in place deliberately, so that restoring a view page brings its old verdicts back.
-- **The final whole-branch review says not yet safe to merge.** One Critical, one Important, five Minor. Its findings are the first next steps below.
+- **`main` holds the scope field and the rationalise-in-place change.** The `scope-field` branch from the previous handoff is merged; the Critical and Important it named are no longer open on `main` (the suite is 145 green and `test_offer_with_no_trigger_scope_leaves_an_empty_box` is gone). Nothing is pushed to a remote.
+- **The console's stage is Live when any register holds an item.** Baseline shows only before that. After the freeze the Source nav slot holds Rationalise with the unreviewed count as its badge. See `console/README.md` for the tabs.
+- **"Unreviewed" is derived from `baseline/verdicts.json`**: an item frozen from a candidate with no verdict. Mark reviewed sets that candidate's verdict to Accept. Nothing about review is written into item files.
+- **Merge and Delete exist and remove files**, direct mode only, through `commit()`. Links elsewhere are rewritten or dropped with a History line. Verified in a browser on `engagements/test`: freeze of 320 rows, new item, merge, mark reviewed, delete.
+- **`engagements/abb-nokia/` lives only on the work laptop** (gitignored). Its `baseline/verdicts.json` carries the real review so far, 214 entries of which 211 attach to nothing. Its `engagement.md` declares sixteen scopes. Three candidates carry off-vocabulary scopes; the freeze now reports these rather than refusing.
+- **`engagements/test/` on the local laptop is the anonymised copy.** Its verdicts file is keyed against stale candidate ids, so only one verdict attaches and a freeze writes all 320. That is test-data hygiene, not a console defect.
+- **The push to Confluence is unchanged** and still has never run against a live connector.
 
 ## Next steps
 
-1. **Fix the Critical and the Important in `console/integrity.py` and `console/static/app.js`.** `scope` is in `REQUIRED_ON_CREATE` for all six types, so `offer()`'s gap loop runs `out.setdefault("scope", "")` whatever the engagement declares. Two UI surfaces read that key with no gate: the move form's "This move implies" panel (`app.js` `sGaps`), which then refuses to auto-tick a fail-level offer until someone types a scope, and the baseline Missing supports tab (`app.js` `blSupports`), which renders scope as free text so an off-list value can be typed and will block a freeze much later with no obvious cause. Fix at the source: thread `scopes` through `check()` to `suggestions()` to `offer()` and skip `scope` in the gap loop when there are none. `server.integrity_of()` already holds `eng["scopes"]`; `baseline.py`'s call site needs it plumbed from `baseline_state()`. Give the supports tab's field helper a select branch for scope mirroring `blEditor`. Done when a scope-less engagement's move form shows no Scope gap and its offers arrive ticked again.
-2. **Drop or rewrite `test_offer_with_no_trigger_scope_leaves_an_empty_box`** in `console/tests/test_integrity.py`. It passes with the production change reverted, because the empty key comes from `REQUIRED_ON_CREATE` rather than from the lines it accompanies, and it enshrines the defect in step 1. Done when it asserts that a scope-less engagement's offer carries no scope key at all.
-3. **Merge `scope-field` into `main`.** Done when `main` holds the ten commits plus the fixes and the suite is green there.
-4. **Settle the three off-vocabulary scopes in the candidate editor.** `NBN TC4 Access` is a transcription error, retag to `NbnTC4Access`. `Pool Management` maps well to `Identifier and VLAN management`, which the CR's own description all but names. `Location Management` is a genuine gap in the client's taxonomy and needs a decision, see open questions. Done when `/api/baseline` reports every candidate's scope inside the declared sixteen.
-5. **Work the baseline to zero undecided**: duplicates tab, then Row by row per register page, then bulk field fixes. Twenty duplicate groups and five suggestions are waiting. Done when Row by row shows nothing undecided.
-6. **Work Missing supports to zero failures, then freeze.** Expect S8 for every vendor CR without a trigger and S5 for every limitation the source calls Accepted with no decision behind it. Done when `baseline/frozen.md` exists and the register tabs show items.
-7. **`make push-pages ENG=engagements/abb-nokia`, read the manifest, then `/push-confluence abb-nokia`.** The first real send will show whether the connector's update call takes the storage body as built. Done when `confluence.json`'s log has a push entry and each pulled page's `page-version` holds the sent version.
-8. **Run the engagement**: Made by set, meetings from Outstanding and Work through, weekly SLT report. Done when the first meeting's moves show in the item files' History sections.
+1. **On the work laptop, pull `main` and freeze abb-nokia.** `make up ENG=engagements/abb-nokia`, Made by set, Freeze baseline. Done when the toast reports the counts, the stage reads Live and Rationalise shows its badge. Expect roughly 185 supports needed and three off-list scopes.
+2. **Settle the three off-vocabulary scopes on the Rationalise Scopes tab.** `NBN TC4 Access` to `NbnTC4Access`; `Pool Management` to `Identifier and VLAN management`; `Location Management` needs the decision in open questions. Done when the Scopes tab is empty.
+3. **Start raising new items straight away**; the freeze no longer blocks this. Done when the first item raised in the console has a `raised in console` History line.
+4. **Rationalise in the gaps**: Duplicates tab first (twenty-odd groups), then Row by row with unreviewed only, then Missing supports. Done when the Rationalise badge is zero and the Missing supports count is zero or every remaining offer is dismissed with a reason.
+5. **`make push-pages ENG=engagements/abb-nokia`, read the manifest, then `/push-confluence abb-nokia`.** Done when `confluence.json`'s log has a push entry and each pulled page's `page-version` holds the sent version.
+6. **Run the engagement**: meetings from Outstanding and Work through, weekly SLT report. Done when the first meeting's moves show in the item files' History sections.
 
 ## Decisions taken on purpose
 
-- **Scope is an engagement opt-in, not a model-wide field.** A `## Scopes` section declares the vocabulary; an engagement without one carries no Scope and is checked by no rule. Rejected: always on with free text, which lets the vocabulary drift into the synonyms the taxonomy page exists to prevent; and always on and mandatory, which would break every existing engagement folder for no gain. This is section 6 of the model doing what it said it would since 2.17.
-- **Scope is required on create where scopes are declared, and offered records inherit their trigger's.** Rejected: optional with a warning, and optional and silent, both of which let a scope filter under-report without showing it.
-- **`scope` goes first in every `M.SHORT` list.** Load-bearing: `items.render_item` and `push_pages.columns` both iterate that table, so first position is what puts Scope directly after Status in the item file and the pushed table.
-- **The `CRs Register` page's `Domain` column maps to Scope.** Seventeen of its nineteen rows already use the taxonomy's service names. The two that do not are step 4 above.
-- **The Scope Taxonomy page stays on the skip list.** It is the vocabulary, not a register.
-- **The 211 stale verdicts stay.** They attach to nothing and cost nothing, and they mean restoring a view page brings its old work back rather than starting over.
-- **Work was done on a branch in the main checkout, not a git worktree.** `engagements/abb-nokia/` is untracked and gitignored so it does not exist in a worktree, and `make up` binds the console's Docker mount to the current directory.
+- **The freeze writes undecided candidates and the review continues over items.** Rejected: writing accepted only and keeping the rest as candidates (two workspaces alive at once); keeping the verdict gate (still blocks new items). Spec section "Decisions taken".
+- **Unreviewed is the ledger's fact, not an item field.** Rejected: a `review` frontmatter key, which the ingester would have to learn.
+- **Merge and Delete remove the file; git holds the history.** Rejected: marking the loser terminal and hiding it, which the push would still send.
+- **Merge and Delete are direct-mode only.** The ingester has no block for either and is never edited from here.
+- **Scope decisions from the previous handoff stand** (opt-in per engagement, required on create where declared, `scope` first in `M.SHORT`, `Domain` maps to Scope, Scope Taxonomy page skipped, stale verdicts kept).
+- **Work on a branch in the main checkout, not a worktree**, because `engagements/` is gitignored and `make up` binds the current directory.
 
 ## Open questions for the user
 
-- **What `Location Management` should become.** The taxonomy has no location or address concept anywhere in its sixteen values, and TMF674 geographicSite fits none of them cleanly. Either add a value, which means changing the client's own page as well as `## Scopes`, or accept `Inventory and resources` as near enough. This is a statement about how the solution is carved up, not a tooling question.
-- **Whether to move the opt-in gating server-side.** The review's structural suggestion: have `/api/state` send `short` already filtered per kind, which would delete five guards in `app.js` and put the behaviour under python coverage. Every opt-in breach found on this branch was in `app.js` and none could fail a test.
-- The four questions the previous handoff left open still stand: whether pushed tables should carry Notes or History as columns, whether register gaps belong on the weekly SLT report, whether the "Baseline rejections" child page is created on the first push, and whether the engagement folder is committed after every meeting or once a week.
+- **What `Location Management` should become.** The taxonomy has no location concept in its sixteen values and TMF674 geographicSite fits none. Add a value (changing the client's page and `## Scopes`) or accept `Inventory and resources`. A statement about how the solution is carved up, not a tooling question.
+- **Whether the Rationalise Missing supports tab should carry the four inline actions** (Accept, Edit then accept, Link existing, Dismiss) the spec described, or stay as the "Open and accept" jump to the drawer that was built.
+- **Whether a Live engagement with no baseline folder should get Rationalise anyway**, for duplicates and off-list scopes among items raised by hand. Today the nav slot needs the baseline folder present.
+- The earlier questions still stand: whether pushed tables carry Notes or History as columns, whether register gaps belong on the weekly SLT report, whether the "Baseline rejections" child page is created on the first push, and whether the engagement folder is committed after every meeting or once a week.
 
 ## Watch out for
 
-- **`console/static/app.js` has no automated coverage at all**, and all four opt-in breaches found on this branch were in it. Two were caught by review before merge, two by the final review after the browser pass had already looked at the page. Treat any change that iterates `S.model.short` as needing a manual check in both configurations.
-- Five stale model references to 2.26 remain: `console/README.md` line 5, `console/make-sample.py` line 45 which writes it into every generated sample, and `CLAUDE.md` lines 7 and 52.
-- `console/items.py` writes `scope:` into every item file whether or not the engagement declares scopes, following model section 7, while section 4.1 says Scope is absent where none are declared. The model disagrees with itself; softening 4.1 is the smaller change.
-- `scopeFilter` in `app.js` is module-level and is not reset when the view changes, so a filter set on Requirements still applies on Decisions. Visible in the select, so the harm is small.
-- The first `/api/state` after `make up` can return empty. That is the startup race, not a defect; wait a moment and retry.
-- Running `make sample` while the console is up leaves the container mounted on a deleted folder and every write fails. `make down` first.
-- The first week's SLT report after a freeze reads high on "raised this week", because the freeze stamps items with the source's raised dates.
-- The Row by row keys are inert while a text field has focus; click the page background first.
+- **`console/static/app.js` has no automated coverage.** The Rationalise view was rendered in a browser once, before the final fix that removed the row card's unwired controls; that last change has only a syntax check and a read behind it. The first real Rationalise session on abb-nokia is its second render.
+- **A mixed-type duplicate group fails at the server** if "This one leads" is pressed with an item of another type ticked. Untick it. The coloured id prefix shows the type.
+- **The Rationalise Duplicates tab shows the first 25 groups** and says so past 25.
+- **`make sample` while the console is up** leaves the container mounted on a deleted folder; `make down` first.
+- **The first `/api/state` after `make up` can be empty.** Wait a moment and retry.
+- **Row by row keys are inert while a text field has focus**; click the page background first. Keys: `a` reviewed, `e` edit, `m` merge, `d` delete, `j`/`k`.
+- The freeze stamps items with the source's raised dates, so the first SLT report reads high on "raised this week".
 
 ## Anchors
 
-- files: console/model.py, console/integrity.py, console/baseline.py, console/items.py, console/server.py, console/static/app.js, console/push-pages.py, console/tests/test_integrity.py, .claude/skills/push-confluence/SKILL.md
-- docs: CLAUDE.md, ARCHITECTURE.md, console/README.md, console/confluence-runbook.md, solution-register-model.md, docs/superpowers/specs/2026-09-14-scope-field-design.md, docs/superpowers/plans/2026-09-14-scope-field.md
+- files: console/baseline.py, console/server.py, console/static/app.js, console/items.py, console/model.py, console/tests/test_rationalise.py, console/tests/test_baseline_supports.py, console/push-pages.py
+- docs: CLAUDE.md, console/README.md, console/confluence-runbook.md, console/static/guide.html, solution-register-model.md, docs/superpowers/specs/2026-09-15-rationalise-in-place-design.md, docs/superpowers/plans/2026-09-15-rationalise-in-place.md, docs/superpowers/specs/2026-09-14-scope-field-design.md
 - config: confluence.json push.engagement, confluence.json permissions.write, confluence.json parent_page_url, engagements/abb-nokia/engagement.md `## Scopes` and `Writes` line
-- external: branch `scope-field`, ten commits, unmerged and unpushed; `engagements/abb-nokia/` untracked and gitignored so it lives on this machine only; the Confluence connector, still not configured; the sibling repository `solution-register` at model 2.20
+- external: `engagements/abb-nokia/` on the work laptop only, with its `baseline/verdicts.json` review ledger; the Confluence connector, still not configured; the sibling repository `solution-register` at model 2.20; `main` at aeb29e1 not pushed to any remote
