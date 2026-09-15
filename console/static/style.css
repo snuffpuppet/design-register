@@ -182,6 +182,7 @@ select.chip.add{border-style:dashed;color:var(--ink-3);font:inherit;font-size:12
 .stwrap{position:relative}
 .menu{position:absolute;top:26px;left:0;min-width:240px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(28,34,48,.14);padding:6px;z-index:6;font-size:12px}
 .mi{padding:5px 8px;display:flex;justify-content:space-between;gap:12px;border-radius:5px;cursor:pointer}.mi:hover{background:var(--bg)}.mi.off{color:var(--ink-3);cursor:default}
+.pkwrap{position:relative;display:block}.menu.pk{top:34px;width:360px;max-height:260px;overflow:auto}.mi.new{border-top:1px solid var(--line-2);color:var(--req)}
 .ed{cursor:text;display:block;min-height:1em}.ed:hover{box-shadow:inset 0 -1px 0 var(--line)}
 .inp.cell{width:100%;box-sizing:border-box;padding:3px 8px;font-size:13px}.inp.cell.long{min-height:80px}
 .modal{position:fixed;inset:0;background:rgba(28,34,48,.25);display:flex;align-items:flex-start;justify-content:center;padding-top:60px;z-index:10}

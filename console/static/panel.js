@@ -21,6 +21,7 @@
   }
   function Panel() {
     const S = Store, id = S.ui.open, i = S.byId[id];
+    const [linkTo, setLinkTo] = preactHooks.useState(null);
     if (!i) return null;
     const rows = S.rows(); const at = rows.findIndex(r => r.id === id);
     const prov = S.state.provenance[id] || { back: [], forward: [], dangling: [] };
@@ -34,7 +35,9 @@
       .filter(x => S.model.forward[i.kind].includes(x.word) && !i.links.some(l => l.toLowerCase().startsWith(x.word)));
     return html`<aside class="panel">
       <div class="bar top"><span class=${"pill " + i.kind}>${i.id}</span><span class="muted small">${at + 1} of ${rows.length} · ↑↓ to step</span><div class="sp"></div>
+        <button class="btn" onClick=${() => setLinkTo({})}>Link to…</button>
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
+      ${linkTo ? html`<${Picker.LinkTo} item=${i} word=${linkTo.word} onClose=${() => setLinkTo(null)} />` : null}
       <div class="panel-body">
         <div class="panel-main">
           <${Title} i=${i} />
@@ -54,7 +57,7 @@
           <div class="hop cur"><span class=${"pill " + i.kind}>${i.id}</span><span class="t">This item</span></div>
           <div class="h3">What it produces</div>
           ${prov.forward.map(h => html`<div class="word">${h.word}</div><${Hop} h=${h} />`)}
-          ${later.map(x => html`<div class="hop slot"><span class="muted small">${x.word} · none yet, needed for ${x.st}</span></div>`)}
+          ${later.map(x => html`<div class="hop slot"><span class="muted small ed" onClick=${() => setLinkTo({ word: x.word })}>${x.word} · none yet, needed for ${x.st}</span></div>`)}
           ${prov.dangling.map(l => html`<div class="hop slot bad"><span class="small">${l} · target not found</span></div>`)}
           <div class="h3">Gaps</div>
           ${fails.map(f => html`<div class="gap"><span class="warn"></span><span class="small">${f.rule} · ${f.text}</span></div>`)}

@@ -1,8 +1,6 @@
 (function () {
   const html = htm.bind(preact.h);
   const { useState, useEffect } = preactHooks;
-  // Task 10 replaces this with the real picker; a plain input stands in until then.
-  window.Picker = window.Picker || { Inline: ({ value, onPick }) => html`<input class="inp" value=${value} onInput=${e => onPick(e.target.value)} placeholder="ID-nnnn" />` };
   const MoveForm = {
     open({ ids, to }) { Store.set({ move: { ids, to } }); },
     close() { Store.set({ move: null }); },

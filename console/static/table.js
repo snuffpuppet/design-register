@@ -24,7 +24,8 @@
     return html`<div class="main-col">
       <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
         <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} />
-        <input class="inp madeby" placeholder="Made by" value=${ui.madeBy} onInput=${e => { S.set({ madeBy: e.target.value }); try { localStorage.setItem("madeBy", e.target.value); } catch {} }} /></div>
+        <input class="inp madeby" placeholder="Made by" value=${ui.madeBy} onInput=${e => { S.set({ madeBy: e.target.value }); try { localStorage.setItem("madeBy", e.target.value); } catch {} }} />
+        <button class="btn pri" onClick=${() => CreateForm.open({ kind: Store.model.states[Store.ui.view] ? Store.ui.view : "OI" })}>+ New item</button></div>
       <div class="bar chips">
         ${f.types.length ? html`<${Chip} label="Type" value=${f.types.join(", ")} onClear=${() => setF({ types: [] })} />` : null}
         ${f.statuses.length ? html`<${Chip} label="Status" value=${f.statuses.join(", ")} onClear=${() => setF({ statuses: [] })} />` : null}
