@@ -2,8 +2,8 @@
 objective: console-rethink
 title: Rethink the console on a model-driven table
 written: 16 September 2026
-commit: c2e190e
-branch: console-rethink
+commit: 68cd072
+branch: main
 status: active
 model-version: 2.29
 ---
@@ -23,11 +23,12 @@ Replace the console's one-view-per-screen front end with one table, filtered and
 
 ## Next steps
 
-1. **Fix the two regressions the final review's re-review found, then merge `console-rethink` to `main`.** In `app.js` the Escape branch runs before the input check while the panel is open, so cancelling a field edit inside the panel also closes the panel; and `Store.display` is never cleared off the table view, so `j`/`k` after opening an item from a report walk a stale order. Both are one-line fixes in `app.js` and `store.js`. Every task closed with a clean review in the ledger. `console/static/old/` and its route stay after the merge, on purpose.
-2. **Run the abb-nokia steps from `handoffs/baseline-abb-nokia.md` on the work laptop, now against the new console.** That engagement is Live already (179 items, frozen), so it opens straight on the table, not the baselining notice; check that Rationalise-era work (its Duplicates and Missing supports queues, in the new shape) still reads correctly there before relying on it for a real meeting.
-3. **Spec items deferred by the final review**: hash routing (`#/view/<name>`, `#/item/<id>`) and the panel's Copy link; the has-link-word and raised-since filter chips; push scoped to the current view rather than the registers; a per-view column chooser (`Store.ui.columns` is declared but never written). None is needed to run abb-nokia.
-4. **Port the baseline screens into the table shell**, the one piece the spec scoped out and this task left as a documented gap. Once Duplicates, Row by row, Missing supports and Freeze exist as table filters and the generated move form, `console/static/old/` and the `/old/` route can be deleted, and the baselining notice in `app.js` goes with them.
-5. **Work the ledger's deferred minors**, `.superpowers/sdd/2026-09-15-console-rethink/progress.md`. None blocked a task; each was judged cheap to leave. The ones worth a look first: a self-linking item keeps a stale link after renumber and after a provenance walk, because both `rewrite_links` and the provenance walker skip an id linking to itself (Tasks 2 and 6, same root cause); `j`/`k` on the table walk id order even when the view is grouped, so keyboard order can disagree with what is on screen (Task 12); opening an item that is not in the current filter (a hop from a link) shows "0 of N" and the next arrow key jumps to the first row instead of stepping from where you were (Task 8). The rest are style and naming nits the ledger lists by task.
+1. **On the work laptop, pull `main` and `make build && make up ENG=engagements/abb-nokia`.** Done when the console opens on the table with 179 items and `make test` passes there.
+2. **Fix the two regressions the final review's re-review found.** `console-rethink` is merged into `main` and deleted. In `app.js` the Escape branch runs before the input check while the panel is open, so cancelling a field edit inside the panel also closes the panel; and `Store.display` is never cleared off the table view, so `j`/`k` after opening an item from a report walk a stale order. Both are one-line fixes in `app.js` and `store.js`. Done when Escape inside a panel field leaves the panel open and `j`/`k` from a report walk the report's rows. `console/static/old/` and its route stay after the merge, on purpose.
+3. **Run the abb-nokia steps from `handoffs/baseline-abb-nokia.md` on the work laptop, now against the new console.** That engagement is Live already (179 items, frozen), so it opens straight on the table, not the baselining notice; check that Rationalise-era work (its Duplicates and Missing supports queues, in the new shape) still reads correctly there before relying on it for a real meeting.
+4. **Spec items deferred by the final review**: hash routing (`#/view/<name>`, `#/item/<id>`) and the panel's Copy link; the has-link-word and raised-since filter chips; push scoped to the current view rather than the registers; a per-view column chooser (`Store.ui.columns` is declared but never written). None is needed to run abb-nokia.
+5. **Port the baseline screens into the table shell**, the one piece the spec scoped out and this task left as a documented gap. Once Duplicates, Row by row, Missing supports and Freeze exist as table filters and the generated move form, `console/static/old/` and the `/old/` route can be deleted, and the baselining notice in `app.js` goes with them.
+6. **Work the deferred minors.** The build ledger was deleted after the merge; the list below is what it held. None blocked a task; each was judged cheap to leave. The ones worth a look first: a self-linking item keeps a stale link after renumber and after a provenance walk, because both `rewrite_links` and the provenance walker skip an id linking to itself (Tasks 2 and 6, same root cause); `j`/`k` on the table walk id order even when the view is grouped, so keyboard order can disagree with what is on screen (Task 12); opening an item that is not in the current filter (a hop from a link) shows "0 of N" and the next arrow key jumps to the first row instead of stepping from where you were (Task 8). The rest are style and naming nits the ledger lists by task.
 
 ## Decisions taken on purpose
 
@@ -36,7 +37,7 @@ Replace the console's one-view-per-screen front end with one table, filtered and
 - **`move_id` in `server.py` writes the renamed file directly rather than through `commit()`**, the one write path allowed beside it, because `commit()` keys a file on the item's id and cannot rename it. The docstring says so.
 - **A provenance link with no id token is shown as dangling rather than dropped** (Task 2), so a malformed link is visible in the panel instead of silently missing.
 - **Reports honour the full saved filter, not just types and statuses**, and a register tab folds its own type into the filter when saved (Task 13), both broader than the plan asked for.
-- Every ruling above and the rest of the build's judgement calls are in `.superpowers/sdd/2026-09-15-console-rethink/progress.md`, one line per task.
+- The build ledger with every ruling was deleted at the merge; the rulings that matter are the ones above. Remaining deferred minors: `needs()` repeats `transition()`'s disallowed-move message; bulk `set` passes request links through to `edit()`; report routes convert the overlay dict to a list and back; the empty table has no placeholder row; `.small` is redeclared in `style.css`; `Create()` and `Report()` return before their hooks; `guarded()` is duplicated per file; `make sample` leaves the sample Live; the duplicates count in the rail counts groups while the table counts items; `server.py`'s docstring still says model 2.22 and that item files are never written; `/api/state` carries a model copy the browser no longer reads.
 
 ## Open questions for the user
 
