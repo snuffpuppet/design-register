@@ -5,9 +5,9 @@
     const t = Store.model.linkWords[kind]?.[word] || "ANY";
     return ["ANY", "CLAIM"].includes(t) ? [] : t.split("|");
   }
-  function Inline({ word, kind, value, onPick, exclude, fieldKey }) {
+  function Inline({ word, kind, value, onPick, exclude, fieldKey, types: typesOverride }) {
     const [q, setQ] = useState(value || ""), [hits, setHits] = useState([]), [open, setOpen] = useState(false), [failed, setFailed] = useState(false);
-    const types = typesFor(kind, word);
+    const types = typesOverride || typesFor(kind, word);
     useEffect(() => {
       if (!open) return;
       setFailed(false);

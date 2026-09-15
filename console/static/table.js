@@ -1,7 +1,7 @@
 (function () {
   const html = htm.bind(preact.h);
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
-  function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues", support: "Support", group: "Duplicates", reviewed: "Reviewed" }[k] || Store.model.labels[k] || k; }
+  function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues", gap: "Gap", support: "Support", group: "Duplicates", reviewed: "Reviewed" }[k] || Store.model.labels[k] || k; }
   const GROUP_LABELS = { "": "Group by…", kind: "Type", status: "Status", scope: "Scope", owner: "Owner" };
   function groupValue(i, by) { return by === "kind" ? (Store.model.names[i.kind] || i.kind) : (i[by] || ""); }
   // Rows in group order, a header entry ({ header, n }) ahead of each run when Store.ui.groupBy is set.
@@ -27,12 +27,42 @@
     } else sel.has(id) ? sel.delete(id) : sel.add(id);
     S.set({ selection: sel, lastSel: id });
   }
+  // The one field a failure under the selected rule names, if any: an editor for a real field of this
+  // item's type, a Link button when the failure names a missing link, else the failure text itself.
+  function GapCell({ i }) {
+    const [edit, setEdit] = preactHooks.useState(false), [linking, setLinking] = preactHooks.useState(false);
+    const f = (Store.failuresById[i.id] || []).find(x => x.rule === Store.ui.filter.rule);
+    if (!f) return html`<span class="muted">–</span>`;
+    const text = f.text, lower = text.toLowerCase();
+    const editable = k2 => (Store.model.short[i.kind] || []).includes(k2) || (Store.model.long[i.kind] || []).includes(k2) || k2 === "title";
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const field = Object.keys(Store.model.labels).find(k2 => {
+      if (!editable(k2)) return false;
+      const lbl = esc((Store.model.labels[k2] || k2).toLowerCase());
+      return new RegExp("\\b" + lbl + "\\b(?=[:;]|\\s|$)").test(lower);
+    });
+    if (field) {
+      if (edit) return html`<${Cells.Editor} item=${i} field=${field} long=${(Store.model.long[i.kind] || []).includes(field)} onDone=${() => setEdit(false)} />`;
+      const v = i[field];
+      return html`<span class="ed" onClick=${e => { e.stopPropagation(); setEdit(true); }}>${v ? v : html`<span class="muted">–</span>`}</span>`;
+    }
+    const m = /links:\s*(.+?)\s*…/i.exec(text);
+    if (m) {
+      const word = m[1].trim();
+      return html`<span class="stwrap">
+        <button class="btn ghost" onClick=${e => { e.stopPropagation(); setLinking(true); }}>Link ${word}</button>
+        ${linking ? html`<${Picker.LinkTo} item=${i} word=${word} onClose=${() => setLinking(false)} />` : null}
+      </span>`;
+    }
+    return html`<span class="muted small">${text}</span>`;
+  }
   function Cell({ i, k }) {
     const [edit, setEdit] = preactHooks.useState(false);
     if (k === "id") return html`<span class=${"pill " + i.kind + " lnk"} onClick=${e => { e.stopPropagation(); Store.set({ open: i.id, focus: i.id }); }}>${i.id}</span>`;
     if (k === "status") return html`<${Cells.StatusCell} item=${i} />`;
     if (k === "links") return html`<span class="mono muted">${i.links.length || "–"}</span>`;
     if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">–</span>`; }
+    if (k === "gap") return html`<${GapCell} i=${i} />`;
     if (k === "support") {
       const s = (Store.suggestionsById[i.id] || [])[0];
       if (!s) return html`<span class="muted">–</span>`;

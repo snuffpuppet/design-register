@@ -59,13 +59,7 @@
     // The column list for the current view: fixed sets for the work queues, a computed set for a register.
     columnsFor() {
       const { view, filter } = Store.ui;
-      if (view === "integrity" && filter.rule) {
-        const f = Store.state.integrity.failures.find(x => x.rule === filter.rule);
-        // The failing field is the first word of the rule text that names a model field, else Owner.
-        const text = (f?.text || "").toLowerCase();
-        const key = Object.keys(Store.model.labels).find(k => text.includes((Store.model.labels[k] || k).toLowerCase())) || "owner";
-        return ["id", "title", "status", "scope", key, "issues"];
-      }
+      if (view === "integrity" && filter.rule) return ["id", "title", "status", "scope", "gap", "issues"];
       if (view === "supports") return ["id", "title", "status", "support"];
       if (view === "duplicates") return ["id", "title", "status", "scope", "group"];
       if (view === "unreviewed") return ["id", "title", "status", "scope", "owner", "reviewed"];

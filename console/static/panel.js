@@ -36,7 +36,7 @@
         <div class="mi" onClick=${() => { setOpen(false); setDeleting(true); }}><span>Delete</span></div>
       </div>` : null}
       ${merging ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
-        <div class="field"><label>Merge ${i.id} into</label><${Picker.Inline} kind=${i.kind} value=${mergeTarget} onPick=${setMergeTarget} exclude=${i.id} /></div>
+        <div class="field"><label>Merge ${i.id} into</label><${Picker.Inline} kind=${i.kind} types=${[i.kind]} value=${mergeTarget} onPick=${setMergeTarget} exclude=${i.id} /></div>
         <div class="dlg-f"><button class="btn" onClick=${() => { setMerging(false); setMergeTarget(""); }}>Cancel</button><button class="btn pri" disabled=${!mergeTarget.trim()} onClick=${merge}>Merge</button></div>
       </div>` : null}
       ${deleting ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
