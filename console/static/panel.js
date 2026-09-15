@@ -19,10 +19,50 @@
     if (edit) return html`<${Cells.Editor} item=${i} field=${field} long onDone=${() => setEdit(false)} />`;
     return html`<p class="ed" onClick=${() => setEdit(true)}>${i[field]}</p>`;
   }
+  function More({ i }) {
+    const S = Store, [open, setOpen] = preactHooks.useState(false);
+    const [merging, setMerging] = preactHooks.useState(false), [mergeTarget, setMergeTarget] = preactHooks.useState("");
+    const [deleting, setDeleting] = preactHooks.useState(false), [reason, setReason] = preactHooks.useState("");
+    const guarded = () => { if (!S.ui.madeBy?.trim()) { Store.toast("Set Made by first, at the top of the table."); return false; } return true; };
+    const after = async () => { await S.load(); if (!S.byId[i.id]) S.set({ open: null }); };
+    const markReviewed = async () => { setOpen(false); try { await S.post("/api/rationalise/reviewed", { id: i.id }); await after(); } catch (e) { S.toast(e.message); } };
+    const merge = async () => { if (!guarded() || !mergeTarget.trim()) return; try { await S.post("/api/merge", { survivor: mergeTarget, losers: [i.id] }); setMerging(false); setMergeTarget(""); await after(); } catch (e) { S.toast(e.message); } };
+    const del = async () => { if (!guarded() || !reason.trim()) return; try { await S.post("/api/delete", { id: i.id, reason }); setDeleting(false); setReason(""); await after(); } catch (e) { S.toast(e.message); } };
+    return html`<span class="stwrap">
+      <button class="btn ghost" onClick=${() => setOpen(!open)}>⋯</button>
+      ${open ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
+        ${S.state.unreviewed.includes(i.id) ? html`<div class="mi" onClick=${markReviewed}><span>Mark reviewed</span></div>` : null}
+        <div class="mi" onClick=${() => { setOpen(false); setMerging(true); }}><span>Merge into…</span></div>
+        <div class="mi" onClick=${() => { setOpen(false); setDeleting(true); }}><span>Delete</span></div>
+      </div>` : null}
+      ${merging ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
+        <div class="field"><label>Merge ${i.id} into</label><${Picker.Inline} kind=${i.kind} value=${mergeTarget} onPick=${setMergeTarget} exclude=${i.id} /></div>
+        <div class="dlg-f"><button class="btn" onClick=${() => { setMerging(false); setMergeTarget(""); }}>Cancel</button><button class="btn pri" disabled=${!mergeTarget.trim()} onClick=${merge}>Merge</button></div>
+      </div>` : null}
+      ${deleting ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
+        <div class="field"><label>Reason</label><input class="inp" value=${reason} onInput=${e => setReason(e.target.value)} placeholder="reason, goes into History" /></div>
+        <div class="dlg-f"><button class="btn" onClick=${() => { setDeleting(false); setReason(""); }}>Cancel</button><button class="btn pri danger" disabled=${!reason.trim()} onClick=${del}>Delete</button></div>
+      </div>` : null}
+    </span>`;
+  }
   function Panel() {
     const S = Store, id = S.ui.open, i = S.byId[id];
     const [linkTo, setLinkTo] = preactHooks.useState(null);
+    const [acceptingKey, setAcceptingKey] = preactHooks.useState(null), [ownerVal, setOwnerVal] = preactHooks.useState("");
+    const [dismissingKey, setDismissingKey] = preactHooks.useState(null), [dismissReason, setDismissReason] = preactHooks.useState("");
     if (!i) return null;
+    const guarded = () => { if (!S.ui.madeBy?.trim()) { Store.toast("Set Made by first, at the top of the table."); return false; } return true; };
+    const accept = async (s, owner) => {
+      if (!guarded()) return;
+      if (s.needsOwner && !owner?.trim()) { setAcceptingKey(s.key); return; }
+      try { await S.post("/api/support/accept", { id: i.id, key: s.key, fields: owner ? { Owner: owner } : {} }); setAcceptingKey(null); setOwnerVal(""); await S.load(); }
+      catch (e) { S.toast(e.message); }
+    };
+    const dismiss = async s => {
+      if (!guarded() || !dismissReason.trim()) return;
+      try { await S.post("/api/support/dismiss", { id: i.id, key: s.key, rule: s.rule, reason: dismissReason }); setDismissingKey(null); setDismissReason(""); await S.load(); }
+      catch (e) { S.toast(e.message); }
+    };
     const rows = S.rows(); const at = rows.findIndex(r => r.id === id);
     const prov = S.state.provenance[id] || { back: [], forward: [], dangling: [] };
     const fails = S.failuresById[id] || [], sugg = S.suggestionsById[id] || [];
@@ -36,6 +76,7 @@
     return html`<aside class="panel">
       <div class="bar top"><span class=${"pill " + i.kind}>${i.id}</span><span class="muted small">${at + 1} of ${rows.length} · ↑↓ to step</span><div class="sp"></div>
         <button class="btn" onClick=${() => setLinkTo({})}>Link to…</button>
+        <${More} i=${i} />
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
       ${linkTo ? html`<${Picker.LinkTo} item=${i} word=${linkTo.word} onClose=${() => setLinkTo(null)} />` : null}
       <div class="panel-body">
@@ -61,7 +102,19 @@
           ${prov.dangling.map(l => html`<div class="hop slot bad"><span class="small">${l} · target not found</span></div>`)}
           <div class="h3">Gaps</div>
           ${fails.map(f => html`<div class="gap"><span class="warn"></span><span class="small">${f.rule} · ${f.text}</span></div>`)}
-          ${sugg.map(s => html`<div class="gap"><span class="warn amber"></span><span class="small">${s.rule} · ${s.link ? "needs " + s.link.trim() : "support suggested"}</span></div>`)}
+          ${sugg.map(s => html`<div class="gap sugg"><span class="warn amber"></span><div>
+            <div class="small">${s.rule} · offers ${S.model.names[s.kind]}: ${s.fields.title || ""}</div>
+            ${acceptingKey === s.key ? html`<div class="mini"><input class="inp" value=${ownerVal} onInput=${e => setOwnerVal(e.target.value)} placeholder="Owner" />
+              <button class="btn pri" disabled=${!ownerVal.trim()} onClick=${() => accept(s, ownerVal)}>Accept</button>
+              <button class="btn ghost" onClick=${() => { setAcceptingKey(null); setOwnerVal(""); }}>Cancel</button></div>`
+            : dismissingKey === s.key ? html`<div class="mini"><input class="inp" value=${dismissReason} onInput=${e => setDismissReason(e.target.value)} placeholder="reason" />
+              <button class="btn pri danger" disabled=${!dismissReason.trim()} onClick=${() => dismiss(s)}>Dismiss</button>
+              <button class="btn ghost" onClick=${() => { setDismissingKey(null); setDismissReason(""); }}>Cancel</button></div>`
+            : html`<div class="mini">
+              <button class="btn ghost" onClick=${() => accept(s)}>Accept</button>
+              <button class="btn ghost" onClick=${() => setLinkTo({ word: s.link.trim() })}>Link existing</button>
+              <button class="btn ghost" onClick=${() => setDismissingKey(s.key)}>Dismiss</button></div>`}
+          </div></div>`)}
           ${!fails.length && !sugg.length ? html`<div class="muted small">None.</div>` : null}
         </div>
       </div>

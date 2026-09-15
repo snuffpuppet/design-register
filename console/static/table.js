@@ -1,7 +1,21 @@
 (function () {
   const html = htm.bind(preact.h);
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
-  function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues" }[k] || Store.model.labels[k] || k; }
+  function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues", support: "Support", group: "Duplicates", reviewed: "Reviewed" }[k] || Store.model.labels[k] || k; }
+  const GROUP_LABELS = { "": "Group by…", kind: "Type", status: "Status", scope: "Scope", owner: "Owner" };
+  function groupValue(i, by) { return by === "kind" ? (Store.model.names[i.kind] || i.kind) : (i[by] || ""); }
+  // Rows in group order, a header entry ({ header, n }) ahead of each run when Store.ui.groupBy is set.
+  function grouped(rows, by) {
+    if (!by) return rows.map(row => ({ row }));
+    const sorted = rows.slice().sort((a, b) => { const va = groupValue(a, by), vb = groupValue(b, by); return va < vb ? -1 : va > vb ? 1 : (a.id < b.id ? -1 : 1); });
+    const out = []; let last = null;
+    for (const r of sorted) {
+      const v = groupValue(r, by);
+      if (v !== last) { out.push({ header: v || "–", n: sorted.filter(x => groupValue(x, by) === v).length }); last = v; }
+      out.push({ row: r });
+    }
+    return out;
+  }
   // Toggle one id in the selection, or (shift-click) the range from Store.ui.lastSel to it in rows() order.
   function toggle(id, shift) {
     const S = Store, sel = new Set(S.ui.selection);
@@ -19,6 +33,20 @@
     if (k === "status") return html`<${Cells.StatusCell} item=${i} />`;
     if (k === "links") return html`<span class="mono muted">${i.links.length || "–"}</span>`;
     if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">–</span>`; }
+    if (k === "support") {
+      const s = (Store.suggestionsById[i.id] || [])[0];
+      if (!s) return html`<span class="muted">–</span>`;
+      return html`<span class="small">${s.rule} · offers ${Store.model.names[s.kind]}: ${s.fields.title || ""}</span>
+        <button class="btn ghost" onClick=${e => { e.stopPropagation(); Store.set({ open: i.id, focus: i.id }); }}>Open and accept</button>`;
+    }
+    if (k === "group") {
+      const g = Store.state.dupes.find(x => (x.ids || x).includes(i.id));
+      const ids = (g ? (g.ids || g) : []).filter(id => id !== i.id);
+      if (!ids.length) return html`<span class="muted">–</span>`;
+      return html`<span class="pills">${ids.map(id => html`<span class=${"pill " + (Store.byId[id]?.kind || "")} onClick=${e => { e.stopPropagation(); Store.set({ open: id, focus: id }); }}>${id}</span>`)}</span>
+        <button class="btn ghost" onClick=${e => { e.stopPropagation(); Store.post("/api/rationalise/not-duplicates", { ids: g.ids || g }).then(Store.load).catch(err => Store.toast(err.message)); }}>Not duplicates</button>`;
+    }
+    if (k === "reviewed") return html`<button class="btn ghost" onClick=${e => { e.stopPropagation(); Store.post("/api/rationalise/reviewed", { id: i.id }).then(Store.load).catch(err => Store.toast(err.message)); }}>Mark reviewed</button>`;
     if (edit) return html`<${Cells.Editor} item=${i} field=${k} onDone=${() => setEdit(false)} />`;
     const v = i[k];
     return html`<span class="ed" onClick=${e => { e.stopPropagation(); setEdit(true); }}>${v ? v : html`<span class="muted">–</span>`}</span>`;
@@ -28,10 +56,12 @@
   }
   function Table() {
     const S = Store, ui = S.ui, rows = S.rows();
-    const cols = ui.columns || DEFAULT_COLS;
+    const cols = ui.columns || S.columnsFor() || DEFAULT_COLS;
     const f = ui.filter;
     const setF = patch => S.set({ filter: { ...f, ...patch } });
-    const title = ui.view === "all" ? "All items" : S.model.names[ui.view] ? S.model.names[ui.view] + "s" : ui.view[0].toUpperCase() + ui.view.slice(1);
+    const title = ui.view === "integrity" && f.rule ? `${f.rule} · ${S.model.rules[f.rule] || ""}`
+      : ui.view === "all" ? "All items" : S.model.names[ui.view] ? S.model.names[ui.view] + "s" : ui.view[0].toUpperCase() + ui.view.slice(1);
+    const disp = grouped(rows, ui.groupBy);
     return html`<div class="main-col">
       <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
         <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} />
@@ -44,6 +74,9 @@
         ${f.owners.length ? html`<${Chip} label="Owner" value=${f.owners.join(", ")} onClear=${() => setF({ owners: [] })} />` : null}
         ${f.rule ? html`<${Chip} label="Failing" value=${f.rule} onClear=${() => setF({ rule: "" })} />` : null}
         <${FilterAdd} setF=${setF} f=${f} />
+        <select class="chip add" value=${ui.groupBy} onChange=${e => S.set({ groupBy: e.target.value })}>
+          ${Object.entries(GROUP_LABELS).map(([v, l]) => html`<option value=${v}>${v ? "Group by " + l : l}</option>`)}
+        </select>
       </div>
       <${Bulk} />
       <div class="tbl-wrap"><table>
@@ -52,9 +85,11 @@
           rows.forEach(r => all ? sel.delete(r.id) : sel.add(r.id));
           S.set({ selection: sel });
         }}></span></th>${cols.map(k => html`<th class=${"c-" + k}>${label(k)}</th>`)}</tr></thead>
-        <tbody>${rows.map(i => html`<tr key=${i.id} class=${(ui.focus === i.id ? "focus " : "") + (ui.selection.has(i.id) ? "sel" : "")} onClick=${() => S.set({ focus: i.id })}>
-          <td class="c-sel"><span class=${"cb" + (ui.selection.has(i.id) ? " on" : "")} onClick=${e => { e.stopPropagation(); toggle(i.id, e.shiftKey); }}></span></td>
-          ${cols.map(k => html`<td class=${"c-" + k}><${Cell} i=${i} k=${k} /></td>`)}</tr>`)}</tbody>
+        <tbody>${disp.map(d => d.header !== undefined
+          ? html`<tr class="grp"><td colspan=${cols.length + 1}>${d.header} · ${d.n}</td></tr>`
+          : html`<tr key=${d.row.id} class=${(ui.focus === d.row.id ? "focus " : "") + (ui.selection.has(d.row.id) ? "sel" : "")} onClick=${() => S.set({ focus: d.row.id })}>
+          <td class="c-sel"><span class=${"cb" + (ui.selection.has(d.row.id) ? " on" : "")} onClick=${e => { e.stopPropagation(); toggle(d.row.id, e.shiftKey); }}></span></td>
+          ${cols.map(k => html`<td class=${"c-" + k}><${Cell} i=${d.row} k=${k} /></td>`)}</tr>`)}</tbody>
       </table></div>
       <div class="bar foot muted">${rows.length} of ${S.state.items.length} · j/k move · Enter opens · / search</div>
     </div>`;
