@@ -4,7 +4,8 @@
     const [, tick] = preactHooks.useState(0);
     preactHooks.useEffect(() => Store.subscribe(() => tick(n => n + 1)), []);
     if (!Store.state) return html`<div class="loading">Loading the registers…</div>`;
-    return html`<div class="layout2"><${Rail} /><${Table} />${Store.ui.open ? html`<${Panel} />` : null}<${MoveForm.Form} /><${CreateForm.Form} /></div>`;
+    const main = Store.ui.view.startsWith("report:") ? html`<${Report} />` : html`<${Table} />`;
+    return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} />` : null}<${MoveForm.Form} /><${CreateForm.Form} /></div>`;
   }
   async function boot(retries = 20) {
     try { await Store.load(); }

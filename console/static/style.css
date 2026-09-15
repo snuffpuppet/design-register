@@ -205,3 +205,17 @@ select.chip.add{border-style:dashed;color:var(--ink-3);font:inherit;font-size:12
 .bar.bulk{background:var(--req-bg);border-bottom:1px solid var(--line);flex-wrap:wrap}.bar.bulk .b{font-weight:500}
 .cb{width:14px;height:14px;border:1.5px solid var(--ink-3);border-radius:3px;display:inline-block;box-sizing:border-box;cursor:pointer}.cb.on{background:var(--req);border-color:var(--req)}
 .c-sel{width:30px}
+
+/* Reports */
+.rep{flex:1;overflow:auto;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;background:var(--bg)}
+.rep-main{display:flex;flex-direction:column;gap:20px}.rep .card{background:var(--surface)}.rep-side{align-self:start}
+.rep table{width:100%;border-collapse:collapse;font-size:13px}.rep th{text-align:left;font-weight:500;color:var(--ink-3);font-size:12px;padding:6px 10px;border-bottom:1px solid var(--line)}.rep td{padding:6px 10px;border-bottom:1px solid var(--line-2)}
+
+/* Rail: register ⋯ menu and save-current-view row */
+.rl-itwrap{position:relative}
+.rl-itwrap .rl-more{opacity:0;padding:2px 4px;border:none;background:transparent;color:var(--ink-3);font-size:12px}
+.rl-itwrap:hover .rl-more{opacity:1}
+.rl-itwrap .menu{width:200px;min-width:0}
+.rl-it.save{gap:6px}
+.rl-it.save .inp{flex:1;min-width:0;padding:4px 8px;font-size:12px}
+.rl-it.muted{color:var(--ink-3)}

@@ -363,6 +363,8 @@ class H(SimpleHTTPRequestHandler):
                 if p == "/api/report/sections":
                     items = list(overlay(load_registers(), load_change_sets()).values())
                     return self.send_json(V.sections(req["view"], items, integrity_of({i["id"]: i for i in items}), today()))
+                if p == "/api/push/build":
+                    return self.send_json(self.push_build())
                 if p == "/api/merge":
                     return self.send_json(self.merge(req))
                 if p == "/api/delete":
@@ -847,6 +849,20 @@ class H(SimpleHTTPRequestHandler):
         with open(os.path.join(B_DIR, "rejections.md"), "w", encoding="utf-8") as f:
             f.write(f"# Baseline rejections\n\nWritten {today()} by {req['madeBy']}. For the knowledge base pipeline to learn from.\n\n| Page | Source id | Title | Reason |\n|---|---|---|---|\n" + "\n".join(rejects) + "\n")
         return {"ok": True, "changeSet": cs["id"], "accepted": len(blocks), "rejected": len(rejects)}
+
+    def push_build(self):
+        """Build the Confluence push into <engagement>/push/ from confluence.json, and send nothing."""
+        cfg_path = os.path.join(HERE, "..", "confluence.json")
+        if not os.path.exists(cfg_path):
+            raise ValueError("confluence.json is not visible to the console; run make push-pages ENG=<engagement> from the repository instead.")
+        cfg = json.load(open(cfg_path, encoding="utf-8"))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("push_pages", os.path.join(HERE, "push-pages.py"))
+        pp = importlib.util.module_from_spec(spec); spec.loader.exec_module(pp)
+        try:
+            return pp.build(ENG, cfg, os.path.join(ENG, "push"))
+        except SystemExit as e:
+            raise ValueError(str(e))
 
     def close_session(self, req):
         cs = current_change_set(req["madeBy"])
