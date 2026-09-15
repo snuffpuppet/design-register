@@ -192,9 +192,29 @@ SUPPORTS = [
          offer=None, link=(None, None), fields={}, prompt="The chosen option leaves the need unmet: set the requirement to Won't or a later Phase, with a Deferred CR."),
 ]
 
-# Section 9 rules added in 2.25. The numbered rules up to I20 are read from the model document; these
-# are here so the console can print them beside a suggestion.
+# Section 9 rules. One short line each, condensed from the model document, so the console can print
+# a rule beside a failure or a suggestion.
 RULES = {
+    "I1": "No id appears twice across all registers.",
+    "I2": "Every status is a valid 4.2 value and the fields required for that status and type are set.",
+    "I3": "Every non-terminal item has an Owner, or an open item in Links whose Owner is set where the type requires it.",
+    "I4": "Every open item not Closed has Next action, and Due is expected on open items and risks.",
+    "I5": "Every requirement's Phase, and every change request's Phase once set, is one of the engagement's Phases.",
+    "I6": "Every id named in Links exists in some register.",
+    "I7": "Every limitation's disposition links and Source match its status under the model's limitation rules.",
+    "I8": "Every DEC in Superseded has a superseded by link to a DEC in Accepted or Proposed.",
+    "I9": "Every OI in Closed has Closed on and a resolves into link, and every OI in Blocked has a Next action starting Blocked.",
+    "I10": "Every CR past Proposed has Approved by and Closed on, and a triggered by link that matches its status.",
+    "I11": "Every DEC in Accepted or Rejected has Approved by, Closed on and at least one Consulted entry.",
+    "I12": "Every REQ, DEC, LIM and CR has Implemented by set to Vendor, Internal or Both.",
+    "I13": "Every RSK in Realised has a realised as link to an open item.",
+    "I14": "Every item has a Source.",
+    "I15": "A DEC in Proposed or REQ in Draft older than 14 days is a warning.",
+    "I16": "A DEC with no addresses link and no accepts wording in its Rationale is a warning.",
+    "I17": "Every CR in Deferred has a later Phase and no open item in Links.",
+    "I18": "Every replaces, preserves and clarifies target exists and is not Retired or Withdrawn.",
+    "I19": "Every person named in Owner, Approved by and Consulted resolves to a known stakeholder.",
+    "I20": "A status change follows an arrow in 4.4, with only the named return moves allowed.",
     "I21": "Every RSK in Mitigating whose Mitigation names an action has a mitigated by link to an open item.",
     "I22": "Every LIM in Accepted whose chosen option needs something built has a needs link to an internal REQ (warning).",
     "I23": "Every CR in Delivered has a delivers link to the requirement it delivered.",

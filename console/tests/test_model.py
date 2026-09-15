@@ -1,3 +1,4 @@
+import re
 import unittest
 import model as M
 
@@ -42,6 +43,12 @@ class ModelTables(unittest.TestCase):
     def test_rules_named(self):
         for n in ("I21", "I22", "I23"):
             self.assertIn(n, M.RULES)
+
+    def test_every_raised_rule_is_named(self):
+        raised = set(re.findall(r'(?:fail|warn)\("(I\d+)"', open("integrity.py").read()))
+        self.assertTrue(raised, "expected integrity.py to raise at least one rule")
+        for rule in raised:
+            self.assertIn(rule, M.RULES, f"{rule} has no entry in M.RULES")
 
 
 class Scope(unittest.TestCase):

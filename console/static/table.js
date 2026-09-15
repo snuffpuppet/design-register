@@ -5,9 +5,9 @@
   function cell(i, k) {
     if (k === "id") return html`<span class=${"pill " + i.kind}>${i.id}</span>`;
     if (k === "status") return html`<span class="st">${i.status}</span>`;
-    if (k === "links") return html`<span class="mono muted">${i.links.length || "—"}</span>`;
-    if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">—</span>`; }
-    const v = i[k]; return v ? v : html`<span class="muted">—</span>`;
+    if (k === "links") return html`<span class="mono muted">${i.links.length || "–"}</span>`;
+    if (k === "issues") { const n = (Store.failuresById[i.id] || []).length; return n ? html`<span class="warn"></span> ${n}` : html`<span class="muted">–</span>`; }
+    const v = i[k]; return v ? v : html`<span class="muted">–</span>`;
   }
   function Chip({ label, value, onClear }) {
     return html`<span class="chip">${label} ${value ? html`<b>${value}</b>` : null}${onClear ? html`<span class="x" onClick=${onClear}>×</span>` : null}</span>`;
@@ -38,6 +38,7 @@
     </div>`;
   }
   // One "+ Filter" control: pick a facet, then a value from what the data holds.
+  const FACET_LABELS = { types: "Type", statuses: "Status", scopes: "Scope", owners: "Owner", rule: "Failing rule" };
   function FilterAdd({ setF, f }) {
     const [facet, setFacet] = preactHooks.useState("");
     const S = Store;
@@ -48,7 +49,7 @@
       <option value="scopes">Scope</option><option value="owners">Owner</option><option value="rule">Failing rule</option></select>`;
     return html`<select class="chip add" value="" onChange=${e => { const v = e.target.value; setFacet(""); if (!v) return;
         facet === "rule" ? setF({ rule: v }) : setF({ [facet]: [...new Set([...f[facet], v])] }); }}>
-      <option value="">${label(facet)}…</option>${values[facet].map(v => html`<option value=${v}>${v}</option>`)}</select>`;
+      <option value="">${FACET_LABELS[facet]}…</option>${values[facet].map(v => html`<option value=${v}>${v}</option>`)}</select>`;
   }
   window.Table = Table;
 })();
