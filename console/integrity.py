@@ -312,3 +312,34 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
         if k == "RSK" and st in ("Identified", "Mitigating") and not str(it.get("due", "")).strip():
             warn("I4", it, "no Due")
     return F, W
+
+
+def provenance(items, by_id):
+    """One hop each way for every item. `back` follows the item's own BACKWARD words; `forward` its FORWARD words.
+    A link whose target is not in `by_id` goes to `dangling` as written. Words are matched case-insensitively
+    on the link's start; the target id is the first id-looking token after the word."""
+    out = {}
+    for it in items:
+        k = it["kind"]
+        back, fwd, dang = [], [], []
+        for l in it.get("links", []):
+            low = l.lower()
+            word = next((w for w in sorted(M.LINK_WORDS.get(k, {}), key=len, reverse=True) if low.startswith(w)), None)
+            if not word:
+                continue
+            m = LINK_ID.search(l[len(word):])
+            tid = m.group(1) if m else None
+            tgt = by_id.get(tid) if tid else None
+            if tid and not tgt:
+                if word in M.BACKWARD.get(k, []) or word in M.FORWARD.get(k, []):
+                    dang.append(l)
+                continue
+            if not tgt:
+                continue
+            hop = {"id": tgt["id"], "word": word, "title": tgt.get("title", ""), "status": tgt.get("status", ""), "kind": tgt["kind"]}
+            if word in M.BACKWARD.get(k, []) and hop["id"] not in [b["id"] for b in back]:
+                back.append(hop)
+            elif word in M.FORWARD.get(k, []) and hop["id"] not in [f["id"] for f in fwd]:
+                fwd.append(hop)
+        out[it["id"]] = {"back": back, "forward": fwd, "dangling": dang}
+    return out
