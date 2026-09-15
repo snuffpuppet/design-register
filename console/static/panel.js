@@ -50,6 +50,7 @@
     const [linkTo, setLinkTo] = preactHooks.useState(null);
     const [acceptingKey, setAcceptingKey] = preactHooks.useState(null), [ownerVal, setOwnerVal] = preactHooks.useState("");
     const [dismissingKey, setDismissingKey] = preactHooks.useState(null), [dismissReason, setDismissReason] = preactHooks.useState("");
+    const [linkingKey, setLinkingKey] = preactHooks.useState(null), [linkTarget, setLinkTarget] = preactHooks.useState("");
     if (!i) return null;
     const guarded = () => { if (!S.ui.madeBy?.trim()) { Store.toast("Set Made by first, at the top of the table."); return false; } return true; };
     const accept = async (s, owner) => {
@@ -61,6 +62,11 @@
     const dismiss = async s => {
       if (!guarded() || !dismissReason.trim()) return;
       try { await S.post("/api/support/dismiss", { id: i.id, key: s.key, rule: s.rule, reason: dismissReason }); setDismissingKey(null); setDismissReason(""); await S.load(); }
+      catch (e) { S.toast(e.message); }
+    };
+    const linkExisting = async s => {
+      if (!guarded() || !linkTarget.trim()) return;
+      try { await S.post("/api/support/link", { id: i.id, key: s.key, target: linkTarget.trim() }); setLinkingKey(null); setLinkTarget(""); await S.load(); }
       catch (e) { S.toast(e.message); }
     };
     const rows = S.rows(); const at = rows.findIndex(r => r.id === id);
@@ -110,9 +116,12 @@
             : dismissingKey === s.key ? html`<div class="mini"><input class="inp" value=${dismissReason} onInput=${e => setDismissReason(e.target.value)} placeholder="reason" />
               <button class="btn pri danger" disabled=${!dismissReason.trim()} onClick=${() => dismiss(s)}>Dismiss</button>
               <button class="btn ghost" onClick=${() => { setDismissingKey(null); setDismissReason(""); }}>Cancel</button></div>`
+            : linkingKey === s.key ? html`<div class="mini"><${Picker.Inline} kind=${i.kind} word=${s.link.trim()} value=${linkTarget} onPick=${setLinkTarget} exclude=${i.id} />
+              <button class="btn pri" disabled=${!linkTarget.trim()} onClick=${() => linkExisting(s)}>Link</button>
+              <button class="btn ghost" onClick=${() => { setLinkingKey(null); setLinkTarget(""); }}>Cancel</button></div>`
             : html`<div class="mini">
               <button class="btn ghost" onClick=${() => accept(s)}>Accept</button>
-              <button class="btn ghost" onClick=${() => setLinkTo({ word: s.link.trim() })}>Link existing</button>
+              <button class="btn ghost" onClick=${() => setLinkingKey(s.key)}>Link existing</button>
               <button class="btn ghost" onClick=${() => setDismissingKey(s.key)}>Dismiss</button></div>`}
           </div></div>`)}
           ${!fails.length && !sugg.length ? html`<div class="muted small">None.</div>` : null}
