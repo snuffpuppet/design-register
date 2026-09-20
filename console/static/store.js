@@ -37,6 +37,7 @@
       if (filter.types.length) xs = xs.filter(i => filter.types.includes(i.kind));
       if (filter.statuses.length) xs = xs.filter(i => filter.statuses.includes(i.status));
       if (filter.scopes.length) xs = xs.filter(i => filter.scopes.includes(i.scope || ""));
+      if (filter.phases?.length) xs = xs.filter(i => filter.phases.includes(i.phase || ""));
       if (filter.owners.length) xs = xs.filter(i => filter.owners.includes(i.owner || ""));
       if (filter.rule) xs = xs.filter(i => (Store.failuresById[i.id] || []).some(f => f.rule === filter.rule));
       if (filter.updatedSince) { const d = Store.parseDate(filter.updatedSince); if (d) xs = xs.filter(i => (Store.parseDate(i.updated) || 0) >= d); }

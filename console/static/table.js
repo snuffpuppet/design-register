@@ -2,7 +2,7 @@
   const html = htm.bind(preact.h);
   const DEFAULT_COLS = ["id", "title", "status", "scope", "owner", "links", "issues"];
   function label(k) { return { id: "Id", title: "Title", links: "Links", issues: "Issues", gap: "Gap", support: "Support", group: "Duplicates", reviewed: "Reviewed" }[k] || Store.model.labels[k] || k; }
-  const GROUP_LABELS = { "": "Group by…", kind: "Type", status: "Status", scope: "Scope", owner: "Owner" };
+  const GROUP_LABELS = { "": "Group by…", kind: "Type", status: "Status", scope: "Scope", phase: "Phase", owner: "Owner" };
   function groupValue(i, by) { return by === "kind" ? (Store.model.names[i.kind] || i.kind) : (i[by] || ""); }
   // Rows in group order, a header entry ({ header, n }) ahead of each run when Store.ui.groupBy is set.
   function grouped(rows, by) {
@@ -79,7 +79,7 @@
     if (k === "reviewed") return html`<button class="btn ghost" onClick=${e => { e.stopPropagation(); Store.post("/api/rationalise/reviewed", { id: i.id }).then(Store.load).catch(err => Store.toast(err.message)); }}>Mark reviewed</button>`;
     if (edit) return html`<${Cells.Editor} item=${i} field=${k} onDone=${() => setEdit(false)} />`;
     const v = i[k];
-    return html`<span class="ed" onClick=${e => { e.stopPropagation(); setEdit(true); }}>${v ? v : html`<span class="muted">–</span>`}</span>`;
+    return html`<span class="ed" onClick=${e => { e.stopPropagation(); setEdit(true); }}>${v ? v : html`<span class="muted">${k === "estimate" ? "Not sized" : "–"}</span>`}</span>`;
   }
   function Chip({ label, value, onClear }) {
     return html`<span class="chip">${label} ${value ? html`<b>${value}</b>` : null}${onClear ? html`<span class="x" onClick=${onClear}>×</span>` : null}</span>`;
@@ -101,9 +101,17 @@
         <button class="btn pri" onClick=${() => CreateForm.open({ kind: Store.model.states[Store.ui.view] ? Store.ui.view : "OI" })}>+ New item</button></div>
       ${ui.mode === 'rationalise' ? html`<div class="bar muted">Corrections save immediately. Status changes skip workflow requirements; integrity gaps remain visible.</div>` : null}
       <div class="bar chips">
+        ${ui.mode === 'rationalise' ? html`<${QuickFilters} f=${f} />` : null}
+        ${f.types.includes("CR") || ui.view === "CR" ? html`<label>Phase <select class="inp" aria-label="Filter by phase" value=${JSON.stringify(f.phases || [])} onChange=${e => S.set({filter:{...f,phases:JSON.parse(e.target.value)},selection:new Set(),lastSel:null})}>
+          <option value="[]">All phases</option>
+          ${(f.phases || []).length > 1 ? html`<option value=${JSON.stringify(f.phases)}>Multiple phases</option>` : null}
+          <option value='[""]'>No phase</option>
+          ${[...new Set([...(S.model.phases || []),...S.state.items.map(i=>i.phase),...(f.phases || [])])].filter(Boolean).sort().map(p=>html`<option value=${JSON.stringify([p])}>${p}</option>`)}
+        </select></label>` : null}
         ${f.types.length ? html`<${Chip} label="Type" value=${f.types.join(", ")} onClear=${() => setF({ types: [] })} />` : null}
         ${f.statuses.length ? html`<${Chip} label="Status" value=${f.statuses.join(", ")} onClear=${() => setF({ statuses: [] })} />` : null}
-        ${f.scopes.length ? html`<${Chip} label="Scope" value=${f.scopes.join(", ")} onClear=${() => setF({ scopes: [] })} />` : null}
+        ${f.scopes.length ? html`<${Chip} label="Scope" value=${f.scopes.map(s => s || "No scope").join(", ")} onClear=${() => setF({ scopes: [] })} />` : null}
+        ${f.phases?.length ? html`<${Chip} label="Phase" value=${f.phases.map(p => p || "No phase").join(", ")} onClear=${() => setF({ phases: [] })} />` : null}
         ${f.owners.length ? html`<${Chip} label="Owner" value=${f.owners.join(", ")} onClear=${() => setF({ owners: [] })} />` : null}
         ${f.rule ? html`<${Chip} label="Failing" value=${f.rule} onClear=${() => setF({ rule: "" })} />` : null}
         <${FilterAdd} setF=${setF} f=${f} />
@@ -129,17 +137,41 @@
     </div>`;
   }
   // One "+ Filter" control: pick a facet, then a value from what the data holds.
-  const FACET_LABELS = { types: "Type", statuses: "Status", scopes: "Scope", owners: "Owner", rule: "Failing rule" };
+  function QuickFilters({ f }) {
+    const S = Store, register = S.model.states[S.ui.view] ? S.ui.view : null;
+    const types = register ? [register] : f.types;
+    const scopes = [...new Set([...S.model.scopes, ...S.state.items.map(i => i.scope || ""), ...f.scopes])].filter(Boolean).sort();
+    const value = values => values.length ? JSON.stringify(values) : "";
+    const change = (field, raw) => S.set({
+      ...(field === "types" && register ? { view: "all" } : {}),
+      filter: { ...S.ui.filter, [field]: raw ? JSON.parse(raw) : [] },
+      selection: new Set(), lastSel: null,
+    });
+    return html`
+      <label>Type <select class="inp" aria-label="Filter by item type" value=${value(types)} onChange=${e => change("types", e.target.value)}>
+        <option value="">All types</option>
+        ${types.length > 1 ? html`<option value=${value(types)}>Multiple types</option>` : null}
+        ${Object.entries(S.model.names).map(([k, name]) => html`<option value=${value([k])}>${k} · ${name}</option>`)}
+      </select></label>
+      <label>Scope <select class="inp" aria-label="Filter by item scope" value=${value(f.scopes)} onChange=${e => change("scopes", e.target.value)}>
+        <option value="">All scopes</option>
+        ${f.scopes.length > 1 ? html`<option value=${value(f.scopes)}>Multiple scopes</option>` : null}
+        <option value=${value([""])}>No scope</option>
+        ${scopes.map(s => html`<option value=${value([s])}>${s}</option>`)}
+      </select></label>`;
+  }
+
+  const FACET_LABELS = { types: "Type", statuses: "Status", scopes: "Scope", phases: "Phase", owners: "Owner", rule: "Failing rule" };
   function FilterAdd({ setF, f }) {
     const [facet, setFacet] = preactHooks.useState("");
     const S = Store;
     const values = { types: Object.keys(S.model.names), statuses: [...new Set(S.state.items.map(i => i.status))].sort(),
-                     scopes: S.model.scopes, owners: S.model.owners, rule: Object.keys(S.counts().byRule).sort() };
+                     scopes: S.model.scopes, phases: [...new Set([...(S.model.phases || []), ...S.state.items.map(i=>i.phase)])].filter(Boolean).sort(), owners: S.model.owners, rule: Object.keys(S.counts().byRule).sort() };
     if (!facet) return html`<select class="chip add" value="" onChange=${e => setFacet(e.target.value)}>
       <option value="">+ Filter</option><option value="types">Type</option><option value="statuses">Status</option>
-      <option value="scopes">Scope</option><option value="owners">Owner</option><option value="rule">Failing rule</option></select>`;
+      <option value="scopes">Scope</option><option value="phases">Phase</option><option value="owners">Owner</option><option value="rule">Failing rule</option></select>`;
     return html`<select class="chip add" value="" onChange=${e => { const v = e.target.value; setFacet(""); if (!v) return;
-        facet === "rule" ? setF({ rule: v }) : setF({ [facet]: [...new Set([...f[facet], v])] }); }}>
+        facet === "rule" ? setF({ rule: v }) : setF({ [facet]: [...new Set([...(f[facet] || []), v])] }); }}>
       <option value="">${FACET_LABELS[facet]}…</option>${values[facet].map(v => html`<option value=${v}>${v}</option>`)}</select>`;
   }
   Table.toggle = toggle;

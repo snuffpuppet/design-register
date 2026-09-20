@@ -78,6 +78,7 @@
         ${S.model.scopes.map(scope => html`<${Item} label=${scope} on=${ui.mode==='desktop' && ui.view==='all' && ui.filter.scopes.length===1 && ui.filter.scopes[0]===scope} onClick=${()=>S.set({mode:'desktop',view:'all',session:null,open:null,selection:new Set(),filter:{types:[],statuses:[],scopes:[scope],owners:[],rule:'',q:''}})}/>`)}
       </div>
       <div class="grp"><span class="lbl">Work</span>
+        <${Item} label="Outstanding proposals" on=${ui.view === "all" && ui.filter.types.length === 1 && ui.filter.types[0] === "CR" && ui.filter.statuses.join("|") === "Proposed|For approval|Approved|Submitted|Deferred"} onClick=${() => S.set({view:"all",open:null,selection:new Set(),filter:{types:["CR"],statuses:["Proposed","For approval","Approved","Submitted","Deferred"],scopes:[],phases:[],owners:[],rule:"",q:""},columns:["id","title","status","scope","phase","estimate","implemented-by","vendor-ref","source"],groupBy:"phase"})} />
         <${Item} label="Outstanding" n=${c.outstanding} on=${ui.view === "outstanding"} onClick=${go("outstanding")} />
         <${Item} label="Integrity" n=${c.integrity} on=${ui.view === "integrity" && !ui.filter.rule} onClick=${go("integrity")} />
         ${ui.view === "integrity" ? rules.map(([r, n]) => html`<${Item} label=${r + " " + (S.model.rules[r] || "").split(" ").slice(0, 4).join(" ")} n=${n} on=${ui.filter.rule === r} onClick=${go("integrity", { rule: r })} />`) : null}

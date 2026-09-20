@@ -1,6 +1,8 @@
 # Register console
 
-Version 0.9, 20 September 2026. Model 2.33.
+Version 0.10, 21 September 2026. Model 2.34.
+
+See [Change proposal upgrade](../docs/change-proposal-upgrade.md) for the read-only legacy CR check and work-laptop rollout. Existing IDs, folders and statuses remain compatible.
 
 ## Use
 

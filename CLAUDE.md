@@ -1,12 +1,12 @@
 # design-register
 
-Version 1.2, 20 September 2026.
+Version 1.3, 21 September 2026.
 
 Read `README.md` first. This file holds coding-session constraints and non-obvious operating rules.
 
 ## Purpose and boundaries
 
-This repository owns the solution register model (2.33), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
+This repository owns the solution register model (2.34), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
 
 Real source registers and the identifying glossary stay on the work laptop. This checkout contains synthetic or reviewed anonymised fixtures. Generic anonymisation code is tracked in `console/anonymise.py`; the private glossary is not. `docs/anonymisation.md` describes the deterministic format and review boundary. Opus can run `.claude/skills/anonymise-register/` without performing free-form rewriting.
 
@@ -44,6 +44,10 @@ Pinned Preact and htm libraries are in `console/static/vendor/`. No runtime CDN 
 Commands remain under `.claude/skills/`, with a `usage:` frontmatter line discovered by `.claude/hooks/list-commands.sh`. Do not move them into a different agent's directory. New `/anonymise-register` and `/check-register-release` wrap deterministic scripts and acceptance instructions. Existing `/handoff` and `/resume` remain available.
 
 Confluence reads/writes use `confluence.json`, the declared parent and direct children, and the existing permission log. `ask` means ask and record the answer. Never change engagement/source guards to make a refusal pass. No live connector behaviour has been validated by this feature implementation. `/push-confluence` still reviews built output and checks page versions before sending.
+
+## Change proposals (2.34)
+
+Internal CR records are Change proposals. Preserve CR IDs, `change-requests/`, existing statuses and vendor references. Source must name the solution design; `based on DEC-…` optionally references the chosen approach. Requirements have optional Options. `proposal_upgrade.py` is a read-only inventory, not a writer. See `docs/change-proposal-upgrade.md` for work-laptop rollout. Do not declare the external ingester ported or silently rewrite old records.
 
 ## Main files
 

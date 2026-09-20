@@ -8,7 +8,7 @@
     const saveView = patch => { const vs = S.views.slice(); vs[n] = { ...view, ...patch }; S.post("/api/views", { views: vs }).then(r => { S.views = r.views; S.emit(); }); };
     const rows = secs?.table || [];
     const table = (xs, cols) => html`<table><thead><tr>${cols.map(c => html`<th>${S.model.labels[c] || c}</th>`)}</tr></thead>
-      <tbody>${xs.map(r => html`<tr>${cols.map(c => html`<td>${c === "id" ? html`<span class=${"pill " + (r.kind || r.id.split("-")[0]) + " lnk"} onClick=${() => S.set({ open: r.id })}>${r.id}</span>` : c === "status" ? html`<span class="st">${r.status}</span>` : (r[c] ?? "–")}</td>`)}</tr>`)}</tbody></table>`;
+      <tbody>${xs.map(r => html`<tr>${cols.map(c => html`<td>${c === "id" ? html`<span class=${"pill " + (r.kind || r.id.split("-")[0]) + " lnk"} onClick=${() => S.set({ open: r.id })}>${r.id}</span>` : c === "status" ? html`<span class="st">${r.status}</span>` : (r[c] || (c === "estimate" ? "Not sized" : "–"))}</td>`)}</tr>`)}</tbody></table>`;
     const summarise = async () => { const r = await S.post("/api/report/summary", { view }); setText(r.text); };
     const copy = async () => { try { await navigator.clipboard.writeText(text); setMsg("Copied."); } catch { setMsg("Copy is blocked here; select the text and copy it by hand."); } };
     const push = async () => { try { const r = await S.post("/api/push/build", {}); setMsg("Built " + (r.pages?.length ?? 0) + " pages into push/. Run /push-confluence to send."); } catch (e) { setMsg(e.message); } };

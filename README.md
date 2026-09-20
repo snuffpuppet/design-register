@@ -1,8 +1,8 @@
 # design-register
 
-Version 1.4, 20 September 2026.
+Version 1.6, 21 September 2026.
 
-A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.33). The transcript ingester stays in the separate `solution-register` repository.
+A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.34). The transcript ingester stays in the separate `solution-register` repository.
 
 ## Working contexts
 
@@ -16,7 +16,11 @@ Saved reviews remain available for older review batches and optional splitting. 
 
 ## Using Rationalise
 
-1. Click **Rationalise** and set **Made by**. Filter or choose a register exactly as in Desktop.
+**Change proposals (model 2.34):** internal CR records now use this name; existing IDs, folders, statuses and vendor references remain valid. A proposal tracks outstanding work emerging through requirements and design development, with the solution design linked in Source. A vendor change request is an optional external reference. Requirements can hold lightweight Options; proposals can link **based on** a Decision that selected the approach.
+
+Open **Outstanding proposals** under Work to see unfinished proposals with phase, scope, estimate and vendor reference. Use Phase and Scope filters to prepare an SLT view and **Save current view** to reuse it. Blank estimates show **Not sized**; record Indicative or Confirmed, cost, effort/duration, source and date in Estimate. See the [work-laptop upgrade steps](docs/change-proposal-upgrade.md) before pulling this update into use.
+
+1. Click **Rationalise** and set **Made by**. Use the **Type** and **Scope** dropdowns above the table to narrow the list. They work together with search and **+ Filter**. Choose **All types** or **All scopes** to clear that filter, or **No scope** to find unassigned items. Changing either dropdown clears the row selection. Use **+ Filter** to include multiple types or scopes.
 2. **Edit one record:** click a table cell, or open its ID and edit the item panel. Click its status to choose any status for that item type. Use **Show field** above the table to expose dates or other fields.
 3. **Edit many records:** tick the rows, choose **Set field**, select Status, Scope, Raised on, Closed on or another shared field, enter the value and click **Apply to N**. Blank values clear fields where allowed. Status choices are those shared by the selected types; select one type if there is no suitable shared status.
 4. **Save:** text cells save on Enter or when you leave the field; dropdowns save when you choose a value. Bulk changes save when you click **Apply to N**. There is no separate review approval step. History identifies corrections; **Recent operations** offers guarded undo.
@@ -60,7 +64,7 @@ The table heading identifies the active mode. Choosing a register or changing fi
 
 Click a name under **Desktop by scope**. This resets the table to all item types in that scope, in Desktop mode. Open records or select rows to work through the normal transitions. You can add status, owner or type filters using **+ Filter**. This is a predefined Desktop filter, not a third editing mode.
 
-Scope shortcuts come from the `## Scopes` list in the engagement's `engagement.md`. To clean up records within a scope, choose **Rationalise** and use **+ Filter → Scope** instead.
+Scope shortcuts come from the `## Scopes` list in the engagement's `engagement.md`. To clean up records within a scope, choose **Rationalise** and use its **Scope** dropdown. It includes declared scopes and scopes already recorded on items, and keeps you in Rationalise.
 
 ## Optional meeting records
 

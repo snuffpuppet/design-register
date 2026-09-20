@@ -43,7 +43,7 @@ def save(path, vs):
 
 def apply_filter(items, filter, integrity=None):
     out = list(items)
-    for key, field in [('types', 'kind'), ('statuses', 'status'), ('scopes', 'scope'), ('owners', 'owner')]:
+    for key, field in [('types', 'kind'), ('statuses', 'status'), ('scopes', 'scope'), ('phases', 'phase'), ('owners', 'owner')]:
         if filter.get(key): out = [i for i in out if i.get(field, '') in filter[key]]
     if filter.get('q'):
         q = filter['q'].casefold()

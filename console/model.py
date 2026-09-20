@@ -1,4 +1,4 @@
-"""Register model 2.33 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
+"""Register model 2.34 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
@@ -6,7 +6,7 @@ frontmatter keys of section 7; long fields (body headings) are lower-cased headi
 Contains SPECIAL_ON_ENTRY, WITHDRAWS, BACKWARD, and FORWARD for entry rules and provenance tracking.
 """
 
-MODEL_VERSION = "2.33"
+MODEL_VERSION = "2.34"
 CHANGE_SET_CONTRACT = "2.30"
 REVIEW_OUTCOMES = ["confirmed", "corrected", "merged", "excluded", "needs clarification", "retyped", "split"]
 
@@ -16,7 +16,7 @@ DIRS = {
 }
 NAMES = {
     "REQ": "Requirement", "DEC": "Decision", "LIM": "Limitation",
-    "RSK": "Risk", "OI": "Open item", "CR": "Change request",
+    "RSK": "Risk", "OI": "Open item", "CR": "Change proposal",
 }
 
 STATES = {
@@ -71,7 +71,7 @@ SHORT = {
     "CR":  ["scope", "owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
 }
 LONG = {
-    "REQ": ["source", "notes"],
+    "REQ": ["options", "source", "notes"],
     "DEC": ["rationale", "source", "notes"],
     "LIM": ["impact", "options", "source", "notes"],
     "RSK": ["trigger", "mitigation", "source", "notes"],
@@ -130,7 +130,7 @@ LINK_WORDS = {
     "LIM": {"constrains": "REQ", "dispositioned by": "DEC|CR", "previously dispositioned by": "DEC|CR", "assessed by": "OI", "introduced by": "DEC", "needs": "REQ"},
     "RSK": {"realised as": "OI", "raised by": "DEC", "mitigated by": "OI"},
     "OI":  {"resolves into": "ANY", "clarifies": "CLAIM"},
-    "CR":  {"triggered by": "LIM|REQ", "delivers": "REQ", "part of": "CR", "worked by": "OI"},
+    "CR":  {"triggered by": "LIM|REQ", "delivers": "REQ", "part of": "CR", "worked by": "OI", "based on": "DEC"},
 }
 
 
@@ -177,7 +177,7 @@ SUPPORTS = [
     dict(rule="S12", check="I7", level="fail", when=("LIM", ["Accepted"]), unless="linked:dispositioned by:DEC:Accepted", only_if="link:dispositioned by:DEC",
          offer=None, link=(None, None), fields={}, prompt="The accepting decision is not yet Accepted."),
     dict(rule="S13", check="I7", level="fail", when=("LIM", ["Change requested"]), unless="linked:dispositioned by:CR:Proposed|For approval|Approved|Submitted|Deferred|Delivered", only_if="link:dispositioned by:CR",
-         offer=None, link=(None, None), fields={}, prompt="The change request was withdrawn or rejected: move this limitation back to Under assessment."),
+         offer=None, link=(None, None), fields={}, prompt="The change proposal was withdrawn or rejected: move this limitation back to Under assessment."),
     dict(rule="S14", check="I10", level="fail", when=("CR", ["Approved", "Submitted", "Delivered", "Deferred", "Withdrawn", "Rejected"]), unless="field:approved-by", only_if=None,
          offer=None, link=(None, None), fields={}, prompt="Approved by is empty."),
     dict(rule="S15", check="I2", level="fail", when=("LIM", ["Accepted", "Change requested"]), unless="field:chosen-option", only_if=None,
@@ -203,7 +203,7 @@ RULES = {
     "I2": "Every status is a valid 4.2 value and the fields required for that status and type are set.",
     "I3": "Every non-terminal item has an Owner, or an open item in Links whose Owner is set where the type requires it.",
     "I4": "Every open item not Closed has Next action, and Due is expected on open items and risks.",
-    "I5": "Every requirement's Phase, and every change request's Phase once set, is one of the engagement's Phases.",
+    "I5": "Every requirement's Phase, and every change proposal's Phase once set, is one of the engagement's Phases.",
     "I6": "Every id named in Links exists in some register.",
     "I7": "Every limitation's disposition links and Source match its status under the model's limitation rules.",
     "I8": "Every DEC in Superseded has a superseded by link to a DEC in Accepted or Proposed.",
@@ -240,7 +240,7 @@ WITHDRAWS = {"REQ": "Withdrawn", "LIM": "Withdrawn", "CR": "Withdrawn", "DEC": "
 # Link words that read as provenance. BACKWARD walks to what an item came from; FORWARD to what it produced.
 BACKWARD = {
     "REQ": ["replaces"], "DEC": ["proposed by"], "LIM": ["introduced by", "constrains"],
-    "RSK": ["raised by"], "OI": [], "CR": ["triggered by", "part of"],
+    "RSK": ["raised by"], "OI": [], "CR": ["triggered by", "part of", "based on"],
 }
 FORWARD = {
     "REQ": ["worked by"], "DEC": ["addresses", "introduces", "raises", "supersedes"],

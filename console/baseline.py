@@ -21,7 +21,7 @@ KIND_WORDS = {
     "LIM": ["limitation", "lim", "constraint", "gap", "shortfall"],
     "RSK": ["risk", "rsk", "issue", "assumption", "dependency", "dependencies", "raid"],
     "OI":  ["open item", "action", "open question", "question", "todo", "oi"],
-    "CR":  ["change request", "cr", "change"],
+    "CR":  ["change proposal", "change request", "cr", "change"],
 }
 # column heuristics: model key -> words that a source header may use
 COLS = {
@@ -30,7 +30,7 @@ COLS = {
     "raised-on": ["raised on", "identified on", "created on", "logged on", "opened on"],
     "consulted": ["consulted"],
     "scope": ["scope", "domain", "service", "area"],
-    "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "assumption", "dependency", "action", "item", "statement", "change request"],
+    "title": ["title", "name", "summary", "requirement", "decision", "limitation", "risk", "assumption", "dependency", "action", "item", "statement", "change proposal", "change request"],
     "vendor-ref": ["vendor ref", "vendor reference", "vendor id", "supplier ref", "external ref", "external id"],
     "ref": ["id", "ref", "key", "#", "number", "identifier"],
     "kind": ["type", "kind", "category", "class"],

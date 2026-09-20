@@ -97,6 +97,11 @@ anonymise: build
 acceptance: test
 	@echo "Container tests passed. Follow docs/work-laptop-acceptance.md for browser checks."
 
+# Compatibility inventory only. The engagement is mounted read-only; no data migration is necessary.
+.PHONY: proposal-check
+proposal-check: build
+	docker run --rm -v "$(ENG_ABS):/engagement:ro" $(IMAGE) python /app/proposal_upgrade.py /engagement
+
 clean:
 	$(COMPOSE) down --rmi local --remove-orphans
 	rm -rf test-data/puppy-gloves

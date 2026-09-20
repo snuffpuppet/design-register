@@ -155,7 +155,7 @@ TABLE_RE = re.compile(r"<table\b.*?</table>", re.S | re.I)
 def header_is_register(cells):
     """A register table names its rows: an id or a row number, and a title of some kind."""
     cells = [c.strip().lower() for c in cells]
-    return any(c in cells for c in ("id", "#", "ref", "key")) and any(c in cells for c in ("title", "requirement", "decision", "limitation", "risk", "action", "item", "description", "change request"))
+    return any(c in cells for c in ("id", "#", "ref", "key")) and any(c in cells for c in ("title", "requirement", "decision", "limitation", "risk", "action", "item", "description", "change proposal", "change request"))
 
 
 def is_register_table(table_html_text):
