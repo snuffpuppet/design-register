@@ -1,10 +1,14 @@
 # Register console
 
-Version 0.7, 19 September 2026. Model 2.31.
+Version 0.9, 20 September 2026. Model 2.33.
 
 ## Use
 
 The shared table opens actual registers. Rationalise and Desktop share the table and item panel. Rationalise saves single/bulk field and status corrections immediately through `/api/rationalise/edit`, skipping lifecycle entry requirements. Desktop follows the workflow; Desktop by scope applies a scope filter and restores workflow mode. Set Made by before writing. Saved reviews and meeting records remain optional tools.
+
+Rationalise also offers **Change type** and **Merge…** with before/after previews and Accept/Cancel. `structure.py` builds deterministic plans; acceptance checks a digest of the current registers and choices. Type changes preserve old fields/history and redirect IDs. Merges keep lead values, fill blanks and retain conflicting values/history in Notes.
+
+Deletion archives item snapshots and removed incoming links in private `rubbish-bin.json`. Restore recovers the original ID and history, adding links without reverting later edits. Deferred links are recovered when a referring record is itself restored. The bin is excluded from anonymised exports.
 
 An optional structured review keeps its initial item snapshots, ordered IDs, per-item outcomes, correction drafts, evidence and content revisions in `reviews.json`. Saving a draft does not change registers. Preview shows changes and remaining state-entry gaps. Apply checks revisions and writes the correction batch through the normal commit boundary inside a recovery operation. Complete review requires every row reviewed, no unresolved clarification, and all mutating proposals applied. Integrity gaps can remain explicitly visible; review completion never claims missing evidence exists.
 

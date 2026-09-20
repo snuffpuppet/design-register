@@ -1,6 +1,6 @@
 # Deterministic anonymisation
 
-Version 1.0, 19 September 2026.
+Version 1.1, 20 September 2026.
 
 The generic tool is `console/anonymise.py`. Its private glossary is stored on the work laptop, outside the tracked code. Opus can run `/anonymise-register`; the output does not depend on its wording or reasoning.
 
@@ -32,3 +32,5 @@ For a bug report, prefer a small synthetic case first. Otherwise export the rele
 ## Existing work-laptop glossary
 
 If the old engagement-local `translate.py` contains the mapping as a Python dictionary, ask Opus on the work laptop to transcribe that mapping into the `replacements` object above. Keep the same source/replacement pairs and preserve the private original. This is a one-time glossary migration; Opus must not rewrite the register content itself. Run the deterministic export and content checks afterwards. Neither the old script's identifying dictionary nor the new JSON belongs in a cross-laptop handoff.
+
+Deleted-record snapshots in `rubbish-bin.json` stay on the source laptop. The export allowlist excludes the bin as well as operation journals.

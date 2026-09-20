@@ -100,6 +100,7 @@
       <div class="rl-foot">
         <${Item} label="Saved reviews" onClick=${()=>S.set({mode:'desktop',view:'reviews',open:null})}/>
         <${Item} label="Meeting records" onClick=${()=>S.set({mode:'desktop',view:'meetings',open:null})}/>
+        <${Item} label="Rubbish bin" onClick=${go("rubbish")}/>
         <${Item} label="Recent operations" onClick=${go("operations")}/>
         <a class="rl-it muted" href="guide.html" target="_blank" rel="noopener">Guide</a>
         <${ThemeSwitch} />

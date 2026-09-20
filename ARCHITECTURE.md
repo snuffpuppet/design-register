@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.7, 20 September 2026. Owner: Adam Moyes.
+Version 1.8, 20 September 2026. Owner: Adam Moyes.
 
 ## Boundaries
 
@@ -18,6 +18,7 @@ Rationalise and Desktop share the table and item panel. Rationalise sends immedi
 | `items.py` | Parse and render item files |
 | `integrity.py` | Pure integrity/provenance analysis; review does not suppress its findings |
 | `baseline.py` | Tolerant source conversion and initial ID/provenance map |
+| `structure.py` | Deterministic type/merge previews and private rubbish-bin storage |
 | `workspaces.py` | Review snapshots/proposals/revisions and meeting agendas/outcomes |
 | `server.py` | API coordination, validation and the shared register commit boundary |
 | `operations.py` | Operation journal, exception rollback, startup recovery and guarded undo |
@@ -54,3 +55,5 @@ Confluence reads and writes retain the existing source/engagement guards and per
 ## Validation
 
 Container tests cover the model, conversion, integrity, writes, stale revisions, corrections, aliases, reports, agendas, recovery and deterministic export. Browser smoke checks use disposable data in a separate container. Work-laptop acceptance instructions provide expected outcomes and a sanitised feedback path. The private glossary and raw failures containing company data remain on that laptop.
+
+Type and merge previews are read-only. Acceptance recomputes the plan and checks its digest against current records and aliases before the transaction writes anything. Type changes and lead merges preserve old references through aliases. Deleted items live in private `rubbish-bin.json`; restoration preserves later edits and recovers removed incoming links. Both journals and the bin stay outside anonymised exports.

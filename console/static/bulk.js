@@ -22,7 +22,7 @@
         <button class="btn" onClick=${() => setMode("set")}>Set field</button>
         ${S.ui.mode !== "rationalise" ? html`<button class="btn" onClick=${() => setMode("move")}>Move to…</button>` : null}
         <button class="btn" onClick=${() => setMode("link")}>Link to…</button>
-        <button class="btn" onClick=${() => run(async()=>{const r=await S.post('/api/reviews/create',{name:'Review selected items',ids});S.set({view:'reviews:'+r.id,open:null});})}>Merge / structural review</button>
+        ${S.ui.mode === 'rationalise' ? html`<button class="btn" onClick=${()=>S.set({structure:{action:'retype',ids}})}>Change type</button><button class="btn" disabled=${ids.length<2||kinds.length!==1} onClick=${()=>S.set({structure:{action:'merge',ids}})}>Merge…</button>` : null}
         <button class="btn" onClick=${() => run(async()=>{const r=await S.post('/api/meetings/create',{name:'Meeting agenda',ids});S.set({view:'meetings:'+r.id,session:r.id,open:null});})}>Meeting agenda</button>
         ${S.ui.mode !== "rationalise" ? html`<button class="btn" onClick=${guarded(() => bulk({ op: "withdraw", gist: "withdrawn in bulk" }))}>Withdraw</button>` : null}
         <button class="btn ghost danger" onClick=${() => setMode("delete")}>Delete</button>` : null}
@@ -36,7 +36,7 @@
       ${mode === "merge" ? html`<span class="small">Survivor</span><select class="inp" value=${survivor} onChange=${e => setSurvivor(e.target.value)}><option value="">pick…</option>${items.map(i => html`<option value=${i.id}>${i.id} ${i.title}</option>`)}</select>
         <button class="btn pri" disabled=${!survivor} onClick=${() => run(() => S.post("/api/merge", { survivor, losers: ids.filter(x => x !== survivor) }))}>Merge ${items.length - 1} into ${survivor || "…"}</button>` : null}
       ${mode === "delete" ? html`<input class="inp" value=${reason} onInput=${e => setReason(e.target.value)} placeholder="reason, goes into History" />
-        <button class="btn pri danger" disabled=${!reason.trim()} onClick=${guarded(async () => { let n = 0; for (const id of ids) { try { await S.post("/api/delete", { id, reason }); n++; } catch (e) { throw new Error(`Deleted ${n}; stopped at ${id}: ${e.message}`); } } })}>Delete ${items.length}</button>` : null}
+        <button class="btn pri danger" disabled=${!reason.trim()} onClick=${guarded(()=>S.post('/api/trash/delete',{ids,reason}))}>Move ${items.length} to rubbish bin</button>` : null}
       ${mode ? html`<button class="btn ghost" onClick=${() => { setMode(null); setErr(""); }}>Cancel</button>` : null}
       ${err ? html`<span class="miss small">${err}</span>` : null}
       <div class="sp"></div><span class="muted small">Esc to clear</span>

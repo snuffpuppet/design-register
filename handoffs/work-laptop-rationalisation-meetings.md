@@ -2,10 +2,10 @@
 objective: work-laptop-rationalisation-meetings
 title: Use Rationalise and Desktop on the work laptop
 written: 20 September 2026
-commit: 285449e
+commit: 87e46b3
 branch: feature/rationalisation-meetings
 status: active
-model-version: 2.32
+model-version: 2.33
 ---
 
 ## Objective
@@ -14,15 +14,15 @@ Use the shared register table to correct generated records in Rationalise and pr
 
 ## Where things stand
 
-- The current implementation is the working tree on `feature/rationalisation-meetings`, based on `285449e`. The simplified editing modes, model 2.32, README version 1.3 and this handoff are **uncommitted**. Checking out or pulling `285449e` alone does not include them. No push was performed.
+- The simplified table modes are committed at `87e46b3` on `feature/rationalisation-meetings`. New type-change previews, dismissible status menus, restorable deletion and lead-first merge previews are working-tree changes, along with model 2.33 and README 1.4. These latest changes remain **uncommitted**; pulling `87e46b3` alone will not include them. No push was performed by this session.
 - Rationalise uses immediate single and bulk field/status edits. Desktop uses the same table with workflow checks. Desktop by scope is a predefined Desktop filter. Saved reviews and meeting records remain optional tools; ordinary cleanup requires no review batch.
-- All 212 Python tests passed. Disposable browser checks passed for immediate status correction, bulk date setting/clearing, bulk scope changes and scope shortcuts restoring Desktop workflow rules. The local development console was restarted and responded successfully. No real work-laptop registers were tested.
+- All 219 Python tests passed. New disposable browser checks passed for Escape/outside menu dismissal, merge/type preview cancellation and acceptance, rewritten references, and rubbish-bin persistence/restoration. Disposable browser checks passed for immediate status correction, bulk date setting/clearing, bulk scope changes and scope shortcuts restoring Desktop workflow rules. The local development console was restarted and responded successfully. No real work-laptop registers were tested.
 - The root README is the operator guide. This handoff replaces its earlier review-batch rollout instructions; the other two active handoffs remain historical context and were not changed in this update.
 - The sibling ingester, live Confluence connector and work-laptop configuration remain unchecked. Item and change-set wire formats are unchanged.
 
 ## Next steps
 
-1. **Transfer the current code and documentation.** Commit and transfer the reviewed code/docs through the normal code-transfer route, or copy the complete intended changes. Preserve the work laptop's actual engagement and local changes. Do not include local test engagement journals or review data merely because they are untracked. Done when the work checkout has model 2.32, README 1.3 and `/api/rationalise/edit` in `console/server.py`.
+1. **Transfer the current code and documentation.** Commit and transfer the reviewed code/docs through the normal code-transfer route, or copy the complete intended changes. Preserve the work laptop's actual engagement and local changes. Do not include local test engagement journals or review data merely because they are untracked. Done when the work checkout has model 2.33, README 1.4 and `/api/rationalise/edit` in `console/server.py`.
 2. **Start the dashboard directly.** From that checkout run `make up ENG=/absolute/path/to/real-engagement` and open `http://localhost:8085` (or the configured port). If an existing container retained its server process, run `make reload`, then refresh the browser. No `/resume`, import, freeze or data conversion is required for existing registers. Done when the intended engagement loads with Rationalise, Desktop and its declared scope shortcuts.
 3. **Check the work-laptop installation.** Follow `docs/work-laptop-acceptance.md` on a disposable copy, manually or with `/check-register-release`. Before correcting real records, confirm direct write mode and resolve any unapplied change sets through their normal process. Keep external ingester writes separate. Done when single/bulk corrections persist and Desktop still enforces transitions.
 4. **Use the registers.** Follow README's Rationalise, Desktop and Working by scope sections. Use optional meeting records only when a saved agenda or discussion record is useful. Done when the intended corrections and subsequent workflow changes appear correctly in the register history.
@@ -44,11 +44,12 @@ No product decision blocks startup. The work laptop's engagement path, write mod
 
 ## Watch out for
 
-- The handoff's commit is the last committed base, not a release containing the current changes. Check the working tree as well as commit history when resuming.
+- The handoff's commit is the last committed base, not a release containing the latest structural-editing changes. Check the working tree as well as commit history when resuming.
 - Pass `ENG=` deliberately: `make up` remembers the previously mounted engagement. Refresh the browser after loading updated code. Reloading the browser starts in Desktop mode.
 - Rationalise edits save immediately; date fields must be corrected explicitly. README describes text, dropdown and bulk save behaviour. Recent operations offers undo only while the engagement still matches the recorded result.
 - Preserve real work-laptop files; do not replace them with personal-laptop fixtures or regenerate a mounted sample. The external ingester does not share the console's process lock.
-- Operation journals and the identifying glossary contain private material. Unknown confidential phrases still need local review before sharing an anonymised export.
+- The rubbish bin captures deletions from this version onwards. Older deletions require their existing operation journals or engagement version history.
+- Operation journals, rubbish-bin snapshots and the identifying glossary contain private material. Unknown confidential phrases still need local review before sharing an anonymised export.
 - Confluence publication remains a separate reviewed operation. This handoff does not authorise a push.
 
 ## Anchors
@@ -64,6 +65,9 @@ No product decision blocks startup. The work laptop's engagement path, write mod
   - console/static/panel.js
   - console/operations.py
   - console/anonymise.py
+  - console/structure.py
+  - console/static/structure.js
+  - console/tests/browser-structure.cjs
   - console/tests/browser-rationalise.cjs
 - docs:
   - README.md

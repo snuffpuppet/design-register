@@ -1,8 +1,8 @@
 # design-register
 
-Version 1.3, 20 September 2026.
+Version 1.4, 20 September 2026.
 
-A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.32). The transcript ingester stays in the separate `solution-register` repository.
+A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.33). The transcript ingester stays in the separate `solution-register` repository.
 
 ## Working contexts
 
@@ -12,7 +12,7 @@ A local console for correcting generated registers and progressing work through 
 
 Use Rationalise when the recorded position is wrong; use Desktop when progressing the work now. For a scoped meeting, open Desktop by scope and work through that filtered list.
 
-Saved reviews support optional structured merge/retype/split work. Meeting records support optional agendas and discussion notes. Ordinary cleanup needs no batch, review outcome or approval step.
+Saved reviews remain available for older review batches and optional splitting. Meeting records support optional agendas and discussion notes. Ordinary cleanup needs no batch, review outcome or approval step.
 
 ## Using Rationalise
 
@@ -26,6 +26,26 @@ For example, select several limitations incorrectly marked Identified, use **Set
 Rationalise bypasses lifecycle entry requirements. It still protects item IDs, field structure, valid statuses for each type, non-empty titles and concurrent edits. A bulk correction validates every selected item before writing any of them. No evidence or reason form is required for ordinary field cleanup; record known source information in the item's fields where useful.
 
 Rationalise requires `- Writes: direct` and no unapplied change sets. Desktop supports direct writes or compatible ingester change-set proposals. Declare an ingester version only after the sibling ingester has actually been ported. The current change-set format cannot express historical corrections.
+
+### Change an item's type
+
+In Rationalise, open a record and click **Change type**, or select several rows and use **Change type** in the selection bar. Choose the new type and, optionally, its status. The preview shows the original records and the proposed results. Click **Accept type change** or **Cancel**.
+
+A new typed ID replaces each old ID, incoming links are rewritten and old IDs redirect to the new records. History is preserved; fields that do not belong to the new type are retained in Notes. A status is kept if valid for the new type, otherwise the preview uses its initial status unless you choose another one.
+
+### Merge duplicates
+
+Select two or more records of the same type in Rationalise and click **Merge…**. Choose the **Lead record**, inspect **Before** and **After**, then **Accept merge** or **Cancel**. To merge one open record into another, use its **⋯ → Merge into…** action and choose the lead.
+
+The lead keeps its ID and populated fields. Empty fields are filled from the other records where possible. Sources and external links are combined; differing field values, notes and previous history are retained in Notes. Incoming links and old IDs follow the lead. Cancelling changes nothing. **Recent operations** can undo a merge while the engagement still matches the recorded result.
+
+### Delete and restore
+
+Use **Delete** from a record's **⋯** menu or the selection bar, enter a reason, then confirm **Move to rubbish bin**. Deleted records disappear from the active registers. Open **Rubbish bin** in the rail and click **Restore** to retrieve a record with its original ID and history.
+
+Restoration adds back removed incoming links to records that still exist, preserving their later field edits. If a referring record is also in the bin, its links can be recovered when it is restored. The bin is stored with the engagement and survives restarts; it is excluded from anonymised exports. It captures deletions made with this version onwards. Earlier deletions may still be recoverable through their operation journals or engagement version history.
+
+Status menus close when you click outside them, click the status again, or press **Escape**; no selection is required.
 
 ## Using Desktop
 

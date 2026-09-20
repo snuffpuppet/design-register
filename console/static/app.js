@@ -7,8 +7,8 @@
     if (Store.baseline?.present && !Store.baseline.frozen && !Store.state.items.length) {
       return html`<${ImportRegisters}/>`;
     }
-    const main = /^(reviews|meetings)(:|$)/.test(Store.ui.view) ? html`<${Workspace}/>` : Store.ui.view === 'operations' ? html`<${Operations}/>` : Store.ui.view.startsWith("report:") ? html`<${Report} key=${Store.ui.view}/>` : html`<${Table} key=${Store.ui.mode} />`;
-    return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} key=${Store.ui.mode + Store.ui.open} />` : null}${Store.ui.move ? html`<${MoveForm.Form} key=${Store.ui.move.ids.join(",")+Store.ui.move.to}/>` : null}${Store.ui.create ? html`<${CreateForm.Form}/>` : null}</div>`;
+    const main = Store.ui.view === 'rubbish' ? html`<${RubbishBin}/>` : /^(reviews|meetings)(:|$)/.test(Store.ui.view) ? html`<${Workspace}/>` : Store.ui.view === 'operations' ? html`<${Operations}/>` : Store.ui.view.startsWith("report:") ? html`<${Report} key=${Store.ui.view}/>` : html`<${Table} key=${Store.ui.mode} />`;
+    return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} key=${Store.ui.mode + Store.ui.open} />` : null}${Store.ui.move ? html`<${MoveForm.Form} key=${Store.ui.move.ids.join(",")+Store.ui.move.to}/>` : null}${Store.ui.create ? html`<${CreateForm.Form}/>` : null}${Store.ui.structure ? html`<${StructuralDialog} key=${Store.ui.structure.action + Store.ui.structure.ids.join(",")}/>` : null}</div>`;
   }
   async function boot(retries = 20) {
     try { await Store.load(); }
@@ -18,10 +18,10 @@
     preact.render(html`<${App} />`, document.getElementById("root"));
   }
   document.addEventListener("keydown", e => {
-    const modal = Store.ui.move || Store.ui.create;
+    const modal = Store.ui.move || Store.ui.create || Store.ui.structure;
     // Escape reaches through a modal's own input. An input in the panel or a table cell keeps its own Escape
     // (cells.js cancels the edit); the panel closes on Escape only from outside an input.
-    if (e.key === "Escape" && modal) { Store.set({ move: null, create: null }); return; }
+    if (e.key === "Escape" && modal) { Store.set({ move: null, create: null, structure:null }); return; }
     if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
     if (modal) return;
     if (/^(reviews|meetings)(:|$)/.test(Store.ui.view) && !Store.ui.open) return;

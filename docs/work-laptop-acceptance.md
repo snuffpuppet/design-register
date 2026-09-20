@@ -1,6 +1,6 @@
 # Work laptop acceptance
 
-Version 1.1, 20 September 2026.
+Version 1.2, 20 September 2026.
 
 Use `/check-register-release` from Claude, including Opus, or follow these steps manually. No model-specific features or external AI service are required.
 
@@ -19,3 +19,11 @@ Use `/check-register-release` from Claude, including Opus, or follow these steps
 13. Run `/anonymise-register` against a disposable local source and private glossary. Export twice into new destinations and compare manifests. Inspect remaining content on the work laptop before transferring it.
 
 Return failures with code commit, reproducible steps, expected and actual behaviour, and synthetic or reviewed anonymised examples. Do not include company data in cross-laptop handoffs.
+
+## Rationalise structure and recovery checks
+
+- Open a status menu and dismiss it with Escape, an outside click and a second click on the status. No field should change.
+- Select same-type duplicates, choose Merge and a lead. Check all before/after fields, cancel, then preview again and accept. The lead values, combined links and retained Notes must match the preview; old IDs must redirect.
+- Change one or several records to another type. Check the status and retained previous fields before accepting. Verify incoming links and old-ID aliases afterwards. Cancel must leave all records intact.
+- Delete a record, reload, open Rubbish bin and restore it. Confirm its ID/history and incoming links. Later edits to referring records must remain. Delete and restore both ends of a link to check either restore order.
+- `console/tests/browser-structure.cjs` uses a disposable direct-mode fixture with LIM-0001 (Identified), LIM-0002 (Accepted, Owner: Other owner), REQ-0001 linking `constrained-by LIM-0002`, and OI-0001. Declare Scope A and Scope B. Run it only on a fresh disposable fixture; it merges, retypes, deletes and restores these records.

@@ -35,6 +35,94 @@ class Workspaces(unittest.TestCase):
         entry={'outcome':'corrected','fields':{'status':'Accepted'},'reason':'Already accepted last month','evidence':'Minutes 7 August','effectiveOn':'7 August 2026',**extra}
         return self.request('/api/reviews/update',batch=b['id'],revision=b['revision'],id='LIM-0001',entry=entry)
 
+    def test_retype_preserves_history_fields_and_cross_references(self):
+        write_item(self.eng, 'LIM-0001', 'Limit', 'Accepted', history=['Earlier event'], **{'implemented-by': 'Partner'})
+        write_item(self.eng, 'LIM-0002', 'Second', 'Identified', links=['related-to LIM-0001'])
+        write_item(self.eng, 'REQ-0001', 'Requirement', 'Draft', links=['constrained-by LIM-0001'])
+        req = {'ids': ['LIM-0001', 'LIM-0002'], 'kind': 'OI'}
+        preview = self.h.structure_preview(req, 'retype')
+        result = self.request('/api/rationalise/retype/apply', **req, token=preview['token'])
+        items = S.load_registers(); new = items[result['mapping']['LIM-0001']]
+        self.assertEqual(new['status'], 'Open')
+        self.assertIn('Earlier event', new['history'])
+        self.assertIn('Partner', new['notes'])
+        self.assertIn('Previous status: Accepted', new['notes'])
+        self.assertNotIn('LIM-0001', items)
+        self.assertEqual(S.aliases()['LIM-0001']['targets'], [new['id']])
+        self.assertIn('constrained-by '+new['id'], items['REQ-0001']['links'])
+        self.assertIn('related-to '+new['id'], items[result['mapping']['LIM-0002']]['links'])
+
+    def test_structure_preview_becomes_stale_after_external_change(self):
+        req = {'ids': ['LIM-0001'], 'kind': 'OI'}
+        preview = self.h.structure_preview(req, 'retype')
+        self.h.edit({'id':'REQ-0001','fields':{'Owner':'Changed'},'madeBy':'Other'})
+        with self.assertRaisesRegex(ValueError, 'Preview again'):
+            self.request('/api/rationalise/retype/apply', **req, token=preview['token'])
+        self.assertIn('LIM-0001', S.load_registers())
+
+    def test_lead_merge_matches_preview_and_preserves_conflicts(self):
+        write_item(self.eng, 'LIM-0002', 'Other title', 'Accepted', owner='Other owner', description='New detail', history=['Original history'])
+        write_item(self.eng, 'REQ-0001', 'Referrer', 'Draft', links=['constrained-by LIM-0002'])
+        req = {'ids': ['LIM-0001', 'LIM-0002'], 'lead': 'LIM-0001'}
+        preview = self.h.structure_preview(req, 'merge')
+        self.request('/api/rationalise/merge/apply', **req, token=preview['token'])
+        items = S.load_registers(); lead = items['LIM-0001']
+        for field in ('title', 'status', 'description', 'notes', 'source', 'links'):
+            self.assertEqual(lead.get(field), preview['after'].get(field))
+        self.assertEqual(lead['status'], 'Identified')
+        self.assertIn('Other owner', lead['notes'])
+        self.assertIn('Other title', lead['notes'])
+        self.assertIn('Original history', lead['notes'])
+        self.assertEqual(items['REQ-0001']['links'], ['constrained-by LIM-0001'])
+        self.assertNotIn('LIM-0002', items)
+        self.assertEqual(S.aliases()['LIM-0002']['targets'], ['LIM-0001'])
+
+    def test_delete_restore_preserves_later_edits_and_original_id(self):
+        write_item(self.eng, 'REQ-0001', 'Referrer', 'Draft', links=['constrained-by LIM-0001'])
+        self.request('/api/trash/delete', ids=['LIM-0001'], reason='Duplicate generated record')
+        self.assertNotIn('LIM-0001', S.load_registers())
+        self.assertEqual(S.load_registers()['REQ-0001']['links'], [])
+        self.h.edit({'id':'REQ-0001','fields':{'Title':'Later edit'},'madeBy':'Other'})
+        entry = S.T.bin_load(self.eng)[0]
+        self.request('/api/trash/restore', key=entry['key'], revision=O.revision(entry))
+        items = S.load_registers()
+        self.assertEqual(items['REQ-0001']['title'], 'Later edit')
+        self.assertEqual(items['REQ-0001']['links'], ['constrained-by LIM-0001'])
+        self.assertEqual(items['LIM-0001']['title'], 'Historical shortfall')
+        self.assertIn('Restored from rubbish bin', items['LIM-0001']['history'][-1])
+        self.assertNotIn('LIM-0001', S.aliases())
+        with self.assertRaises(ValueError):
+            self.request('/api/trash/restore', key=entry['key'], revision=O.revision(entry))
+
+    def test_restoring_both_deleted_ends_recovers_links_in_either_order(self):
+        write_item(self.eng, 'REQ-0001', 'Referrer', 'Draft', links=['constrained-by LIM-0001'])
+        self.request('/api/trash/delete', ids=['LIM-0001','REQ-0001'], reason='Cleanup')
+        for entry_id in ['LIM-0001','REQ-0001']:
+            entry = next(e for e in S.T.bin_load(self.eng) if e['item']['id'] == entry_id)
+            self.request('/api/trash/restore', key=entry['key'], revision=O.revision(entry))
+        self.assertEqual(S.load_registers()['REQ-0001']['links'], ['constrained-by LIM-0001'])
+
+    def test_restore_refuses_id_collision_and_preserves_bin_entry(self):
+        self.request('/api/trash/delete', ids=['LIM-0001'], reason='Cleanup')
+        write_item(self.eng, 'LIM-0001', 'External replacement', 'Identified')
+        entry = S.T.bin_load(self.eng)[0]
+        with self.assertRaisesRegex(ValueError, 'already in use'):
+            self.request('/api/trash/restore', key=entry['key'], revision=O.revision(entry))
+        self.assertEqual(S.load_registers()['LIM-0001']['title'], 'External replacement')
+        self.assertFalse(S.T.bin_load(self.eng)[0]['restored'])
+
+    def test_bin_survives_reload_and_bulk_delete_is_atomic(self):
+        self.request('/api/trash/delete', ids=['LIM-0001', 'REQ-0001'], reason='Cleanup')
+        entries = json.loads(Path(self.eng, 'rubbish-bin.json').read_text())
+        self.assertEqual(len(entries), 2)
+        self.assertFalse(S.load_registers())
+        O.undo(self.eng, O.records(self.eng)[-1]['id'])
+        self.assertEqual(len(S.load_registers()), 2)
+        self.assertFalse(S.T.bin_load(self.eng))
+        with self.assertRaises(ValueError):
+            self.request('/api/trash/delete', ids=['LIM-0001', 'LIM-9999'], reason='Cleanup')
+        self.assertIn('LIM-0001', S.load_registers())
+
     def test_immediate_correction_skips_workflow_without_review_or_evidence(self):
         self.request('/api/rationalise/edit', id='LIM-0001', fields={
             'Status': 'Accepted', 'Raised on': '2 August 2026', 'Closed on': '', 'Scope': 'Correct scope'})

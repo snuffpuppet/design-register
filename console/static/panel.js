@@ -32,7 +32,7 @@
       <button class="btn ghost" onClick=${() => setOpen(!open)}>⋯</button>
       ${open ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
 
-        <div class="mi" onClick=${() => { setOpen(false); S.post('/api/reviews/create',{name:'Merge review '+i.id,ids:[i.id]}).then(async r=>{await S.load();S.set({view:'reviews:'+r.id,open:null});}).catch(e=>S.toast(e.message)); }}><span>Merge into…</span></div>
+        ${S.ui.mode === 'rationalise' ? html`<div class="mi" onClick=${() => { setOpen(false); S.set({structure:{action:'merge',ids:[i.id]}}); }}><span>Merge into…</span></div>` : null}
         <div class="mi" onClick=${() => { setOpen(false); setDeleting(true); }}><span>Delete</span></div>
       </div>` : null}
       ${merging ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
@@ -41,7 +41,7 @@
       </div>` : null}
       ${deleting ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
         <div class="field"><label>Reason</label><input class="inp" value=${reason} onInput=${e => setReason(e.target.value)} placeholder="reason, goes into History" /></div>
-        <div class="dlg-f"><button class="btn" onClick=${() => { setDeleting(false); setReason(""); }}>Cancel</button><button class="btn pri danger" disabled=${!reason.trim()} onClick=${del}>Delete</button></div>
+        <div class="dlg-f"><button class="btn" onClick=${() => { setDeleting(false); setReason(""); }}>Cancel</button><button class="btn pri danger" disabled=${!reason.trim()} onClick=${del}>Move to rubbish bin</button></div>
       </div>` : null}
     </span>`;
   }
@@ -85,6 +85,7 @@
         <button class="btn" onClick=${() => setLinkTo({})}>Link to…</button>
         <button class="btn" onClick=${() => { navigator.clipboard.writeText(location.origin + '/#item/' + encodeURIComponent(i.id)).then(() => S.toast('Link copied'), () => S.toast('Copy this URL: ' + location.origin + '/#item/' + i.id)); }}>Copy link</button>
         <button class="btn" onClick=${async () => { try {const r=await S.post('/api/reviews/create',{name:'Review '+i.id,ids:[i.id]});await S.load();S.set({view:'reviews:'+r.id,open:null});}catch(e){S.toast(e.message);} }}>Structured review</button>
+        ${S.ui.mode === 'rationalise' ? html`<button class="btn" onClick=${()=>S.set({structure:{action:'retype',ids:[i.id]}})}>Change type</button>` : null}
         <${More} i=${i} />
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
       ${linkTo ? html`<${Picker.LinkTo} item=${i} word=${linkTo.word} onClose=${() => setLinkTo(null)} />` : null}

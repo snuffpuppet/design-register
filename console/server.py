@@ -15,6 +15,7 @@ import integrity as I
 import renumber as R
 import operations as O
 import workspaces as W
+import structure as T
 import views as V
 from items import parse_item, render_item, item_path
 
@@ -250,6 +251,7 @@ def state():
         it["revision"] = O.revision(it)
     return {"reviews": reviews, "meetings": W.load(ENG, "meetings"),
             "operations": O.summaries(ENG), "aliases": aliases(),
+            "rubbish": [{**e, "revision": O.revision(e)} for e in T.bin_load(ENG) if not e["restored"]],
             "compatibility": compatibility(), "engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
             "integrity": integrity_of(items),
             "provenance": I.provenance(list(items.values()), items),
@@ -339,8 +341,8 @@ def compatibility():
     version = re.search(r'^- Ingester model version:\s*(\S+)', text, re.M)
     version = version.group(1) if version else ''
     return {'consoleModel': M.MODEL_VERSION, 'changeSetContract': M.CHANGE_SET_CONTRACT, 'ingesterModel': version,
-            'compatible': version in ('2.30', '2.31', '2.32'),
-            'message': '' if version in ('2.30', '2.31', '2.32') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
+            'compatible': version in ('2.30', '2.31', '2.32', '2.33'),
+            'message': '' if version in ('2.30', '2.31', '2.32', '2.33') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
 
 
 def require_compatible():
@@ -443,7 +445,7 @@ class H(SimpleHTTPRequestHandler):
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
             p = urlparse(self.path).path
-            if p == '/api/rationalise/edit': req['context'] = 'rationalise'
+            if p.startswith('/api/rationalise/') or p.startswith('/api/trash/'): req['context'] = 'rationalise'
             with LOCK:
                 check_revisions(req)
                 if p.endswith(('/preview', '/summary')) or p in ('/api/needs', '/api/supports') or p.startswith('/api/report/'):
@@ -483,6 +485,16 @@ class H(SimpleHTTPRequestHandler):
                 return W.update(ENG, category, {**req, 'entry': entry}, items, today())
             if action == 'summary': return {"text": W.summary(W.find(W.load(ENG, category), req['batch']), category)}
             raise ValueError('Unknown session action.')
+        if p in ('/api/rationalise/retype/preview', '/api/rationalise/merge/preview'):
+            return self.structure_preview(req, 'retype' if '/retype/' in p else 'merge')
+        if p in ('/api/rationalise/retype/apply', '/api/rationalise/merge/apply'):
+            return self.structure_apply(req, 'retype' if '/retype/' in p else 'merge')
+        if p == '/api/trash/restore': return self.restore_deleted(req)
+        if p == '/api/trash/delete':
+            self.require_direct_structure()
+            ids = list(dict.fromkeys(req.get('ids', [])))
+            if not ids or any(id not in load_registers() for id in ids): raise ValueError('Select existing records.')
+            return {'deleted': [self.delete({**req, 'id': id})['removed'] for id in ids]}
         if p == '/api/rationalise/edit': return self.correct_items(req)
         if p == '/api/operations/undo': return O.undo(ENG, req['operation'])
         if p == '/api/bulk/preview': return bulk_preview(req)
@@ -597,7 +609,7 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("Set the owner before accepting this one; the engine does not guess stakeholders.")
         return f
 
-    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None, delete=False, replace_links=None):
+    def commit(self, kind, target, fields, links, req, gist, frm=None, based_on=None, delete=False, replace_links=None, restore_item=None):
         """The one place a Live write lands. Change-sets mode appends a block to the maker's open change set;
         direct mode rewrites the item file, stamps Updated and appends one History line. Callers build fields
         by label and links as text, the same in both modes. Returns item (block number or id) and ref, the
@@ -617,7 +629,9 @@ class H(SimpleHTTPRequestHandler):
                 raise ValueError(f"No file for {target}.")
             os.remove(p)
             return {"item": target, "removed": p, "ref": target}
-        if target == "new":
+        if restore_item is not None:
+            it = {**restore_item, "links": list(restore_item["links"]), "history": list(restore_item.get("history", []))}
+        elif target == "new":
             taken = [int(os.path.basename(p)[len(kind) + 1:-3]) for p in glob.glob(os.path.join(ENG, M.DIRS[kind], f"{kind}-*.md"))]
             taken += [int(id.split('-')[1]) for id in aliases() if re.fullmatch(kind + r'-\d+', id)]
             it = {"id": f"{kind}-{max(taken + [0]) + 1:04d}", "kind": kind, "links": [], "history": [], "raised-on": today(), "closed-on": ""}
@@ -776,6 +790,81 @@ class H(SimpleHTTPRequestHandler):
         r = self.commit(kind, "new", fields, f["links"], req, req.get("gist", "") or "raised in console")
         return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"], "ref": r["ref"]}
 
+    def require_direct_structure(self):
+        if not writes_direct(): raise ValueError('This operation requires direct writes.')
+        if any(not cs['applied'] for cs in load_change_sets()):
+            raise ValueError('Resolve pending change sets before changing register structure.')
+
+    def structure_preview(self, req, action):
+        self.require_direct_structure()
+        items = load_registers()
+        ids = req.get('ids', [])
+        if action == 'retype':
+            changes = T.retype(items, aliases(), ids, req.get('kind'), req.get('status') or None)
+            for change in changes:
+                after = change['after']
+                validate_fields(after['kind'], {k: after.get(k, '') for k in T.fields(after['kind'])}, correction=True)
+            result = {'changes': changes}
+        else:
+            result = T.merge(items, req.get('lead'), ids)
+        result['token'] = O.digest({'items': items, 'aliases': aliases(), 'plan': result})
+        return result
+
+    def structure_apply(self, req, action):
+        preview = self.structure_preview(req, action)
+        if req.get('token') != preview['token']:
+            raise ValueError('Registers or choices changed. Preview again before accepting.')
+        req = {**req, 'context': 'rationalise'}
+        self.evidence(req)
+        if action == 'retype':
+            mapping = {}
+            for change in preview['changes']:
+                old, new = change['before'], change['after']
+                self.commit(new['kind'], new['id'], {}, [], req, 'Retyped from ' + old['id'], restore_item=new)
+                mapping[old['id']] = new['id']
+            for old, new in mapping.items():
+                self.rewrite_links(load_registers(), old, new, 'retyped ' + old + ' to ' + new, req)
+                self.commit(old.split('-')[0], old, {}, [], req, '', delete=True)
+                record_alias(old, [new], 'retyped')
+            return {'mapping': mapping}
+        after = preview['after']; lead = after['id']
+        self.commit(after['kind'], lead, {label_of(k): after.get(k, '') for k in T.fields(after['kind'])}, [], req,
+                    'Merged ' + ', '.join(id for id in req['ids'] if id != lead), replace_links=after['links'])
+        for row in preview['before']:
+            if row['id'] == lead: continue
+            self.rewrite_links(load_registers(), row['id'], lead, 'merged ' + row['id'] + ' into ' + lead, req)
+            self.commit(row['kind'], row['id'], {}, [], req, '', delete=True)
+            record_alias(row['id'], [lead], 'merged')
+        return {'survivor': lead}
+
+    def restore_deleted(self, req):
+        self.require_direct_structure()
+        self.evidence(req)
+        entries = T.bin_load(ENG)
+        entry = next((e for e in entries if e['key'] == req.get('key') and not e['restored']), None)
+        if not entry or req.get('revision') != O.revision(entry):
+            raise ValueError('Bin entry changed or was already restored. Reload the bin.')
+        item = entry['item']; id = item['id']; items = load_registers()
+        if id in items or aliases().get(id, {}).get('targets'):
+            raise ValueError('That ID is already in use or redirects to another record.')
+        self.commit(item['kind'], id, {}, [], req, 'Restored from rubbish bin', restore_item=item)
+        missing = []
+        for source, links in entry['incoming'].items():
+            if source in items:
+                self.commit(items[source]['kind'], source, {}, links, req, 'Restored links to ' + id)
+            else: missing.append(source)
+        # A referring record may itself have been in the bin when its target was restored.
+        for earlier in entries:
+            if earlier['restored'] and id in earlier.get('pendingSources', []) and earlier['item']['id'] in items:
+                self.commit(item['kind'], id, {}, earlier['incoming'][id], req, 'Restored deferred incoming links')
+                earlier['pendingSources'].remove(id)
+        entry['pendingSources'] = missing
+        data = aliases(); data.pop(id, None)
+        O.atomic(os.path.join(ENG, 'aliases.json'), json.dumps(data, indent=2))
+        entry['restored'] = True; entry['restoredOn'] = today(); entry['restoredBy'] = req['madeBy']
+        T.bin_save(ENG, entries)
+        return {'restored': id, 'missingSources': missing}
+
     def correct_items(self, req):
         """Immediate corrections, with full batch validation and no lifecycle entry rules."""
         if not writes_direct():
@@ -894,6 +983,8 @@ class H(SimpleHTTPRequestHandler):
         if not writes_direct():
             raise ValueError("Delete is a direct write; this engagement writes change sets, which have no block for it.")
         self.evidence(req)
+        if any(not cs["applied"] for cs in load_change_sets()):
+            raise ValueError("Resolve pending change sets before deleting records.")
         reason = str(req.get("reason", "")).strip()
         if not reason:
             raise ValueError("Give a reason; it goes into the History of every item that loses a link.")
@@ -901,6 +992,7 @@ class H(SimpleHTTPRequestHandler):
         it = items.get(req.get("id", ""))
         if not it:
             raise ValueError("No such item.")
+        T.archive(ENG, it, items, {**req, "reason": reason}, today())
         touched = self.rewrite_links(items, it["id"], None, f"dropped link to {it['id']}, deleted: {reason}", req)
         self.commit(it["kind"], it["id"], {}, [], req, "", delete=True)
         record_alias(it["id"], [], reason)

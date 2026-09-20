@@ -1,18 +1,18 @@
 # design-register
 
-Version 1.1, 20 September 2026.
+Version 1.2, 20 September 2026.
 
 Read `README.md` first. This file holds coding-session constraints and non-obvious operating rules.
 
 ## Purpose and boundaries
 
-This repository owns the solution register model (2.32), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
+This repository owns the solution register model (2.33), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
 
 Real source registers and the identifying glossary stay on the work laptop. This checkout contains synthetic or reviewed anonymised fixtures. Generic anonymisation code is tracked in `console/anonymise.py`; the private glossary is not. `docs/anonymisation.md` describes the deterministic format and review boundary. Opus can run `.claude/skills/anonymise-register/` without performing free-form rewriting.
 
 ## Working contexts
 
-- **Rationalise** uses the shared table for immediate single/bulk corrections via `/api/rationalise/edit`, without workflow transitions, required supporting records or a review/evidence form. Keep field structure, valid statuses, revisions, transaction rollback and history. Existing structured reviews remain optional for merges/retypes/splits. Do not manufacture intermediate open items or guessed approvals to repair a generated register.
+- **Rationalise** uses the shared table for immediate single/bulk corrections via `/api/rationalise/edit`, without workflow transitions, required supporting records or a review/evidence form. Keep field structure, valid statuses, revisions, transaction rollback and history. Immediate type changes and lead-first merges use before/after previews; structured reviews remain optional for older batches and splits. Do not manufacture intermediate open items or guessed approvals to repair a generated register.
 - **Desktop by scope** is a predefined scope filter in Desktop, retaining workflow rules.
 - **Desktop** follows the normal model transitions and required-field checks.
 - **Meetings** retain a fixed agenda, outcomes, action references and stable session ID. Workflow writes still use Desktop operations.
@@ -26,7 +26,8 @@ Real source registers and the identifying glossary stay on the work laptop. This
 - Bulk preflight runs before writes. A mixed-validity batch writes nothing unless the request explicitly chooses `applyValid`.
 - Item revisions detect stale browser edits. Review and meeting records have their own revision. Preserve both protections when changing forms.
 - Recovery journals contain private snapshots. Startup recovers prepared operations; undo refuses changed engagement content. Coordinate with the ingester rather than running two writers concurrently.
-- Merge requires conflict choices and records aliases. Retype rewrites incoming links and preserves the old ID as an alias. Split keeps the original as an index to the new items. Published IDs stay stable. Renumber is a legacy operation requiring `allowUnpublished`, a clean engagement git tree and an unused staging range.
+- Immediate Rationalise merge keeps lead values, fills blanks and preserves differing values/history in Notes. Its preview token protects acceptance from stale data. Legacy structured reviews retain explicit conflict choices. Merges record aliases. Retype rewrites incoming links and preserves the old ID as an alias. Split keeps the original as an index to the new items. Published IDs stay stable. Renumber is a legacy operation requiring `allowUnpublished`, a clean engagement git tree and an unused staging range.
+- Delete archives the record and incoming links in private `rubbish-bin.json`; restore preserves the original ID and later edits to referring records. Keep bin content excluded from anonymised exports.
 - The model document remains authoritative; `console/model.py` holds field/state/rule data. Bump and date the model when its semantics change. Review semantics are section 12; item and change-set wire formats remain unchanged.
 - Scope is declared by engagement. `required_on_create()` applies that conditionality. A follow-up item in a scoped engagement must ask for Scope.
 

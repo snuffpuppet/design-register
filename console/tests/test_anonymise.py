@@ -20,10 +20,11 @@ class Anonymise(unittest.TestCase):
     def tearDown(self):self.tmp.cleanup()
 
     def test_exports_are_byte_identical_and_do_not_copy_journal(self):
+        (self.src/'rubbish-bin.json').write_text('{"secret":"Deleted private material"}')
         one,two=self.root/'one',self.root/'two'
         A.export(self.src,one,self.glossary);A.export(self.src,two,self.glossary)
         def tree(p):return {str(f.relative_to(p)):f.read_bytes() for f in p.rglob('*') if f.is_file()}
-        self.assertEqual(tree(one),tree(two));self.assertFalse((one/'operations').exists())
+        self.assertEqual(tree(one),tree(two));self.assertFalse((one/'operations').exists());self.assertFalse((one/'rubbish-bin.json').exists())
         text=(one/'requirements'/'REQ-0001.md').read_text()
         self.assertNotIn('Private Product',text);self.assertIn('Wool Loom',text);self.assertNotIn('private.example.com',text)
         self.assertIn('id: REQ-0001',text)

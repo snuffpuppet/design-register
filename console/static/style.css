@@ -251,3 +251,6 @@ select.chip.add{border-style:dashed;color:var(--ink-3);font:inherit;font-size:12
 .agenda, .review-detail { overflow-y: auto; min-height: 0; }
 .preview { flex-shrink: 0; max-height: 32vh; }
 .preview > .btn, .review-detail .card > .btn { align-self: flex-start; }
+
+/* Structural corrections show complete before/after records in a bounded dialog. */
+.dlg.structural{width:min(1100px,95vw);max-width:95vw}.structural .dlg-b{max-height:72vh;overflow:auto}.structural .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.structural .card{overflow-wrap:anywhere}@media(max-width:700px){.structural .compare-grid{grid-template-columns:1fr}}
