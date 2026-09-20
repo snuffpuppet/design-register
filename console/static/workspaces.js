@@ -96,7 +96,7 @@
     const S=Store;
     return html`<main class="workspace workspace-content"><h1>Import working registers</h1><p>${S.baseline?.candidates?.length || 0} source rows are ready. Import preserves source references and opens a rationalisation review over the resulting register items.</p><${Maker}/>
       ${(S.baseline?.allPages || []).map(page=>html`<label class="field"><input style="width:auto" type="checkbox" checked=${!(S.baseline.skipped || []).includes(page)} onChange=${e=>run(async()=>{await S.post('/api/baseline/skip-page',{page,undo:e.target.checked});await S.load();})}/> Import register rows from ${page}</label>`)}
-      <button class="btn pri" onClick=${()=>run(async()=>{await S.post('/api/import',{});await S.load();S.set({view:'reviews'});})}>Import and review</button></main>`;
+      <button class="btn pri" onClick=${()=>run(async()=>{await S.post('/api/import',{});await S.load();S.set({mode:'rationalise',view:'all'});})}>Import and review</button></main>`;
   }
   function Operations() {
     return html`<main class="main-col workspace"><div class="bar top"><h2>Recent operations</h2><div class="sp"></div><${Maker}/></div><div class="workspace-content"><p>Undo checks that affected register data has not changed. Recovery runs automatically after an interrupted write.</p>${Store.state.operations.slice().reverse().map(o=>html`<div class="card"><b>${o.action}</b><p>${o.at} · ${o.by} · ${o.status}</p><button class="btn" disabled=${o.status!=='applied'} onClick=${()=>run(async()=>{await Store.post('/api/operations/undo',{operation:o.id});await Store.load();})}>Undo operation</button></div>`)}</div></main>`;

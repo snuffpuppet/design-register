@@ -71,9 +71,11 @@
     return html`<nav class="rail">
       <div class="grp"><span class="lbl">Engagement</span><div class="rl-eng">${S.state.engagement.name}</div></div>
       <div class="grp"><span class="lbl">Workspace</span>
-        <${Item} label="Desktop" on=${!(/^(reviews|meetings)/.test(ui.view))} onClick=${() => S.set({view:'all',session:null,open:null})}/>
-        <${Item} label="Rationalise" on=${ui.view.startsWith('reviews')} onClick=${() => S.set({view:'reviews',session:null,open:null})}/>
-        <${Item} label="Meetings" on=${ui.view.startsWith('meetings')} onClick=${() => S.set({view:'meetings',open:null})}/>
+        <${Item} label="Desktop" on=${ui.mode === 'desktop' && !(/^(reviews|meetings)/.test(ui.view))} onClick=${() => S.set({mode:'desktop',view:'all',session:null,open:null,selection:new Set()})}/>
+        <${Item} label="Rationalise" on=${ui.mode === 'rationalise'} onClick=${() => S.set({mode:'rationalise',view:'all',session:null,open:null,selection:new Set()})}/>
+      </div>
+      <div class="grp"><span class="lbl">Desktop by scope</span>
+        ${S.model.scopes.map(scope => html`<${Item} label=${scope} on=${ui.mode==='desktop' && ui.view==='all' && ui.filter.scopes.length===1 && ui.filter.scopes[0]===scope} onClick=${()=>S.set({mode:'desktop',view:'all',session:null,open:null,selection:new Set(),filter:{types:[],statuses:[],scopes:[scope],owners:[],rule:'',q:''}})}/>`)}
       </div>
       <div class="grp"><span class="lbl">Work</span>
         <${Item} label="Outstanding" n=${c.outstanding} on=${ui.view === "outstanding"} onClick=${go("outstanding")} />
@@ -96,6 +98,8 @@
           : html`<div class="rl-it muted" onClick=${() => setSavingView(true)}>+ Save current view</div>`}
       </div>
       <div class="rl-foot">
+        <${Item} label="Saved reviews" onClick=${()=>S.set({mode:'desktop',view:'reviews',open:null})}/>
+        <${Item} label="Meeting records" onClick=${()=>S.set({mode:'desktop',view:'meetings',open:null})}/>
         <${Item} label="Recent operations" onClick=${go("operations")}/>
         <a class="rl-it muted" href="guide.html" target="_blank" rel="noopener">Guide</a>
         <${ThemeSwitch} />

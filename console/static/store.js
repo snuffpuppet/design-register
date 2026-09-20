@@ -3,11 +3,11 @@
   const listeners = new Set();
   const Store = {
     state: null, model: null, views: [], baseline: null, display: null,
-    ui: { view: "all", filter: { types: [], statuses: [], scopes: [], owners: [], rule: "", since: "", q: "" },
+    ui: { mode: "desktop", view: "all", filter: { types: [], statuses: [], scopes: [], owners: [], rule: "", since: "", q: "" },
           selection: new Set(), focus: null, open: null, groupBy: "", columns: null, madeBy: "" },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     emit() { listeners.forEach(fn => fn()); },
-    set(patch) { if ("view" in patch) Store.display = null; Object.assign(Store.ui, patch); Store.emit(); },
+    set(patch) { if (/^(reviews|meetings)(:|$)/.test(patch.view || "")) patch = {...patch, mode:"desktop"}; if ("view" in patch) Store.display = null; Object.assign(Store.ui, patch); Store.emit(); },
     async load() {
       const [s, m, v, b] = await Promise.all([fetch("/api/state").then(r => r.json()), fetch("/api/model").then(r => r.json()), fetch("/api/views").then(r => r.json()), fetch("/api/baseline").then(r => r.json())]);
       Store.state = s; Store.model = m; Store.views = v.views; Store.baseline = b;
@@ -20,6 +20,9 @@
       Store.emit();
     },
     async post(url, body) {
+      if (Store.ui.mode === 'rationalise' && (url === '/api/edit' || (url === '/api/bulk' && ['set','link'].includes(body.op)))) {
+        url = '/api/rationalise/edit'; body = {...body, context: 'rationalise'};
+      }
       const ids = [...(body.ids || []), ...(body.losers || []), body.id, body.survivor, body.target].filter(Boolean);
       const revisions = Object.fromEntries(ids.filter(id => Store.byId?.[id]).map(id => [id, Store.byId[id].revision]));
       const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ madeBy: Store.ui.madeBy, revisions, session: Store.ui.session || "", ...body }) });

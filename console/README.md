@@ -4,9 +4,9 @@ Version 0.7, 19 September 2026. Model 2.31.
 
 ## Use
 
-The shared table opens actual registers. Desktop workflow, rationalisation review batches and meeting sessions use the same item files. The rail switches working context. Select rows to start a review or meeting, or use the workspace home. Set Made by before writing.
+The shared table opens actual registers. Rationalise and Desktop share the table and item panel. Rationalise saves single/bulk field and status corrections immediately through `/api/rationalise/edit`, skipping lifecycle entry requirements. Desktop follows the workflow; Desktop by scope applies a scope filter and restores workflow mode. Set Made by before writing. Saved reviews and meeting records remain optional tools.
 
-A review keeps its initial item snapshots, ordered IDs, per-item outcomes, correction drafts, evidence and content revisions in `reviews.json`. Saving a draft does not change registers. Preview shows changes and remaining state-entry gaps. Apply checks revisions and writes the correction batch through the normal commit boundary inside a recovery operation. Complete review requires every row reviewed, no unresolved clarification, and all mutating proposals applied. Integrity gaps can remain explicitly visible; review completion never claims missing evidence exists.
+An optional structured review keeps its initial item snapshots, ordered IDs, per-item outcomes, correction drafts, evidence and content revisions in `reviews.json`. Saving a draft does not change registers. Preview shows changes and remaining state-entry gaps. Apply checks revisions and writes the correction batch through the normal commit boundary inside a recovery operation. Complete review requires every row reviewed, no unresolved clarification, and all mutating proposals applied. Integrity gaps can remain explicitly visible; review completion never claims missing evidence exists.
 
 A meeting keeps a fixed agenda, original snapshots, discussion progress and outcomes in `meetings.json`. Its item panel uses ordinary workflow operations. Follow-up creation and recording the resulting ID happen in one operation. Export produces Markdown with a stable MTG reference. The transcript ingester is not changed; correlating that reference with later transcript proposals is an integration task for its repository.
 

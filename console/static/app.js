@@ -7,8 +7,8 @@
     if (Store.baseline?.present && !Store.baseline.frozen && !Store.state.items.length) {
       return html`<${ImportRegisters}/>`;
     }
-    const main = /^(reviews|meetings)(:|$)/.test(Store.ui.view) ? html`<${Workspace}/>` : Store.ui.view === 'operations' ? html`<${Operations}/>` : Store.ui.view.startsWith("report:") ? html`<${Report} key=${Store.ui.view}/>` : html`<${Table} />`;
-    return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} />` : null}${Store.ui.move ? html`<${MoveForm.Form} key=${Store.ui.move.ids.join(",")+Store.ui.move.to}/>` : null}${Store.ui.create ? html`<${CreateForm.Form}/>` : null}</div>`;
+    const main = /^(reviews|meetings)(:|$)/.test(Store.ui.view) ? html`<${Workspace}/>` : Store.ui.view === 'operations' ? html`<${Operations}/>` : Store.ui.view.startsWith("report:") ? html`<${Report} key=${Store.ui.view}/>` : html`<${Table} key=${Store.ui.mode} />`;
+    return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} key=${Store.ui.mode + Store.ui.open} />` : null}${Store.ui.move ? html`<${MoveForm.Form} key=${Store.ui.move.ids.join(",")+Store.ui.move.to}/>` : null}${Store.ui.create ? html`<${CreateForm.Form}/>` : null}</div>`;
   }
   async function boot(retries = 20) {
     try { await Store.load(); }

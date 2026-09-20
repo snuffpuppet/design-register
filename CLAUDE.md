@@ -1,18 +1,19 @@
 # design-register
 
-Version 1.0, 19 September 2026.
+Version 1.1, 20 September 2026.
 
 Read `README.md` first. This file holds coding-session constraints and non-obvious operating rules.
 
 ## Purpose and boundaries
 
-This repository owns the solution register model (2.31), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
+This repository owns the solution register model (2.32), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
 
 Real source registers and the identifying glossary stay on the work laptop. This checkout contains synthetic or reviewed anonymised fixtures. Generic anonymisation code is tracked in `console/anonymise.py`; the private glossary is not. `docs/anonymisation.md` describes the deterministic format and review boundary. Opus can run `.claude/skills/anonymise-register/` without performing free-form rewriting.
 
 ## Working contexts
 
-- **Rationalise** reviews actual register items in persistent batches, independently of lifecycle status. It can correct historical type, status, fields and links with reason/evidence, preserving unresolved integrity gaps. Do not manufacture intermediate open items or guessed approvals just to repair a generated register.
+- **Rationalise** uses the shared table for immediate single/bulk corrections via `/api/rationalise/edit`, without workflow transitions, required supporting records or a review/evidence form. Keep field structure, valid statuses, revisions, transaction rollback and history. Existing structured reviews remain optional for merges/retypes/splits. Do not manufacture intermediate open items or guessed approvals to repair a generated register.
+- **Desktop by scope** is a predefined scope filter in Desktop, retaining workflow rules.
 - **Desktop** follows the normal model transitions and required-field checks.
 - **Meetings** retain a fixed agenda, outcomes, action references and stable session ID. Workflow writes still use Desktop operations.
 - `- Writes: direct` versus `change-sets` is a separate persistence choice. Review, meeting and view metadata work in both modes. Historical correction application and structural register operations require direct mode. Do not invent incompatible ingester blocks.

@@ -37,14 +37,14 @@
   // The status pill. Click lists every state for the type: reachable ones say what they need, others are greyed.
   function StatusCell({ item }) {
     const [open, setOpen] = useState(false);
-    const S = Store, m = S.model, can = m.transitions[item.kind]?.[item.status] || [];
+    const S = Store, m = S.model, correcting = S.ui.mode === 'rationalise', can = correcting ? m.states[item.kind] : m.transitions[item.kind]?.[item.status] || [];
     const need = to => (m.required[item.kind]?.[to] || []).map(f => f.startsWith("link:") ? "link " + f.slice(5) : m.labels[f] || f)
       .concat((m.specials || []).filter(sp => sp.kind === item.kind && sp.state === to).map(sp => sp.text));
-    const pick = to => { setOpen(false); MoveForm.open({ ids: [item.id], to }); };
+    const pick = to => { setOpen(false); if (correcting) write(item, 'status', to); else MoveForm.open({ ids: [item.id], to }); };
     return html`<span class="stwrap"><span class=${"st lnk" + (open ? " on" : "")} onClick=${e => { e.stopPropagation(); setOpen(!open); }}>${item.status} ▾</span>
       ${open ? html`<div class="menu" onClick=${e => e.stopPropagation()}>
         ${m.states[item.kind].filter(s => s !== item.status).map(s => can.includes(s)
-          ? html`<div class="mi" onClick=${() => pick(s)}><span>${s}</span><span class="muted">${need(s).length ? "needs " + need(s).join(", ") : "ready"}</span></div>`
+          ? html`<div class="mi" onClick=${() => pick(s)}><span>${s}</span><span class="muted">${correcting ? "correct status" : need(s).length ? "needs " + need(s).join(", ") : "ready"}</span></div>`
           : html`<div class="mi off"><span>${s}</span><span>not from ${item.status}</span></div>`)}
       </div>` : null}</span>`;
   }

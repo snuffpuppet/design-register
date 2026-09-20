@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1.6, 19 September 2026. Owner: Adam Moyes.
+Version 1.7, 20 September 2026. Owner: Adam Moyes.
 
 ## Boundaries
 
@@ -10,7 +10,7 @@ The console is a standard-library Python server and local Preact/htm assets, run
 
 ## Working contexts and storage
 
-Rationalisation corrects the historical/current position; Desktop follows lifecycle transitions; Meetings capture discussion on a stable agenda while using ordinary workflow operations. These contexts are independent of direct versus change-set persistence.
+Rationalise and Desktop share the table and item panel. Rationalise sends immediate single/bulk corrections to `/api/rationalise/edit`, without lifecycle entry checks or review forms. The endpoint preflights every row and commits inside one recoverable transaction. Desktop follows lifecycle transitions; scope shortcuts open filtered Desktop work. Optional saved reviews and meeting records retain existing data and structured operations. These contexts are independent of direct versus change-set persistence.
 
 | Component | Responsibility |
 |---|---|

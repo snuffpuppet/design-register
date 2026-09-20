@@ -95,10 +95,11 @@
     // The screen order j/k should follow: the grouped, sorted rows, headers left out.
     Store.display = disp.filter(d => d.header === undefined).map(d => d.row);
     return html`<div class="main-col">
-      <div class="bar top"><span class="h2">${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
+      <div class="bar top"><span class="h2">${ui.mode === "rationalise" ? "Rationalise" : "Desktop"} · ${title}</span><span class="muted">${rows.length}</span><div class="sp"></div>
         <input class="inp search" placeholder="Search title, id, notes" value=${f.q} onInput=${e => setF({ q: e.target.value })} />
         <input class="inp madeby" placeholder="Made by" value=${ui.madeBy} onInput=${e => { S.set({ madeBy: e.target.value }); try { localStorage.setItem("madeBy", e.target.value); } catch {} }} />
         <button class="btn pri" onClick=${() => CreateForm.open({ kind: Store.model.states[Store.ui.view] ? Store.ui.view : "OI" })}>+ New item</button></div>
+      ${ui.mode === 'rationalise' ? html`<div class="bar muted">Corrections save immediately. Status changes skip workflow requirements; integrity gaps remain visible.</div>` : null}
       <div class="bar chips">
         ${f.types.length ? html`<${Chip} label="Type" value=${f.types.join(", ")} onClear=${() => setF({ types: [] })} />` : null}
         ${f.statuses.length ? html`<${Chip} label="Status" value=${f.statuses.join(", ")} onClear=${() => setF({ statuses: [] })} />` : null}
@@ -110,7 +111,8 @@
           ${Object.entries(GROUP_LABELS).map(([v, l]) => html`<option value=${v}>${v ? "Group by " + l : l}</option>`)}
         </select>
       </div>
-      <${Bulk} />
+      <div class="bar"><label>Show field <select class="inp" value="" onChange=${e=>{if(e.target.value)S.set({columns:[...new Set([...cols,e.target.value])]});}}><option value="">Choose…</option>${[...new Set(['raised-on','closed-on','description',...Object.values(S.model.short).flat(),...Object.values(S.model.long).flat()])].filter(k=>!cols.includes(k)).map(k=>html`<option value=${k}>${label(k)}</option>`)}</select></label><button class="btn ghost" onClick=${()=>S.set({columns:null})}>Reset columns</button></div>
+      <${Bulk} key=${ui.mode} />
       <div class="tbl-wrap"><table>
         <thead><tr><th class="c-sel"><span class=${"cb" + (rows.length && rows.every(r => ui.selection.has(r.id)) ? " on" : "")} onClick=${() => {
           const all = rows.length && rows.every(r => ui.selection.has(r.id)), sel = new Set(ui.selection);

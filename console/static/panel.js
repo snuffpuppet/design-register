@@ -76,7 +76,7 @@
     const needs = to => S.model.required[i.kind]?.[to] || [];
     const specials = to => (S.model.specials || []).filter(sp => sp.kind === i.kind && sp.state === to).map(sp => sp.text);
     const need = to => needs(to).map(f => f.startsWith("link:") ? "link " + f.slice(5) : S.model.labels[f] || f).concat(specials(to)).join(", ");
-    const short = S.model.short[i.kind].filter(k => k !== "scope"), long = S.model.long[i.kind];
+    const short = [...new Set([...S.model.short[i.kind], "raised-on", "closed-on"])].filter(k => k !== "scope"), long = S.model.long[i.kind];
     // Words a later state will need, drawn as dashed slots in the forward column.
     const later = Object.entries(S.model.required[i.kind] || {}).flatMap(([st, fs]) => fs.filter(f => f.startsWith("link:")).map(f => ({ st, word: f.slice(5).split(":")[0] })))
       .filter(x => S.model.forward[i.kind].includes(x.word) && !i.links.some(l => l.toLowerCase().startsWith(x.word)));
@@ -84,19 +84,19 @@
       <div class="bar top"><span class=${"pill " + i.kind}>${i.id}</span><span class="muted small">${at + 1} of ${rows.length} · ↑↓ to step</span><div class="sp"></div>
         <button class="btn" onClick=${() => setLinkTo({})}>Link to…</button>
         <button class="btn" onClick=${() => { navigator.clipboard.writeText(location.origin + '/#item/' + encodeURIComponent(i.id)).then(() => S.toast('Link copied'), () => S.toast('Copy this URL: ' + location.origin + '/#item/' + i.id)); }}>Copy link</button>
-        <button class="btn" onClick=${async () => { try {const r=await S.post('/api/reviews/create',{name:'Review '+i.id,ids:[i.id]});await S.load();S.set({view:'reviews:'+r.id,open:null});}catch(e){S.toast(e.message);} }}>Review</button>
+        <button class="btn" onClick=${async () => { try {const r=await S.post('/api/reviews/create',{name:'Review '+i.id,ids:[i.id]});await S.load();S.set({view:'reviews:'+r.id,open:null});}catch(e){S.toast(e.message);} }}>Structured review</button>
         <${More} i=${i} />
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
       ${linkTo ? html`<${Picker.LinkTo} item=${i} word=${linkTo.word} onClose=${() => setLinkTo(null)} />` : null}
       <div class="panel-body">
         <div class="panel-main">
           <${Title} i=${i} />
-          <div class="chips"><span class="st on">${i.status}</span>
-            ${i.scope ? html`<${Chip} i=${i} field="scope" label="Scope" />` : null}
+          <div class="chips"><${Cells.StatusCell} item=${i} />
+            ${S.model.scopes.length || i.scope ? html`<${Chip} i=${i} field="scope" label="Scope" />` : null}
             ${short.map(k => html`<${Chip} i=${i} field=${k} label=${S.model.labels[k] || k} />`)}</div>
-          <div class="card"><div class="h3">Next moves</div><div class="moves">
+          ${S.ui.mode !== "rationalise" ? html`<div class="card"><div class="h3">Next moves</div><div class="moves">
             ${moves.map(to => html`<span class="btn" onClick=${() => MoveForm.open({ ids: [i.id], to })}>${to}${need(to) ? html` <span class="muted">needs ${need(to)}</span>` : null}</span>`)}
-            ${!moves.length ? html`<span class="muted">${i.status} is terminal.</span>` : null}</div></div>
+            ${!moves.length ? html`<span class="muted">${i.status} is terminal.</span>` : null}</div></div>` : null}
           ${long.map(k => html`<div class="sec"><div class="h3">${S.model.labels[k] || k}</div><${LongField} i=${i} field=${k} /></div>`)}
           ${i.links.length ? html`<div class="sec"><div class="h3">Links</div>${i.links.map(l => html`<div class="mono small">${l}</div>`)}</div>` : null}
           ${i.history?.length ? html`<div class="sec"><div class="h3">History</div>${i.history.slice().reverse().map(h => html`<div class="mono small muted">${h}</div>`)}</div>` : null}

@@ -339,8 +339,8 @@ def compatibility():
     version = re.search(r'^- Ingester model version:\s*(\S+)', text, re.M)
     version = version.group(1) if version else ''
     return {'consoleModel': M.MODEL_VERSION, 'changeSetContract': M.CHANGE_SET_CONTRACT, 'ingesterModel': version,
-            'compatible': version in ('2.30', '2.31'),
-            'message': '' if version in ('2.30', '2.31') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
+            'compatible': version in ('2.30', '2.31', '2.32'),
+            'message': '' if version in ('2.30', '2.31', '2.32') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
 
 
 def require_compatible():
@@ -443,6 +443,7 @@ class H(SimpleHTTPRequestHandler):
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
             p = urlparse(self.path).path
+            if p == '/api/rationalise/edit': req['context'] = 'rationalise'
             with LOCK:
                 check_revisions(req)
                 if p.endswith(('/preview', '/summary')) or p in ('/api/needs', '/api/supports') or p.startswith('/api/report/'):
@@ -482,6 +483,7 @@ class H(SimpleHTTPRequestHandler):
                 return W.update(ENG, category, {**req, 'entry': entry}, items, today())
             if action == 'summary': return {"text": W.summary(W.find(W.load(ENG, category), req['batch']), category)}
             raise ValueError('Unknown session action.')
+        if p == '/api/rationalise/edit': return self.correct_items(req)
         if p == '/api/operations/undo': return O.undo(ENG, req['operation'])
         if p == '/api/bulk/preview': return bulk_preview(req)
         if p == '/api/merge/preview': return merge_preview(req)
@@ -773,6 +775,31 @@ class H(SimpleHTTPRequestHandler):
                 fields[label_of(k)] = f[k]
         r = self.commit(kind, "new", fields, f["links"], req, req.get("gist", "") or "raised in console")
         return {"ok": True, "changeSet": r.get("changeSet"), "item": r["item"], "ref": r["ref"]}
+
+    def correct_items(self, req):
+        """Immediate corrections, with full batch validation and no lifecycle entry rules."""
+        if not writes_direct():
+            raise ValueError('Rationalise requires direct writes; the ingester cannot apply historical corrections.')
+        if any(not cs.get('applied') for cs in load_change_sets()):
+            raise ValueError('Resolve pending change sets before rationalising register items.')
+        self.evidence(req)
+        items = load_registers()
+        ids = list(dict.fromkeys(req.get('ids') or [req.get('id')]))
+        if not ids or not all(ids): raise ValueError('Nothing selected.')
+        prepared = []
+        for id in ids:
+            if id not in items: raise ValueError(f'No such item: {id}')
+            it = items[id]
+            fields = validate_fields(it['kind'], req.get('fields', {}), correction=True)
+            links = req.get('links', [])
+            if not isinstance(links, list) or any(not isinstance(l, str) for l in links):
+                raise ValueError('Links must be a list of text references.')
+            if not fields and not links: raise ValueError('Nothing changed.')
+            prepared.append((it, fields, links))
+        for it, fields, links in prepared:
+            self.commit(it['kind'], it['id'], {label_of(k): v for k, v in fields.items()}, links,
+                        {**req, 'context': 'rationalise'}, req.get('gist') or 'Register corrected')
+        return {'written': ids, 'failed': None}
 
     def edit(self, req):
         items = overlay(load_registers(), load_change_sets())

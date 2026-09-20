@@ -1,8 +1,8 @@
 # Solution register model
 
-Version 2.31, 19 September 2026. Owner: Adam Moyes.
+Version 2.32, 20 September 2026. Owner: Adam Moyes.
 
-Version 2.31 separates historical rationalisation from ongoing workflow. Section 12 defines review corrections, independent review progress, meeting sessions and stable published identifiers. Imported rows become working registers immediately; there is no separate freeze stage. Item fields and the section 11 change-set wire format remain unchanged.
+Version 2.32 adds immediate single and bulk field corrections in Rationalise and scope-filtered Desktop work. The structured review process remains optional. Version 2.31 separates historical rationalisation from ongoing workflow. Section 12 defines review corrections, independent review progress, meeting sessions and stable published identifiers. Imported rows become working registers immediately; there is no separate freeze stage. Item fields and the section 11 change-set wire format remain unchanged.
 
 Version 2.30 makes Implemented by optional on a limitation until it is dispositioned. Whose build addresses a limitation follows from the chosen option, and the options may land it with either party, so the field is required once the limitation reaches Accepted or Change requested rather than on creation. Sections 4.4, 6 and 9 (I2, I12) say so. Nothing changes for requirements, decisions or change requests.
 
@@ -316,7 +316,7 @@ An import may be written into the registers before its review is complete. Every
 
 Rationalisation establishes the known current position of existing records. It is independent of lifecycle status and may be repeated over any selected register items. A review retains its initial snapshot, scope and per-item outcomes: confirmed, corrected, merged, excluded, needs clarification, retyped or split. Review progress is tool metadata, not an item lifecycle field.
 
-A historical correction may set any valid status for the resulting type without replaying the workflow arrows in section 4.4. It records the reviewer, reason, source evidence, date recorded and historical effective date where known. This exception to I20 applies only to explicit review corrections. Ordinary workflow transitions still follow I20. Reviewers never invent approval or create intermediate open items solely to make history appear complete. Unresolved fields, links and evidence remain visible under the integrity rules.
+A historical correction may set any valid status for the resulting type without replaying the workflow arrows in section 4.4. It records the reviewer, reason, source evidence, date recorded and historical effective date where known. Immediate Rationalise edits record the maker, recorded date and changed fields in correction history and the operation journal; a separate reason/evidence form is optional. Structured reviews retain their reason/evidence requirements. This exception to I20 applies to explicit Rationalise corrections, including immediate table edits. Ordinary workflow transitions still follow I20. Reviewers never invent approval or create intermediate open items solely to make history appear complete. Unresolved fields, links and evidence remain visible under the integrity rules.
 
 Review proposals are checked against the current record revision before applying. A completed review means its items have been reviewed and its chosen corrections applied; it does not assert every historical evidence gap has disappeared. Review metadata and meeting records are independent of direct versus change-set storage. The current section 11 change-set contract has no correction, retype, split or merge operation, so those corrections are applied only by a direct writer.
 

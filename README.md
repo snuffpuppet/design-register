@@ -1,20 +1,62 @@
 # design-register
 
-Version 1.0, 19 September 2026.
+Version 1.3, 20 September 2026.
 
-A local console for rationalising generated solution registers, progressing current work, and running meetings. Six Markdown registers follow `solution-register-model.md` (2.31). The transcript ingester stays in the separate `solution-register` repository.
+A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.32). The transcript ingester stays in the separate `solution-register` repository.
 
 ## Working contexts
 
-- **Rationalise:** start a review batch over actual register items. Compare the starting snapshot with current records, confirm or correct them, resolve duplicate conflicts, retype, split or exclude. Corrections need a reason and evidence. Preview before applying. Historical corrections can set the known current status directly, without reconstructing intermediate open items. Missing evidence and integrity findings remain visible.
-- **Desktop:** use the shared table, filters, item panel and model-generated forms. Workflow moves retain the normal transition and required-field checks. Bulk operations preflight all selected items before writing.
-- **Meetings:** prepare a fixed agenda from open items or a selection, reorder it, record progress and outcomes, create follow-up open items, and export a summary with a stable meeting reference. Changing a register item does not remove it from the agenda.
+- **Rationalise:** edit the existing registers directly in the table or item panel. Select multiple rows to change a shared field. Status corrections skip workflow transitions and required supporting records.
+- **Desktop:** the same table and editing controls, with the normal model rules for workflow moves.
+- **Desktop by scope:** click a scope in the rail to open Desktop with that scope preselected. Work through the filtered items using the normal workflow.
 
-These contexts are independent of the engagement's write mode. `- Writes: direct` updates item files. `- Writes: change-sets` records proposals for the ingester. Reviews, meetings and saved views work in either mode; applying historical corrections needs direct mode because the current ingester contract cannot express them. Change-set writes require an explicitly supported `- Ingester model version: 2.30` or `2.31`, declared only after porting the sibling ingester.
+Use Rationalise when the recorded position is wrong; use Desktop when progressing the work now. For a scoped meeting, open Desktop by scope and work through that filtered list.
+
+Saved reviews support optional structured merge/retype/split work. Meeting records support optional agendas and discussion notes. Ordinary cleanup needs no batch, review outcome or approval step.
+
+## Using Rationalise
+
+1. Click **Rationalise** and set **Made by**. Filter or choose a register exactly as in Desktop.
+2. **Edit one record:** click a table cell, or open its ID and edit the item panel. Click its status to choose any status for that item type. Use **Show field** above the table to expose dates or other fields.
+3. **Edit many records:** tick the rows, choose **Set field**, select Status, Scope, Raised on, Closed on or another shared field, enter the value and click **Apply to N**. Blank values clear fields where allowed. Status choices are those shared by the selected types; select one type if there is no suitable shared status.
+4. **Save:** text cells save on Enter or when you leave the field; dropdowns save when you choose a value. Bulk changes save when you click **Apply to N**. There is no separate review approval step. History identifies corrections; **Recent operations** offers guarded undo.
+
+For example, select several limitations incorrectly marked Identified, use **Set field → Status → Accepted**, and apply. No assessment open items or accepting decision are required to repair those records. Missing information still appears under Integrity. A status correction does not guess dates: set Raised on or Closed on explicitly when they are wrong.
+
+Rationalise bypasses lifecycle entry requirements. It still protects item IDs, field structure, valid statuses for each type, non-empty titles and concurrent edits. A bulk correction validates every selected item before writing any of them. No evidence or reason form is required for ordinary field cleanup; record known source information in the item's fields where useful.
+
+Rationalise requires `- Writes: direct` and no unapplied change sets. Desktop supports direct writes or compatible ingester change-set proposals. Declare an ingester version only after the sibling ingester has actually been ported. The current change-set format cannot express historical corrections.
+
+## Using Desktop
+
+1. Click **Desktop** and set **Made by**. Choose a register or use **+ Filter** to narrow the list.
+2. Edit ordinary fields in the table or open an item's ID to use its panel. Select several rows and choose **Set field** to update a shared field.
+3. To progress one item, click its status or choose a **Next move** in the panel. For several items, select the rows and choose **Move to…**. The form asks for the fields and links required by the model; unavailable transitions remain blocked.
+4. If an existing status is simply incorrect, switch to **Rationalise**, correct it, then return to **Desktop** to continue the workflow.
+
+The table heading identifies the active mode. Choosing a register or changing filters keeps that mode; clicking a Desktop by scope shortcut explicitly switches to Desktop. Reloading the browser starts in Desktop.
+
+## Working by scope
+
+Click a name under **Desktop by scope**. This resets the table to all item types in that scope, in Desktop mode. Open records or select rows to work through the normal transitions. You can add status, owner or type filters using **+ Filter**. This is a predefined Desktop filter, not a third editing mode.
+
+Scope shortcuts come from the `## Scopes` list in the engagement's `engagement.md`. To clean up records within a scope, choose **Rationalise** and use **+ Filter → Scope** instead.
+
+## Optional meeting records
+
+Use **Meeting records** when you need a fixed agenda, saved discussion outcomes or an exported meeting summary. For simply working through a scope in a meeting, use Desktop by scope above.
+
+1. **Prepare the agenda.** Open **Meeting records**, enter a name, choose **Open items** (the default), **Selected items** or **Current filter**, then click **Create**. You can also select rows in Desktop and choose **Meeting agenda**. Click an agenda item and use **Move up** or **Move down** to reorder it. The item list stays fixed even when statuses change during discussion.
+2. **Record discussion.** Set **Made by**, select the agenda item, and choose **not discussed**, **discussed** or **deferred** under Progress. Enter the **Outcome** and **Evidence**. Fill in any follow-up action, owner, due date and register references, then click **Save outcome and next**. Meeting progress is separate from the item's lifecycle status.
+3. **Progress the actual work.** Use **Open linked records and workflow** to open the normal item panel. Its transitions still ask for the model's required fields and links, and write in the engagement's configured mode. Saving meeting notes alone does not change register status.
+4. **Create follow-up work when needed.** Fill in **Follow-up action** and **Owner**, plus Due and **Follow-up scope** where applicable, then click **Create follow-up open item**. This creates an open item and records its reference in the meeting together. The button is disabled once that agenda entry has a recorded follow-up. Notes in the action field alone do not create one.
+5. **Close and export.** Save the last outcome, click **Export summary** to download the Markdown agenda and outcomes, and use **Close meeting** when finished. Saved meetings remain accessible from Meeting records. The summary includes a stable `MTG-…` reference that you can quote with the transcript.
+
+The transcript ingester remains separate. Meeting references support later reconciliation, but automatic deduplication between manually recorded outcomes and transcript-generated items has not been added to that repository. Reports distinguish historical corrections from workflow movement and label pending change-set proposals.
 
 ## Import and review
 
-`/import-confluence <engagement>` remains a Claude command under `.claude/skills/`. It pulls source pages under the existing permission and engagement guards. Open the console and choose **Import and review**. The import creates working registers, assigns IDs, retains source provenance and opens a review batch. There is no separate freeze mode. Existing registers open directly in the table and can be reviewed repeatedly.
+`/import-confluence <engagement>` remains a Claude command under `.claude/skills/`. It pulls source pages under the existing permission and engagement guards. Open the console and choose **Import and review**. The import creates working registers, assigns IDs, retains source provenance and opens the Rationalise table. There is no separate freeze mode. Existing registers open directly in the table and can be reviewed repeatedly.
 
 The internal `baseline/frozen.md` map is retained for compatibility with the Confluence push builder and old imports. Imported pages remain evidence. `/push-confluence` still builds and reviews output before its separate write gate; implementation work never pushes automatically.
 
@@ -34,7 +76,7 @@ Every console mutation is covered by a recovery journal under the engagement's `
 
 Develop against synthetic or reviewed anonymised fixtures here. Keep real registers and the identifying glossary on the work laptop. `console/anonymise.py` performs deterministic substitutions and reference re-keying. `/anonymise-register` lets Claude, including Opus, run the same script. No model-generated rewriting is required.
 
-Read [the anonymisation instructions](docs/anonymisation.md) and [work-laptop acceptance checks](docs/work-laptop-acceptance.md). `/check-register-release` runs those checks using a disposable copy.
+Read [the anonymisation instructions](docs/anonymisation.md) and [work-laptop acceptance checks](docs/work-laptop-acceptance.md). `/check-register-release` runs those checks using a disposable copy. The [work-laptop handoff](handoffs/work-laptop-rationalisation-meetings.md) records the tested branch and rollout steps; resume it in Claude with `/resume work laptop rationalisation meetings`.
 
 ## Repository map
 

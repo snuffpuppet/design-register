@@ -35,6 +35,51 @@ class Workspaces(unittest.TestCase):
         entry={'outcome':'corrected','fields':{'status':'Accepted'},'reason':'Already accepted last month','evidence':'Minutes 7 August','effectiveOn':'7 August 2026',**extra}
         return self.request('/api/reviews/update',batch=b['id'],revision=b['revision'],id='LIM-0001',entry=entry)
 
+    def test_immediate_correction_skips_workflow_without_review_or_evidence(self):
+        self.request('/api/rationalise/edit', id='LIM-0001', fields={
+            'Status': 'Accepted', 'Raised on': '2 August 2026', 'Closed on': '', 'Scope': 'Correct scope'})
+        item = S.load_registers()['LIM-0001']
+        self.assertEqual(item['status'], 'Accepted')
+        self.assertEqual(item['raised-on'], '2 August 2026')
+        self.assertEqual(item['closed-on'], '')
+        self.assertEqual(item['scope'], 'Correct scope')
+        self.assertIn('Correction', item['history'][-1])
+        self.assertFalse(Path(self.eng, 'reviews.json').exists())
+        self.assertTrue(S.integrity_of(S.load_registers())['failures'])
+
+    def test_immediate_bulk_preflights_all_records(self):
+        with self.assertRaises(ValueError):
+            self.request('/api/rationalise/edit', ids=['LIM-0001', 'REQ-0001'], fields={'Status': 'Accepted'})
+        self.assertEqual(S.load_registers()['LIM-0001']['status'], 'Identified')
+        self.request('/api/rationalise/edit', ids=['LIM-0001', 'REQ-0001'], fields={'Scope': 'Shared scope'})
+        self.assertTrue(all(i['scope'] == 'Shared scope' for i in S.load_registers().values()))
+        op = O.records(self.eng)[-1]
+        O.undo(self.eng, op['id'])
+        self.assertTrue(all(i.get('scope') != 'Shared scope' for i in S.load_registers().values()))
+
+    def test_immediate_bulk_rolls_back_if_a_later_write_fails(self):
+        from unittest.mock import patch
+        commit = self.h.commit
+        def failing_commit(kind, target, *args, **kwargs):
+            if target == 'REQ-0001': raise OSError('simulated disk failure')
+            return commit(kind, target, *args, **kwargs)
+        with patch.object(self.h, 'commit', side_effect=failing_commit):
+            with self.assertRaises(OSError):
+                self.request('/api/rationalise/edit', ids=['LIM-0001', 'REQ-0001'], fields={'Owner': 'Changed'})
+        self.assertTrue(all(i['owner'] == 'Priya Nair' for i in S.load_registers().values()))
+
+    def test_immediate_corrections_refuse_proposals_and_protect_identity(self):
+        with self.assertRaises(ValueError):
+            self.request('/api/rationalise/edit', id='LIM-0001', fields={'id': 'LIM-9999'})
+        Path(self.eng, 'engagement.md').write_text('- Writes: change-sets\n')
+        with self.assertRaises(ValueError):
+            self.request('/api/rationalise/edit', id='LIM-0001', fields={'Status': 'Accepted'})
+        Path(self.eng, 'engagement.md').write_text('- Writes: direct\n')
+        Path(S.CS_DIR).mkdir(exist_ok=True)
+        Path(S.CS_DIR, 'CS-0001.md').write_text('# Pending proposal\n')
+        with self.assertRaises(ValueError):
+            self.request('/api/rationalise/edit', id='LIM-0001', fields={'Status': 'Accepted'})
+
     def test_correction_skips_historical_workflow_and_preserves_evidence(self):
         b=self.correction(self.batch())
         preview=self.h.dispatch('/api/reviews/preview',{'batch':b['id'],'revision':b['revision']})
