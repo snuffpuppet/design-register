@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """Register lifecycle console.
 
-Reads an engagement folder (one markdown file per item, model 2.22 section 7) and every
-unapplied change set under <engagement>/change-sets/. Serves a view of the registers as they
-would be once those change sets are applied. Every edit made in the console is appended as
-an item block to the current session's change set file (model section 11). Item files are
-never written.
+Reads Markdown registers and pending change sets. Writes through commit(), with
+recoverable operations, separate review batches and persistent meeting sessions.
 
 Usage: server.py <engagement-dir> [port]
 """
@@ -16,6 +13,8 @@ import model as M
 import baseline as B
 import integrity as I
 import renumber as R
+import operations as O
+import workspaces as W
 import views as V
 from items import parse_item, render_item, item_path
 
@@ -28,7 +27,7 @@ DISMISSED_PATH = os.path.join(ENG, "supports-dismissed.json")
 DUP_PATH = os.path.join(ENG, "duplicates-dismissed.json")
 VIEWS_PATH = os.path.join(ENG, "views.json")
 TOOL = "design-register console 0.1"
-LOCK = threading.Lock()
+LOCK = threading.RLock()
 
 MONTHS = "January February March April May June July August September October November December".split()
 
@@ -229,7 +228,7 @@ def append_block(cs, kind, target, fields, links, evidence, gist, frm=None, base
 
 
 def state_model(eng):
-    return {"states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
+    return {"reviewOutcomes": M.REVIEW_OUTCOMES, "states": M.STATES, "terminal": {k: sorted(v) for k, v in M.TERMINAL.items()},
             "transitions": M.TRANSITIONS, "short": M.SHORT, "long": M.LONG, "labels": M.LABELS,
             "choices": M.CHOICES, "required": M.REQUIRED_ON_ENTRY, "create": {k: required_on_create(k, eng["scopes"]) for k in M.DIRS},
             "first": M.FIRST_STATE, "names": M.NAMES, "linkWords": M.LINK_WORDS, "closes": {k: sorted(v) for k, v in M.CLOSES.items()}}
@@ -238,11 +237,24 @@ def state_model(eng):
 def state():
     items = overlay(load_registers(), load_change_sets())
     eng = load_engagement()
-    return {"engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
+    reviews = W.load(ENG, 'reviews')
+    unreviewed = set()
+    for review in reviews:
+        if review['status'] != 'open': continue
+        for id in review['ids']:
+            entry = review['entries'].get(id, {})
+            if not entry or entry.get('outcome') == 'needs clarification' or (entry.get('outcome') == 'confirmed' and id in items and entry.get('basedOn') != O.revision(items[id])):
+                unreviewed.add(id)
+    if not reviews: unreviewed = B.unreviewed_ids(B_DIR)
+    for it in items.values():
+        it["revision"] = O.revision(it)
+    return {"reviews": reviews, "meetings": W.load(ENG, "meetings"),
+            "operations": O.summaries(ENG), "aliases": aliases(),
+            "compatibility": compatibility(), "engagement": eng, "items": list(items.values()), "stakeholders": load_stakeholders(),
             "integrity": integrity_of(items),
             "provenance": I.provenance(list(items.values()), items),
             "dupes": B.clusters([i for i in items.values() if not i.get("provisional")], set(load_dup_dismissed())),
-            "unreviewed": sorted(B.unreviewed_ids(B_DIR) & set(items)),
+            "unreviewed": sorted(unreviewed & set(items)),
             "change_sets": load_change_sets(), "today": today(),
             "model": state_model(eng)}
 
@@ -294,6 +306,94 @@ def label_of(key):
     return M.LABELS.get(key, key.capitalize())
 
 
+def aliases():
+    path = os.path.join(ENG, 'aliases.json')
+    return json.load(open(path)) if os.path.exists(path) else {}
+
+
+def record_alias(old, targets, reason):
+    data = aliases(); data[old] = {'targets': targets, 'reason': reason}
+    O.atomic(os.path.join(ENG, 'aliases.json'), json.dumps(data, indent=2))
+
+
+def validate_fields(kind, fields, correction=False):
+    allowed = set(['title', 'description', 'raised-on', 'closed-on'] + M.SHORT[kind] + M.LONG[kind])
+    if correction: allowed.add('status')
+    out = {}
+    for key, value in fields.items():
+        key = field_key(key)
+        if key not in allowed:
+            raise ValueError(f'{key} is not an editable field for {kind}. Use a workflow move or review correction for status.')
+        if not isinstance(value, str): raise ValueError(f'{key} must be text; use an empty string to clear it.')
+        if key == 'status' and value not in M.STATES[kind]: raise ValueError('Choose a valid status for this type.')
+        if key in ('title',) and not value.strip(): raise ValueError('Title cannot be empty.')
+        if key in M.CHOICES and value and value not in M.CHOICES[key] and not (key == 'impact' and kind != 'RSK'):
+            raise ValueError(f'Invalid {key}: {value}')
+        out[key] = value
+    return out
+
+
+def compatibility():
+    p = os.path.join(ENG, 'engagement.md')
+    text = open(p).read() if os.path.exists(p) else ''
+    version = re.search(r'^- Ingester model version:\s*(\S+)', text, re.M)
+    version = version.group(1) if version else ''
+    return {'consoleModel': M.MODEL_VERSION, 'changeSetContract': M.CHANGE_SET_CONTRACT, 'ingesterModel': version,
+            'compatible': version in ('2.30', '2.31'),
+            'message': '' if version in ('2.30', '2.31') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
+
+
+def require_compatible():
+    c = compatibility()
+    if not c['compatible']: raise ValueError(c['message'])
+
+
+def check_revisions(req):
+    expected = dict(req.get('revisions', {}))
+    if req.get('id') and req.get('itemRevision'): expected[req['id']] = req['itemRevision']
+    if not expected: return
+    items = overlay(load_registers(), load_change_sets())
+    for id, revision in expected.items():
+        if id not in items or O.revision(items[id]) != revision:
+            raise ValueError(f'{id} changed since you loaded it. Reload and review the current value.')
+
+
+def bulk_preview(req):
+    items = overlay(load_registers(), load_change_sets())
+    valid, errors = [], []
+    for id in dict.fromkeys(req.get('ids', [])):
+        try:
+            if id not in items: raise ValueError('No such item.')
+            it = items[id]; kind = it['kind']; op = req.get('op')
+            fields = validate_fields(kind, {**req.get('fields', {}), **req.get('perItem', {}).get(id, {}).get('fields', {})})
+            if op in ('transition', 'withdraw'):
+                to = req.get('to') if op == 'transition' else M.WITHDRAWS[kind]
+                if to not in M.TRANSITIONS.get(kind, {}).get(it['status'], []): raise ValueError('This workflow move is not allowed.')
+                merged = {**it, **fields, 'links': it['links'] + req.get('links', []) + req.get('perItem', {}).get(id, {}).get('links', [])}
+                missing = M.missing_for(kind, to, merged)
+                if missing: raise ValueError('Before ' + to + ' you need: ' + '; '.join(missing))
+            elif op not in ('set', 'link'): raise ValueError('Unknown bulk operation.')
+            elif not fields and not req.get('links'): raise ValueError('Nothing changed.')
+            valid.append(id)
+        except ValueError as e:
+            errors.append({'id': id, 'error': str(e)})
+    return {'valid': valid, 'errors': errors}
+
+
+def merge_preview(req):
+    items = load_registers()
+    ids = [req.get('survivor')] + req.get('losers', [])
+    if len(ids) < 2 or len(ids) != len(set(ids)) or any(id not in items for id in ids):
+        raise ValueError('Choose distinct existing items to merge.')
+    rows = [items[id] for id in ids]; kind = rows[0]['kind']
+    if any(i['kind'] != kind for i in rows): raise ValueError('Merge items of one type.')
+    conflicts = {}
+    for key in ['title', 'status', 'description'] + M.SHORT[kind] + [k for k in M.LONG[kind] if k not in ('source', 'notes')]:
+        values = list(dict.fromkeys(i.get(key, '') for i in rows if i.get(key, '')))
+        if len(values) > 1: conflicts[key] = values
+    return {'items': rows, 'conflicts': conflicts}
+
+
 class H(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=os.path.join(HERE, "static"), **kw)
@@ -310,6 +410,10 @@ class H(SimpleHTTPRequestHandler):
         self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def do_GET(self):
+        with LOCK:
+            return self.read_request()
+
+    def read_request(self):
         p = urlparse(self.path).path
         if p == "/api/state":
             return self.send_json(state())
@@ -330,63 +434,113 @@ class H(SimpleHTTPRequestHandler):
             return self.send_json(self.search_items({"q": qs.get("q", [""])[0], "types": [t for t in qs.get("types", [""])[0].split(",") if t], "exclude": qs.get("exclude", [""])[0]}))
         if p == "/":
             self.path = "/index.html"
-        if p == "/old/":
-            self.path = "/old/index.html"
+        if p.startswith("/old/"):
+            self.send_response(302); self.send_header("Location", "/"); self.end_headers(); return
         return super().do_GET()
 
     def do_POST(self):
-        p = urlparse(self.path).path
-        n = int(self.headers.get("Content-Length", 0))
-        req = json.loads(self.rfile.read(n) or b"{}")
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n) or b"{}")
+            p = urlparse(self.path).path
+            with LOCK:
+                check_revisions(req)
+                if p.endswith(('/preview', '/summary')) or p in ('/api/needs', '/api/supports') or p.startswith('/api/report/'):
+                    result = self.dispatch(p, req)
+                else:
+                    W.maker(req)
+                    with O.transaction(ENG, p, req):
+                        result = self.dispatch(p, req)
+                return self.send_json(result)
+        except (ValueError, KeyError, TypeError) as e:
+            return self.send_json({"error": str(e)}, 400)
+        except Exception as e:
+            print(f"Request rolled back: {type(e).__name__}: {e}", file=sys.stderr)
+            return self.send_json({"error": "Operation failed and was rolled back. See the server log."}, 500)
+
+    def dispatch(self, p, req):
+        if p.startswith('/api/reviews/') or p.startswith('/api/meetings/'):
+            category, action = p.split('/')[2:4]
+            items = overlay(load_registers(), load_change_sets())
+            if action == 'create': return W.create(ENG, category, req, items, today())
+            if action == 'update': return W.update(ENG, category, req, items, today())
+            if action == 'preview': return W.preview(ENG, req, items, validate_fields)
+            if action == 'apply' and category == 'reviews': return self.apply_review(req)
+            if action == 'action' and category == 'meetings':
+                record = W.find(W.load(ENG, category), req['batch'])
+                if record['revision'] != req.get('revision') or record['status'] != 'open':
+                    raise ValueError('Meeting changed or closed. Reload first.')
+                entry = req['entry']
+                if record['entries'].get(req['id'], {}).get('actionItem'):
+                    raise ValueError('A follow-up item is already recorded for this agenda entry.')
+                fields = {'Title': entry.get('action', ''), 'Owner': entry.get('owner', ''), 'Next action': entry.get('action', ''),
+                          'Due': entry.get('due', ''), 'Source': record['id']}
+                if req.get('scope'): fields['Scope'] = req['scope']
+                result = self.create({**req, 'kind': 'OI', 'fields': fields, 'session': record['id']})
+                ref = result['ref'] if not result.get('changeSet') else 'OI-' + result['changeSet'][3:] + '.' + str(result['item'])
+                entry = {**entry, 'actionItem': ref, 'references': (entry.get('references', '') + ' ' + ref).strip()}
+                return W.update(ENG, category, {**req, 'entry': entry}, items, today())
+            if action == 'summary': return {"text": W.summary(W.find(W.load(ENG, category), req['batch']), category)}
+            raise ValueError('Unknown session action.')
+        if p == '/api/operations/undo': return O.undo(ENG, req['operation'])
+        if p == '/api/bulk/preview': return bulk_preview(req)
+        if p == '/api/merge/preview': return merge_preview(req)
+        if p == '/api/import':
+            if load_registers(): raise ValueError('This engagement already has registers. Import updates must be reconciled, not overwritten.')
+            result = B.freeze(ENG, B_DIR, B.load_candidates(B_DIR), B.load_verdicts(B_DIR), today(), W.maker(req), load_engagement()['scopes'])
+            items = load_registers()
+            W.create(ENG, 'reviews', {**req, 'name': 'Imported registers', 'ids': list(items)}, items, today())
+            return result
+        return self.legacy_dispatch(p, req)
+
+    def legacy_dispatch(self, p, req):
         with LOCK:
             try:
                 if p == "/api/transition":
-                    return self.send_json(self.transition(req))
+                    return (self.transition(req))
                 if p == "/api/create":
-                    return self.send_json(self.create(req))
+                    return (self.create(req))
                 if p == "/api/edit":
-                    return self.send_json(self.edit(req))
+                    return (self.edit(req))
                 if p == "/api/needs":
-                    return self.send_json(self.needs(req))
+                    return (self.needs(req))
                 if p == "/api/bulk":
-                    return self.send_json(self.bulk(req))
+                    return (self.bulk(req))
                 if p == "/api/renumber":
-                    return self.send_json(self.renumber(req))
+                    return (self.renumber(req))
                 if p == "/api/views":
-                    if not writes_direct():
-                        raise ValueError("Saved views are a direct-mode file.")
                     V.save(VIEWS_PATH, req["views"])
-                    return self.send_json({"views": V.load(VIEWS_PATH)})
+                    return ({"views": V.load(VIEWS_PATH)})
                 if p == "/api/report/summary":
                     items = list(overlay(load_registers(), load_change_sets()).values())
-                    return self.send_json({"text": V.summary(req["view"], items, integrity_of({i["id"]: i for i in items}), today())})
+                    return ({"text": V.summary(req["view"], items, integrity_of({i["id"]: i for i in items}), today(), O.events(ENG))})
                 if p == "/api/report/sections":
                     items = list(overlay(load_registers(), load_change_sets()).values())
-                    return self.send_json(V.sections(req["view"], items, integrity_of({i["id"]: i for i in items}), today()))
+                    return (V.sections(req["view"], items, integrity_of({i["id"]: i for i in items}), today(), O.events(ENG)))
                 if p == "/api/push/build":
-                    return self.send_json(self.push_build())
+                    return (self.push_build())
                 if p == "/api/merge":
-                    return self.send_json(self.merge(req))
+                    return (self.merge(req))
                 if p == "/api/delete":
-                    return self.send_json(self.delete(req))
+                    return (self.delete(req))
                 if p == "/api/close-session":
-                    return self.send_json(self.close_session(req))
+                    return (self.close_session(req))
                 if p == "/api/baseline/verdict":
                     B.apply_verdict(B_DIR, req["ids"], req.get("verdict"), req.get("reason", ""), req.get("mergedInto"), req.get("fields"), req.get("kind"))
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/baseline/skip-page":
                     B.set_skip(B_DIR, req["page"], req.get("undo", False))
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/baseline/not-duplicates":
                     B.dismiss_cluster(B_DIR, req["ids"], req.get("undo", False))
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/rationalise/not-duplicates":
                     dismiss_dup(req["ids"], req.get("undo", False))
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/rationalise/reviewed":
                     if not B.mark_reviewed(B_DIR, req["id"]):
                         raise ValueError("That item was not frozen from a candidate; nothing to mark.")
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/baseline/support":
                     sugg = next((x for x in B.suggestions(B.load_candidates(B_DIR), B.load_verdicts(B_DIR))["suggestions"] if x["key"] == req["key"]), None)
                     if req["verdict"] != "Dismiss" and not sugg:
@@ -394,26 +548,22 @@ class H(SimpleHTTPRequestHandler):
                     if req["verdict"] == "Reassess" and (not sugg or sugg["rule"] not in ("S5", "S6")):
                         raise ValueError("Reassess applies only to a limitation the source calls Accepted or Change requested.")
                     B.support_verdict(B_DIR, req["key"], req["verdict"], req.get("reason", ""), req.get("fields"), sugg, target=req.get("target"))
-                    return self.send_json({"ok": True})
+                    return ({"ok": True})
                 if p == "/api/supports":
-                    return self.send_json(self.supports_preview(req))
+                    return (self.supports_preview(req))
                 if p == "/api/support/accept":
-                    return self.send_json(self.support_accept(req))
+                    return (self.support_accept(req))
                 if p == "/api/support/dismiss":
-                    return self.send_json(self.support_dismiss(req))
+                    return (self.support_dismiss(req))
                 if p == "/api/support/link":
-                    return self.send_json(self.support_link(req))
+                    return (self.support_link(req))
                 if p == "/api/baseline/export":
-                    return self.send_json(self.baseline_export(req))
+                    return (self.baseline_export(req))
                 if p == "/api/baseline/freeze":
-                    who = req.get("madeBy", "").strip()
-                    if not who:
-                        raise ValueError("Say who you are first (Made by).")
-                    return self.send_json(B.freeze(ENG, B_DIR, B.load_candidates(B_DIR), B.load_verdicts(B_DIR), today(), who,
-                                                    scopes=load_engagement()["scopes"] or None))
-            except ValueError as e:
-                return self.send_json({"error": str(e)}, 400)
-        self.send_json({"error": "unknown"}, 404)
+                    return self.dispatch('/api/import', req)
+            except ValueError:
+                raise
+        raise ValueError("Unknown operation.")
 
     # -- operations. Each validates against the model, then appends one block. --
     def evidence(self, req):
@@ -421,6 +571,8 @@ class H(SimpleHTTPRequestHandler):
         if not who:
             raise ValueError("Say who you are first (Made by).")
         note = req.get("evidence", "").strip() or "console session"
+        if req.get("session"):
+            note += " [session " + str(req["session"]) + "]"
         return [f"{today()} | {who} | {note}"]
 
     def supports_preview(self, req):
@@ -453,6 +605,7 @@ class H(SimpleHTTPRequestHandler):
         survivor's own links to a loser it is folding in."""
         ev = self.evidence(req)
         if not writes_direct():
+            require_compatible()
             cs = current_change_set(req["madeBy"])
             n = append_block(cs, kind, target, fields, links, ev, gist, frm=frm, based_on=based_on)
             return {"changeSet": cs["id"], "item": n, "ref": f"item {n}"}
@@ -464,6 +617,7 @@ class H(SimpleHTTPRequestHandler):
             return {"item": target, "removed": p, "ref": target}
         if target == "new":
             taken = [int(os.path.basename(p)[len(kind) + 1:-3]) for p in glob.glob(os.path.join(ENG, M.DIRS[kind], f"{kind}-*.md"))]
+            taken += [int(id.split('-')[1]) for id in aliases() if re.fullmatch(kind + r'-\d+', id)]
             it = {"id": f"{kind}-{max(taken + [0]) + 1:04d}", "kind": kind, "links": [], "history": [], "raised-on": today(), "closed-on": ""}
         else:
             it = parse_item(item_path(ENG, target))
@@ -476,11 +630,14 @@ class H(SimpleHTTPRequestHandler):
                 it["links"].append(l)
         it["updated"] = today()
         move = f"{frm} → {it['status']}" if frm is not None else ""
+        if req.get("context") == "rationalise":
+            move = "Correction"
+            gist = (gist + "; effective " + req.get("effectiveOn", "unknown")).strip()
         if move and gist == f"{frm} to {it['status']}":
             gist = ""   # the default gist only repeats the move
         it["history"].append(" | ".join(x for x in [today(), req["madeBy"].strip(), move, gist, ev[0].split(" | ", 2)[2]] if x))
         p = item_path(ENG, it["id"]); os.makedirs(os.path.dirname(p), exist_ok=True)
-        open(p, "w", encoding="utf-8").write(render_item(it))
+        O.atomic(p, render_item(it))
         return {"item": it["id"], "written": p, "ref": it["id"]}
 
     def write_offer(self, req, sugg, overrides):
@@ -502,6 +659,7 @@ class H(SimpleHTTPRequestHandler):
         if not it:
             raise ValueError("No such item.")
         kind, frm, to = it["kind"], it["status"], req["to"]
+        validate_fields(kind, req.get("fields", {}))
         if to not in M.TRANSITIONS.get(kind, {}).get(frm, []):
             raise ValueError(f"{frm} → {to} is not an allowed move for a {M.NAMES[kind]} (I20).")
         chosen = []
@@ -587,7 +745,7 @@ class H(SimpleHTTPRequestHandler):
         kind = req["kind"]
         if kind not in M.DIRS:
             raise ValueError("Unknown type.")
-        f = {field_key(k): v for k, v in req.get("fields", {}).items()}
+        f = validate_fields(kind, req.get("fields", {}))
         f["links"] = req.get("links", [])
         missing = []
         for r in required_on_create(kind):
@@ -621,7 +779,10 @@ class H(SimpleHTTPRequestHandler):
         it = items.get(req["id"])
         if not it:
             raise ValueError("No such item.")
-        fields = {label_of(field_key(k)): v for k, v in req.get("fields", {}).items() if str(v).strip() != ""}
+        clean = validate_fields(it["kind"], req.get("fields", {}))
+        if not writes_direct() and any(v == "" for v in clean.values()):
+            raise ValueError("Explicit field clearing needs direct mode; the ingester contract has no clear operation.")
+        fields = {label_of(k): v for k, v in clean.items()}
         if not fields and not req.get("links"):
             raise ValueError("Nothing changed.")
         r = self.commit(it["kind"], it["id"], fields, req.get("links", []), req, req.get("gist", "") or "fields updated", based_on=it.get("updated", ""))
@@ -633,7 +794,7 @@ class H(SimpleHTTPRequestHandler):
         touched = []
         pat = re.compile(r"\b" + re.escape(old) + r"\b")
         for it in items.values():
-            if it["id"] in (old, new) or not any(pat.search(l) for l in it["links"]):
+            if it["id"] == old or not any(pat.search(l) for l in it["links"]):
                 continue
             kept = []
             for l in it["links"]:
@@ -649,7 +810,7 @@ class H(SimpleHTTPRequestHandler):
             path = item_path(ENG, it["id"]); cur = parse_item(path)
             cur["links"] = kept; cur["updated"] = today()
             cur["history"].append(" | ".join([today(), req["madeBy"].strip(), gist, self.evidence(req)[0].split(" | ", 2)[2]]))
-            open(path, "w", encoding="utf-8").write(render_item(cur))
+            O.atomic(path, render_item(cur))
             touched.append(it["id"])
         return touched
 
@@ -669,6 +830,13 @@ class H(SimpleHTTPRequestHandler):
         for l in losers:
             if l["kind"] != surv["kind"]:
                 raise ValueError(f"{l['id']} is a {M.NAMES[l['kind']]}; {surv['id']} is a {M.NAMES[surv['kind']]}. Merge only folds items of one type.")
+        preview = merge_preview(req)
+        resolutions = req.get('resolutions', {})
+        if any(f not in resolutions for f in preview['conflicts']):
+            raise ValueError('Compare and resolve conflicting fields before merging: ' + ', '.join(preview['conflicts']))
+        validate_fields(surv['kind'], resolutions, correction=True)
+        if 'status' in resolutions and resolutions['status'] != surv['status'] and req.get('context') != 'rationalise':
+            raise ValueError('Keep the survivor status or use a rationalisation review to correct it.')
         removed, touched = [], []
         for l in losers:
             surv = load_registers()[surv["id"]]
@@ -684,11 +852,13 @@ class H(SimpleHTTPRequestHandler):
             if str(l.get("notes", "") or "").strip():
                 notes = (notes + "\n" if notes else "") + f"Merged in from {l['id']}: {l['notes']}"
             fields["Notes"] = notes or ""
+            fields.update({label_of(field_key(k)): v for k, v in resolutions.items()})
             kept = [x for x in surv["links"] if not re.search(r"\b" + re.escape(l["id"]) + r"\b", x)]
             links = [x for x in l["links"] if x not in surv["links"] and not re.search(r"\b" + re.escape(surv["id"]) + r"\b", x)]
             self.commit(surv["kind"], surv["id"], fields, links, req, f"merged {l['id']} into this item", based_on=surv.get("updated", ""), replace_links=kept)
             touched += self.rewrite_links(load_registers(), l["id"], surv["id"], f"merged {l['id']} into {surv['id']}", req)
             self.commit(l["kind"], l["id"], {}, [], req, "", delete=True)
+            record_alias(l["id"], [surv["id"]], req.get("reason", "merged"))
             removed.append(l["id"])
         return {"ok": True, "survivor": surv["id"], "removed": removed, "touched": sorted(set(touched))}
 
@@ -706,6 +876,7 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError("No such item.")
         touched = self.rewrite_links(items, it["id"], None, f"dropped link to {it['id']}, deleted: {reason}", req)
         self.commit(it["kind"], it["id"], {}, [], req, "", delete=True)
+        record_alias(it["id"], [], reason)
         return {"ok": True, "removed": it["id"], "touched": touched}
 
     def bulk(self, req):
@@ -719,10 +890,15 @@ class H(SimpleHTTPRequestHandler):
             raise ValueError(f"Unknown bulk operation {op!r}.")
         if not ids:
             raise ValueError("Nothing selected.")
+        preview = bulk_preview(req)
+        if preview['errors'] and not req.get('applyValid'):
+            return {'written': [], 'failed': preview['errors'][0], 'errors': preview['errors']}
+        ids = preview['valid']
         written = []
         for id in ids:
             single = {"id": id, "madeBy": req["madeBy"], "evidence": req.get("evidence", ""), "gist": req.get("gist", ""),
-                      "fields": req.get("fields", {}), "links": req.get("links", [])}
+                      "fields": {**req.get("fields", {}), **req.get('perItem', {}).get(id, {}).get('fields', {})},
+                      "links": req.get("links", []) + req.get('perItem', {}).get(id, {}).get('links', [])}
             try:
                 if op == "set":
                     self.edit(single)
@@ -745,6 +921,8 @@ class H(SimpleHTTPRequestHandler):
         if not writes_direct():
             raise ValueError("Renumber is a direct write; this engagement writes change sets.")
         self.evidence(req)
+        if not req.get("allowUnpublished"):
+            raise ValueError("Renumbering changes external references. Use stable IDs; only explicitly unpublished registers may be renumbered.")
         kind = req.get("type")
         if kind not in M.DIRS:
             raise ValueError("Say which register to renumber.")
@@ -787,6 +965,56 @@ class H(SimpleHTTPRequestHandler):
         open(newp, "w", encoding="utf-8").write(render_item(it))
         os.remove(item_path(ENG, old))
         return self.rewrite_links(items, old, new, link_gist, req)
+
+    def apply_review(self, req):
+        if not writes_direct():
+            raise ValueError('Historical corrections require direct mode. Review proposals remain saved; the ingester contract is unchanged.')
+        if any(not cs['applied'] for cs in load_change_sets()):
+            raise ValueError('Resolve pending change sets before applying historical corrections in direct mode.')
+        items = load_registers()
+        preview = W.preview(ENG, req, items, validate_fields)
+        if preview['errors']:
+            raise ValueError('; '.join(e['id'] + ': ' + e['error'] for e in preview['errors']))
+        records = W.load(ENG, 'reviews')
+        record = W.find(records, req['batch'])
+        for change in preview['changes']:
+            id = change['id']; entry = record['entries'][id]; after = change['after']; outcome = entry['outcome']
+            request = {**req, 'context': 'rationalise', 'reason': entry['reason'], 'evidence': entry.get('evidence', ''),
+                       'effectiveOn': entry.get('effectiveOn', ''), 'gist': entry['reason']}
+            fields = validate_fields(after['kind'], entry.get('fields', {}), correction=True)
+            if outcome == 'corrected':
+                self.commit(after['kind'], id, {label_of(k): v for k, v in fields.items()}, [], request,
+                            entry['reason'], replace_links=after['links'])
+            elif outcome == 'merged':
+                self.merge({**request, 'survivor': entry['survivor'], 'losers': [id], 'resolutions': entry.get('resolutions', {})})
+            elif outcome == 'excluded':
+                self.delete({**request, 'id': id})
+                record_alias(id, [], entry['reason'])
+            else:
+                children = entry.get('children') if outcome == 'split' else [{'kind': after['kind'], 'fields': {
+                    k: after.get(k, '') for k in ['title', 'status', 'raised-on', 'closed-on', 'description'] + M.SHORT[after['kind']] + M.LONG[after['kind']]}, 'links': after['links']}]
+                targets = []
+                for child in children:
+                    kind = child.get('kind', after['kind'])
+                    cf = validate_fields(kind, child.get('fields', {}), correction=True)
+                    cf.setdefault('status', M.FIRST_STATE[kind])
+                    if outcome == 'retyped':
+                        previous = '; '.join(M.LABELS.get(k,k) + ': ' + str(items[id][k]) for k in M.SHORT[items[id]['kind']] + M.LONG[items[id]['kind']] if k not in M.SHORT[kind] + M.LONG[kind] and items[id].get(k))
+                        cf['notes'] = (cf.get('notes', '') + '\nRetyped from ' + id + '. Previous fields: ' + previous).strip()
+                    cf['source'] = (cf.get('source', '') + '\nDerived from ' + id + ': ' + items[id].get('source', '')).strip()
+                    r = self.commit(kind, 'new', {label_of(k): v for k, v in cf.items()}, child.get('links', []), request, entry['reason'])
+                    targets.append(r['item'])
+                # A split preserves the original as an index record, so incoming references stay meaningful.
+                if outcome == 'split':
+                    self.commit(items[id]['kind'], id, {'Notes': items[id].get('notes', '') + '\nSplit into: ' + ', '.join(targets)}, [], request, entry['reason'])
+                else:
+                    self.rewrite_links(load_registers(), id, targets[0], 'retyped ' + id, request)
+                    self.commit(items[id]['kind'], id, {}, [], request, '', delete=True)
+                    record_alias(id, targets, entry['reason'])
+            entry.update(applied=True, appliedOn=today())
+        record['revision'] = O.revision(record)
+        W.save(ENG, 'reviews', records)
+        return {'ok': True, 'written': [c['id'] for c in preview['changes']]}
 
     def baseline_state(self):
         if not os.path.isdir(B_DIR):
@@ -875,6 +1103,7 @@ class H(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    O.recover(ENG)
     os.makedirs(CS_DIR, exist_ok=True)
     print(f"console: engagement {ENG}\nconsole: http://localhost:{PORT}/")
     # threaded: one slow or stuck client must not freeze the console for everyone.

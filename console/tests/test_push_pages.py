@@ -45,3 +45,20 @@ class ScopeColumn(unittest.TestCase):
         for kind in M.DIRS:
             self.assertNotIn("scope", [key for _, key in PP.columns(kind, [])],
                              f"{kind} pushes a Scope column for an engagement with no scopes")
+
+class AliasSourceIds(BuildWithoutFreeze):
+    def test_merged_source_ids_follow_alias_to_survivor(self):
+        open(os.path.join(self.eng,'baseline','frozen.md'),'w').write('| Source id | Item |\n|---|---|\n| Old-source-12 | REQ-0002 |\n')
+        json.dump({'REQ-0002':{'targets':['REQ-0001'],'reason':'duplicate'}},open(os.path.join(self.eng,'aliases.json'),'w'))
+        out=os.path.join(self.eng,'push');PP.build(self.eng,self.cfg,out)
+        self.assertIn('Old-source-12',json.load(open(os.path.join(out,'401.json')))['body'])
+
+    def test_empty_previously_imported_register_is_cleared_in_build(self):
+        from baseline import load_candidates
+        c=load_candidates(os.path.join(self.eng,'baseline'))[0]
+        json.dump({c['id']:{'frozenAs':'REQ-0001'}},open(os.path.join(self.eng,'baseline','verdicts.json'),'w'))
+        os.remove(IT.item_path(self.eng,'REQ-0001'))
+        out=os.path.join(self.eng,'push');manifest=PP.build(self.eng,self.cfg,out)
+        self.assertEqual(manifest['pages'][0]['items'],0)
+        body=json.load(open(os.path.join(out,'401.json')))['body']
+        self.assertIn('Source id',body);self.assertNotIn('<td><p>old</p></td>',body)

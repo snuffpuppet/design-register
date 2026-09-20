@@ -1,6 +1,8 @@
 # Solution register model
 
-Version 2.30, 16 September 2026. Owner: Adam Moyes.
+Version 2.31, 19 September 2026. Owner: Adam Moyes.
+
+Version 2.31 separates historical rationalisation from ongoing workflow. Section 12 defines review corrections, independent review progress, meeting sessions and stable published identifiers. Imported rows become working registers immediately; there is no separate freeze stage. Item fields and the section 11 change-set wire format remain unchanged.
 
 Version 2.30 makes Implemented by optional on a limitation until it is dispositioned. Whose build addresses a limitation follows from the chosen option, and the options may land it with either party, so the field is required once the limitation reaches Accepted or Change requested rather than on creation. Sections 4.4, 6 and 9 (I2, I12) say so. Nothing changes for requirements, decisions or change requests.
 
@@ -309,6 +311,18 @@ An import may be written into the registers before its review is complete. Every
 **Why this shape.** The tool and the ingester share nothing but a folder and this document. The tool can be replaced or run in parallel with another. Every change carries who made it, when, on what evidence and against what version of the item, and the ingester's approval step is where conflicts are resolved, by the person who owns the engagement rather than by the tool. Nothing about the transcript pathway changes.
 
 ---
+
+## 12. Rationalisation and meeting sessions
+
+Rationalisation establishes the known current position of existing records. It is independent of lifecycle status and may be repeated over any selected register items. A review retains its initial snapshot, scope and per-item outcomes: confirmed, corrected, merged, excluded, needs clarification, retyped or split. Review progress is tool metadata, not an item lifecycle field.
+
+A historical correction may set any valid status for the resulting type without replaying the workflow arrows in section 4.4. It records the reviewer, reason, source evidence, date recorded and historical effective date where known. This exception to I20 applies only to explicit review corrections. Ordinary workflow transitions still follow I20. Reviewers never invent approval or create intermediate open items solely to make history appear complete. Unresolved fields, links and evidence remain visible under the integrity rules.
+
+Review proposals are checked against the current record revision before applying. A completed review means its items have been reviewed and its chosen corrections applied; it does not assert every historical evidence gap has disappeared. Review metadata and meeting records are independent of direct versus change-set storage. The current section 11 change-set contract has no correction, retype, split or merge operation, so those corrections are applied only by a direct writer.
+
+Import creates working records and a review immediately. Source provenance and the source-to-item map are retained. There is no separate freeze stage. Published IDs stay stable; merges and retyping preserve aliases to surviving records. Splitting preserves the original reference as an index of the new records. Deleted identifiers are reserved rather than reused. Renumbering is reserved for explicitly unpublished registers.
+
+A meeting session retains an ordered agenda, starting snapshot, discussion progress, outcomes, evidence and follow-up references. Its stable session reference can be quoted by a transcript or later change set. Actual workflow moves retain the normal model rules. Reports distinguish historical corrections from new workflow progress and identify unapplied proposals.
 
 ## Appendix. Source references
 

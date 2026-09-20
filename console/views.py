@@ -41,42 +41,45 @@ def save(path, vs):
     json.dump(vs, open(path, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
 
 
-def apply_filter(items, filter):
-    """The saved view's chip filter, the parts a plain list of item dicts can answer without the browser's
-    own state: types, statuses, scopes and owners. `rule` needs integrity failures and `q` free text search,
-    both already loaded client-side, so those stay the browser's job; `since` keeps its own role below as the
-    section's change window rather than a row filter here."""
-    types = filter.get("types") or []
-    statuses = filter.get("statuses") or []
-    scopes = filter.get("scopes") or []
-    owners = filter.get("owners") or []
-    out = items
-    if types:
-        out = [i for i in out if i.get("kind") in types]
-    if statuses:
-        out = [i for i in out if i.get("status") in statuses]
-    if scopes:
-        out = [i for i in out if (i.get("scope") or "") in scopes]
-    if owners:
-        out = [i for i in out if (i.get("owner") or "") in owners]
+def apply_filter(items, filter, integrity=None):
+    out = list(items)
+    for key, field in [('types', 'kind'), ('statuses', 'status'), ('scopes', 'scope'), ('owners', 'owner')]:
+        if filter.get(key): out = [i for i in out if i.get(field, '') in filter[key]]
+    if filter.get('q'):
+        q = filter['q'].casefold()
+        out = [i for i in out if q in ' '.join(str(i.get(k, '')) for k in ('title', 'id', 'notes')).casefold()]
+    if filter.get('rule'):
+        ids = {f['id'] for f in (integrity or {}).get('failures', []) if f['rule'] == filter['rule']}
+        out = [i for i in out if i['id'] in ids]
+    if filter.get('updatedSince'):
+        since = parse_date(filter['updatedSince'])
+        if since: out = [i for i in out if (parse_date(i.get('updated')) or datetime.date.min) >= since]
     return out
 
 
-def sections(view, items, integrity, today):
+def sections(view, items, integrity, today, events=None):
     """The four SLT sections as lists of rows. `moved`: items with a History move line on or after `since`.
     `raised`: raised-on on or after since. `outstanding`: DEC Proposed, CR For approval, OI Blocked, anything overdue.
     `gaps`: the integrity failures."""
-    items = apply_filter(items, view["filter"])
+    items = apply_filter(items, view["filter"], integrity)
     since = parse_date(view["filter"].get("since")) or (parse_date(today) - datetime.timedelta(days=7))
     now = parse_date(today)
-    moved, raised, outstanding = [], [], []
+    moved, raised, outstanding, corrections, pending = [], [], [], [], []
+    events = events or []
+    tracked_history = {line for e in events for line in e.get('history', [])}
     for it in items:
         for h in it.get("history", []):
             d = parse_date(h)
             move = next((seg for seg in h.split(" | ") if " → " in seg), None)
-            if d and d >= since and move:
+            if d and d >= since and move and h not in tracked_history:
                 frm, to = move.split(" → ", 1)
                 moved.append({"id": it["id"], "title": it["title"], "from": frm, "to": to, "owner": it.get("owner", "")})
+        for e in events:
+            if e['item'] != it['id'] or e['date'] < since.isoformat(): continue
+            row = {**e, 'id': it['id'], 'title': it['title'], 'owner': it.get('owner', '')}
+            if e['context'] == 'rationalise': corrections.append(row)
+            elif e.get('from') and e.get('to') and e['from'] != e['to']: moved.append(row)
+        if it.get('pending'): pending.append(it)
         rd = parse_date(it.get("raised-on"))
         if rd and rd >= since:
             raised.append({"id": it["id"], "title": it["title"], "status": it["status"], "owner": it.get("owner", "")})
@@ -85,11 +88,14 @@ def sections(view, items, integrity, today):
         if (it["kind"], it["status"]) in (("DEC", "Proposed"), ("CR", "For approval"), ("OI", "Blocked")) or overdue:
             outstanding.append({"id": it["id"], "title": it["title"], "status": it["status"], "due": it.get("due", ""),
                                 "overdue": (now - due).days if overdue else 0})
-    return {"moved": moved, "raised": raised, "outstanding": outstanding, "gaps": integrity.get("failures", [])}
+    ids = {i['id'] for i in items}
+    return {"table": items, "moved": moved, "raised": raised, "outstanding": outstanding,
+            "corrections": corrections, "pending": pending,
+            "gaps": [f for f in integrity.get('failures', []) if f['id'] in ids]}
 
 
-def summary(view, items, integrity, today):
-    s = sections(view, items, integrity, today)
+def summary(view, items, integrity, today, events=None):
+    s = sections(view, items, integrity, today, events)
     out = [f"Design register, week to {today}.", ""]
     if s["moved"]:
         out.append(f"{len(s['moved'])} moved. " + " ".join(f"{m['id']} ({m['title']}) {m['from']} to {m['to']}." for m in s["moved"]))
@@ -105,6 +111,8 @@ def summary(view, items, integrity, today):
                 b += f", due {o['due']}"
             bits.append(b)
         out.append("For SLT: " + "; ".join(bits) + ".")
+    if s['corrections']: out.append(f"{len(s['corrections'])} historical corrections recorded (separate from workflow progress).")
+    if s['pending']: out.append(f"{len(s['pending'])} items include pending proposals; these are not yet applied by the ingester.")
     n = len(s["gaps"])
     out.append(f"Register clean-up: {n} gap{'' if n == 1 else 's'} remain.")
     out += ["", "Full tables on the Confluence Design Register."]

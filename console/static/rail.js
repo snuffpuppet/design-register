@@ -22,7 +22,7 @@
       <div class=${"rl-it" + (on ? " on" : "")} onClick=${onClick}>
         <span><span class=${"pill " + kind}>${kind}</span> ${label}</span>
         <span class="n">${n}</span>
-        <button class="btn ghost rl-more" onClick=${e => { e.stopPropagation(); setConfirming(false); setOpen(!open); }}>⋯</button>
+
       </div>
       ${open ? html`<div class="menu" onClick=${e => e.stopPropagation()}>
         <div class="mi" onClick=${() => { setOpen(false); setConfirming(true); }}><span>Renumber…</span></div>
@@ -70,13 +70,18 @@
     };
     return html`<nav class="rail">
       <div class="grp"><span class="lbl">Engagement</span><div class="rl-eng">${S.state.engagement.name}</div></div>
+      <div class="grp"><span class="lbl">Workspace</span>
+        <${Item} label="Desktop" on=${!(/^(reviews|meetings)/.test(ui.view))} onClick=${() => S.set({view:'all',session:null,open:null})}/>
+        <${Item} label="Rationalise" on=${ui.view.startsWith('reviews')} onClick=${() => S.set({view:'reviews',session:null,open:null})}/>
+        <${Item} label="Meetings" on=${ui.view.startsWith('meetings')} onClick=${() => S.set({view:'meetings',open:null})}/>
+      </div>
       <div class="grp"><span class="lbl">Work</span>
         <${Item} label="Outstanding" n=${c.outstanding} on=${ui.view === "outstanding"} onClick=${go("outstanding")} />
         <${Item} label="Integrity" n=${c.integrity} on=${ui.view === "integrity" && !ui.filter.rule} onClick=${go("integrity")} />
         ${ui.view === "integrity" ? rules.map(([r, n]) => html`<${Item} label=${r + " " + (S.model.rules[r] || "").split(" ").slice(0, 4).join(" ")} n=${n} on=${ui.filter.rule === r} onClick=${go("integrity", { rule: r })} />`) : null}
         <${Item} label="Suggested supports" n=${c.supports} on=${ui.view === "supports"} onClick=${go("supports")} />
         <${Item} label="Duplicates" n=${c.duplicates} on=${ui.view === "duplicates"} onClick=${go("duplicates")} />
-        <${Item} label="Unreviewed" n=${c.unreviewed} on=${ui.view === "unreviewed"} onClick=${go("unreviewed")} />
+        <${Item} label="Unreviewed" n=${c.unreviewed} on=${ui.view === "unreviewed"} onClick=${() => S.set({view:"reviews",open:null})} />
       </div>
       <div class="grp"><span class="lbl">Registers</span>
         <${Item} label="All items" n=${c.all} on=${ui.view === "all"} onClick=${go("all")} />
@@ -91,6 +96,7 @@
           : html`<div class="rl-it muted" onClick=${() => setSavingView(true)}>+ Save current view</div>`}
       </div>
       <div class="rl-foot">
+        <${Item} label="Recent operations" onClick=${go("operations")}/>
         <a class="rl-it muted" href="guide.html" target="_blank" rel="noopener">Guide</a>
         <${ThemeSwitch} />
       </div>

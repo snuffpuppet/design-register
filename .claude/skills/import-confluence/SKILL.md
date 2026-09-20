@@ -1,12 +1,12 @@
 ---
 name: import-confluence
 description: Use when asked to import, pull, fetch or refresh the Confluence Design Register pages for a named engagement into this repository, or when a baseline needs the Confluence registers brought local first.
-usage: /import-confluence <engagement>: pull the Design Register pages into engagements/<name>/baseline/
+usage: "/import-confluence <engagement>: pull the Design Register pages into engagements/<name>/baseline/"
 ---
 
 # Import Confluence registers
 
-Pull the Design Register parent page's subpages into `engagements/<engagement>/baseline/` as Markdown pages the console can baseline. Read only. Nothing in Confluence is written by this skill, and no item file is written.
+Pull the Design Register parent page's subpages into `engagements/<engagement>/baseline/` as source pages for Import and review. The console creates working registers and a review batch; there is no separate freeze stage. Read only against Confluence. This skill pulls source files; the console imports actual register items when the operator chooses Import and review.
 
 **Invocation:** `/import-confluence <engagement>`. The argument is the engagement name and becomes the folder name. Missing argument: ask for it and stop.
 
@@ -19,6 +19,8 @@ Pull the Design Register parent page's subpages into `engagements/<engagement>/b
 5. Only the parent page and its direct children are read. No other page, space or search.
 
 ## Pull
+
+If item files already exist, do not overwrite the pulled source snapshot or run the initial import again. Record the requested refresh as a separate source export for reconciliation; automatic re-import into live registers is not supported.
 
 For each child page of the parent, in the order the connector lists them:
 
@@ -38,11 +40,11 @@ If the image is missing, build it first: `docker build -q -t register-console co
 
 When every child is written, append to `log` in `confluence.json`: `{date, action: "pull", engagement, pages: n, by: "Claude"}`.
 
-If `engagements/<engagement>/engagement.md` does not exist, create it from the template in `console/README.md`'s sample with the engagement name, `Domain: to be set`, one phase `Day one (current)`, and `Model version: 2.22`. Nothing else is created.
+If `engagements/<engagement>/engagement.md` does not exist, create it from the template in `console/README.md`'s sample with the engagement name, `Domain: to be set`, one phase `Day one (current)`, and `Model version: 2.31`. Nothing else is created.
 
 ## Report
 
-In chat, one line per page: title, version, number of table rows. Then the console command to baseline it:
+In chat, one line per page: title, version, number of table rows. Then the console command to open it, followed by Import and review:
 
 ```
 console/run.sh engagements/<engagement>
@@ -63,7 +65,7 @@ console/run.sh engagements/<engagement>
 | Connector present, URL blank | Ask for the URL, stop |
 | `read: ask` | Ask, wait, record `granted` and a log entry, continue |
 | Page has prose and two tables | Write prose as text, both tables in full |
-| Re-run on an existing engagement | Overwrite the page files and raw copies; leave `verdicts.json` alone |
+| Re-run on an existing engagement | Do not overwrite an existing source snapshot; retain a new dated pull separately for reconciliation |
 | Source numbers its rows and you need those numbers | Add the page to `derive_columns` in `confluence.json`; never hand-edit a pulled page |
 
 Background: `console/confluence-runbook.md` for how pull, baseline, apply and push fit together.

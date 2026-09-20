@@ -8,6 +8,8 @@ status: active
 model-version: 2.29
 ---
 
+> 19 September 2026: console behaviour changed on feature/rationalisation-meetings. Read current CLAUDE.md and docs/work-laptop-acceptance.md before following these historical next steps. Freeze is no longer a user-facing stage. Real engagement data was not changed by this feature.
+
 ## Objective
 
 Replace the console's one-view-per-screen front end with one table, filtered and grouped, a side panel over it and a bulk bar above it, every state change going through one move form generated from `model.py`. Desk mode drives it: working a queue of changes after meetings and driving an import to zero integrity failures.

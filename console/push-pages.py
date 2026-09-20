@@ -23,7 +23,7 @@ Run inside the console image so nothing is installed on the host:
 import sys, os, re, json, glob, datetime, html
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import model as M
-from baseline import guess_kind, LINK_RE
+from baseline import guess_kind, LINK_RE, load_candidates
 
 MONTHS = "January February March April May June July August September October November December".split()
 
@@ -226,15 +226,29 @@ def build(eng, cfg, outdir):
     guard(eng, cfg, pages)
     items = load_items(eng); scopes = engagement_scopes(eng); idmap, frozen_on = id_map(bdir)
     verdicts = json.load(open(os.path.join(bdir, "verdicts.json"), encoding="utf-8")) if os.path.exists(os.path.join(bdir, "verdicts.json")) else {}
+    alias_path = os.path.join(eng, 'aliases.json')
+    aliases = json.load(open(alias_path, encoding='utf-8')) if os.path.exists(alias_path) else {}
+    def survivors(id, seen=None):
+        seen = set() if seen is None else seen
+        if id in seen: raise ValueError('Alias cycle in source ID mapping.')
+        if id not in aliases: return [id]
+        return [target for next_id in aliases[id]['targets'] for target in survivors(next_id, seen | {id})]
     refs = {}
     for ref, nid in idmap.items():
-        refs.setdefault(nid, []).append(ref.split(" · ")[-1])
+        for target in survivors(nid):
+            refs.setdefault(target, []).append(ref.split(" · ")[-1])
     mode = cfg.get("push", {}).get("mode", "replace-tables"); add_note = cfg.get("push", {}).get("add_note", True)
     by_title = {p["title"]: p for p in pages}
-    placed, unplaced = {}, []
+    imported = {}
+    for c in load_candidates(bdir):
+        if verdicts.get(c['id'], {}).get('frozenAs'):
+            imported.setdefault(c['page'], set()).add(c['kind'])
+    placed, unplaced = {p['id']: [] for p in pages if p['title'] in imported}, []
     for it in items:
         src = source_page(it)
-        page = by_title.get(src) or next((p for p in pages if guess_kind(p["title"]) == it["kind"]), None)
+        original = by_title.get(src)
+        if original and guess_kind(original['title']) not in ('', None, it['kind']): original = None
+        page = original or next((p for p in pages if guess_kind(p["title"]) == it["kind"]), None)
         if page: placed.setdefault(page["id"], []).append(it)
         else: unplaced.append(it["id"])
     merged = sum(1 for e in verdicts.values() if isinstance(e, dict) and e.get("verdict") == "Merge")
@@ -244,8 +258,8 @@ def build(eng, cfg, outdir):
                 "untouched": [p["title"] for p in pages if p["id"] not in placed]}
     for page in pages:
         its = placed.get(page["id"])
-        if not its: continue
-        kinds = sorted(set(i["kind"] for i in its))
+        if its is None: continue
+        kinds = sorted(set(i["kind"] for i in its) or imported.get(page['title'], set()))
         note = (f"Register as at {today()} from this page; {len(its)} items in the engagement register"
                 f"{', baselined ' + frozen_on if frozen_on else ''}{', ' + str(merged) + ' merged' if merged else ''}{', ' + str(rejected) + ' rejected across the baseline' if rejected else ''}. "
                 "Source of truth is now the engagement register; ids are the register's, Source id is the id this page had.") if add_note else ""

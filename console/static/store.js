@@ -20,7 +20,9 @@
       Store.emit();
     },
     async post(url, body) {
-      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ madeBy: Store.ui.madeBy, ...body }) });
+      const ids = [...(body.ids || []), ...(body.losers || []), body.id, body.survivor, body.target].filter(Boolean);
+      const revisions = Object.fromEntries(ids.filter(id => Store.byId?.[id]).map(id => [id, Store.byId[id].revision]));
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ madeBy: Store.ui.madeBy, revisions, session: Store.ui.session || "", ...body }) });
       const j = await r.json();
       if (!r.ok || j.error) throw new Error(j.error || r.statusText);
       return j;
@@ -34,7 +36,7 @@
       if (filter.scopes.length) xs = xs.filter(i => filter.scopes.includes(i.scope || ""));
       if (filter.owners.length) xs = xs.filter(i => filter.owners.includes(i.owner || ""));
       if (filter.rule) xs = xs.filter(i => (Store.failuresById[i.id] || []).some(f => f.rule === filter.rule));
-      if (filter.since) { const d = Store.parseDate(filter.since); if (d) xs = xs.filter(i => (Store.parseDate(i.updated) || 0) >= d); }
+      if (filter.updatedSince) { const d = Store.parseDate(filter.updatedSince); if (d) xs = xs.filter(i => (Store.parseDate(i.updated) || 0) >= d); }
       if (filter.q) { const q = filter.q.toLowerCase(); xs = xs.filter(i => (i.id + " " + i.title + " " + (i.notes || "")).toLowerCase().includes(q)); }
       return xs;
     },

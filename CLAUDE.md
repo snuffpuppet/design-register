@@ -1,68 +1,52 @@
 # design-register
 
-Read `README.md` first for what is here and how the pieces fit. This file is what a session needs that the README does not say.
+Version 1.0, 19 September 2026.
 
-## What this repository is for
+Read `README.md` first. This file holds coding-session constraints and non-obvious operating rules.
 
-The solution architecture process for a vendor build, and the tools that make it cheap to run. Three things live here: the register model (`solution-register-model.md`, currently 2.30), the register console (`console/`), and the Confluence import path (`confluence.json`, `.claude/skills/import-confluence/`, `console/confluence-runbook.md`).
+## Purpose and boundaries
 
-The sibling repository `../solution-register` holds the ingester that writes register item files from transcripts. It is at model 2.20 and is **never edited from here**. Adam ports the model to it when he chooses. The two repositories share nothing but the model document and the change set file format (model section 11).
+This repository owns the solution register model (2.31), local console, rationalisation and meeting tools, and Confluence import/push path. The sibling `../solution-register` owns transcript ingestion and is **never edited from here**. Its documented model is still 2.20 until Adam ports it. Declare a compatible ingester version only after that work actually happens.
 
-## Rules that are not obvious from the code
+Real source registers and the identifying glossary stay on the work laptop. This checkout contains synthetic or reviewed anonymised fixtures. Generic anonymisation code is tracked in `console/anonymise.py`; the private glossary is not. `docs/anonymisation.md` describes the deterministic format and review boundary. Opus can run `.claude/skills/anonymise-register/` without performing free-form rewriting.
 
-- **The console has two write modes, chosen by `- Writes:` in `engagement.md`.** `direct`, the default, rewrites the item file on every move, edit or new item, stamps `updated` and appends a History line; git holds the history. `change-sets` appends blocks to `<engagement>/change-sets/CS-nnnn.md` for the ingester and never touches item files. Every Live write goes through `commit()` in `server.py`; do not add a write path beside it. Freeze baseline (`baseline.freeze`) is the same in both modes: it writes every candidate not rejected, merged or discarded as the registers' first item files, refuses to run if any register already has an item, reports what is left unreviewed or missing, and records the id map in `baseline/frozen.md`.
-- **Merge and Delete are direct-mode writes through `commit(..., delete=True)` and `rewrite_links()`.** They refuse in change-sets mode. `duplicates-dismissed.json` holds set-aside groups; `baseline/verdicts.json` remains the review ledger, and `unreviewed` in `/api/state` is derived from it.
-- **Everything runs in Docker.** `make up` builds and runs the console; `run.sh` refuses to start without Docker. Do not start a host python server as a fallback. If Docker is down, say so and ask. The only host tool used is `python3` for `make sample`, which writes files and runs no server.
-- **The model is the source of truth.** `console/model.py` mirrors sections 4.2, 4.4 and 9 as data and is the only place the console knows the states, transitions, required fields and link words. A change to the model changes `model.py` and nothing else in the console needs to learn it. Bump the model version and add a dated line at the top of the model document.
-- **Scope is declared per engagement, not by the model.** A `## Scopes` section in `engagement.md` names the values; an engagement without one carries no Scope, is never asked for one, and I24 never fires. `required_on_create()` in `server.py` is the only place that conditionality lives.
-- **The Confluence import is gated.** `confluence.json` names the connector, the parent page and read and write permissions. `ask` means ask in chat and record the answer in `log`. Only the parent page and its direct children are ever read or written. No connector was available as of 12 September 2026, so no real pull has run.
-- **The baseline never trusts its input.** In Baseline mode every table row is a candidate whatever id or status it claims. Source ids are kept as references in Notes and become our ids only at the freeze. A source status is kept at the freeze only if it is one of the model's own states for that type, otherwise the item starts at its first state; the reviewer can set the status in the candidate editor before freezing. Do not create the engagement folder or write placeholder pages when nothing was pulled.
-- **Renumber refuses on a dirty engagement tree and rewrites ids in two phases through a temporary kind-9nnn id so no new id collides with an old file; it also refuses if that staging range is occupied.**
+## Working contexts
 
-## Layout worth knowing
+- **Rationalise** reviews actual register items in persistent batches, independently of lifecycle status. It can correct historical type, status, fields and links with reason/evidence, preserving unresolved integrity gaps. Do not manufacture intermediate open items or guessed approvals just to repair a generated register.
+- **Desktop** follows the normal model transitions and required-field checks.
+- **Meetings** retain a fixed agenda, outcomes, action references and stable session ID. Workflow writes still use Desktop operations.
+- `- Writes: direct` versus `change-sets` is a separate persistence choice. Review, meeting and view metadata work in both modes. Historical correction application and structural register operations require direct mode. Do not invent incompatible ingester blocks.
+- There is **no user-facing freeze mode**. A baseline-only input offers Import and review, which writes working registers and opens a review. `baseline.freeze()` and `baseline/frozen.md` remain internal provenance/push compatibility mechanisms. The previous `static/old/` frontend is not the entry point and should not be extended.
 
-| Path | Note |
-|---|---|
-| `console/server.py` | Standard library only. Reads items and change sets, overlays them, serves the API, and writes through `commit()` in the engagement's mode. `console/items.py` is the item file layout, parse and render, shared with the freeze. An item's `kind` in the API is its type; the risk's Kind field is exposed as `risk-kind`. A support dismissed in Live is recorded in `<engagement>/supports-dismissed.json`, never in a change set, so the ingester sees only blocks it knows. |
-| `console/integrity.py` | Section 9 and the `SUPPORTS` table over item dicts. Pure; used by baseline and live. Rules read from `model.py` only. |
-| `console/baseline.py` | Tolerant table import, duplicate suggestions, verdicts and edits in `baseline/verdicts.json`, freeze. Column heuristics are the `COLS` table at the top; add words there when a real page uses a header the mapping misses. `EDITABLE` lists what the editor may change. `skip-pages.txt` in the baseline folder names pages that produce no candidates. |
-| `console/pull-page.py` | Converts one raw Confluence page JSON to the baseline page format. Run inside the console image. |
-| `console/push-pages.py` | Builds the Confluence push from the registers as they stand into `<engagement>/push/` and sends nothing. Guarded by `push.engagement` in `confluence.json`, which names abb-nokia. `/push-confluence` sends the files. |
-| `console/static/app.js` | Boot: fetches state, model, views and baseline presence, then mounts; the keyboard handler; the full-page notice and hand-off to `/old/` when `Store.baseline.present` and no item exists yet. |
-| `console/static/store.js` | `Store.load()` fetches `/api/state`, `/api/model`, `/api/views` and `/api/baseline` in parallel; every write posts then reloads state, no optimistic update. |
-| `console/static/rail.js` | Work queues and Registers with counts, the per-register ⋯ menu's Renumber, Reports, and the rail foot: a Guide link and the Light/Auto/Dark theme switch, sharing the `theme` localStorage key with `/old/`. |
-| `console/static/table.js` | Columns, filter chips, group-by, sort, selection and keyboard; `Store.columnsFor()` in `store.js` picks the column set per view. |
-| `console/static/cells.js` | One inline editor per field kind; the status cell greys states not reachable from the current one and opens the move form for any that needs fields. |
-| `console/static/panel.js` | The side panel: chips, Next moves, the provenance chains from `/api/state`'s `provenance`, and Gaps from integrity failures and support suggestions. |
-| `console/static/move-form.js` | The one generated move and create form, opened by the status cell, the panel and the bulk bar alike, reading `REQUIRED_ON_ENTRY` and friends from `/api/model`. |
-| `console/static/picker.js` | The link picker: search over `/api/items` typed by the link word, with create-new as the fallback row. |
-| `console/static/bulk.js` | The bulk bar's five actions; all but Merge and Delete go through `/api/bulk`, which refuses in change-sets mode. |
-| `console/static/report.js` | Renders a saved view's sections, drafts the email summary text, and calls the push build. |
-| `console/views.py` | `<engagement>/views.json` load and save, a view's filter applied over items, its sections rendered, the summary text drafted. Direct-mode file, never a change set. |
-| `console/renumber.py` | Compacts one register's ids in raised-on order through a temporary staging id, rewrites links, writes `renumbered.md`. Refuses on a dirty tree or in change-sets mode. |
-| `.claude/settings.json`, `.claude/hooks/` | A SessionStart hook prints the project's slash commands at the start of every session, read from each skill's `usage:` line. Add a `usage:` line to any new skill. |
-| `handoffs/` | One file per objective written by `/handoff`, read by `/resume`, which checks relevance against the commit, anchors and date before acting. Start a session with `/resume` when a handoff is active. |
-| `console/make-sample.py` | Writes `test-data/puppy-gloves`. Resets change sets and baseline verdicts. Sample baseline pages come from `console/sample-baseline/`. |
-| `engagements/` | Real engagements, one folder each, created only by `/import-confluence`. |
+## Write rules
 
-## Testing the console
+- HTTP mutations run through `operations.transaction` under the server lock. Register writes use `commit()` in `server.py`; coordinated link rewrites and legacy renumber moves remain inside that transaction. Do not add an unjournalled API write path.
+- Generic edits accept only fields belonging to the type. Status changes use a workflow transition or a review correction. Empty strings explicitly clear fields in direct mode; change-set clearing is unsupported and refused.
+- Bulk preflight runs before writes. A mixed-validity batch writes nothing unless the request explicitly chooses `applyValid`.
+- Item revisions detect stale browser edits. Review and meeting records have their own revision. Preserve both protections when changing forms.
+- Recovery journals contain private snapshots. Startup recovers prepared operations; undo refuses changed engagement content. Coordinate with the ingester rather than running two writers concurrently.
+- Merge requires conflict choices and records aliases. Retype rewrites incoming links and preserves the old ID as an alias. Split keeps the original as an index to the new items. Published IDs stay stable. Renumber is a legacy operation requiring `allowUnpublished`, a clean engagement git tree and an unused staging range.
+- The model document remains authoritative; `console/model.py` holds field/state/rule data. Bump and date the model when its semantics change. Review semantics are section 12; item and change-set wire formats remain unchanged.
+- Scope is declared by engagement. `required_on_create()` applies that conditionality. A follow-up item in a scoped engagement must ask for Scope.
 
-Chrome via the Claude in Chrome extension refuses `localhost` and `127.0.0.1`. Use `http://localtest.me:8085/`, which resolves to the machine. After a rebuild wait two seconds before loading, or the first fetch races the container start and the page renders blank. The API is quicker to check than the page: `curl localhost:8085/api/state` and `curl localhost:8085/api/baseline`. `make test` runs the console's unit tests in the python image, no browser needed.
+## Run and test
+
+Everything runs in Docker. `make up ENG=<folder>` starts the console; `make test` builds and runs the Python suite in the image. Do not substitute a host Python server when Docker is down. The existing `make sample` host script only writes fixture files; stop a mounted sample before regenerating it.
+
+Pinned Preact and htm libraries are in `console/static/vendor/`. No runtime CDN dependency. UI code remains small modules without a build step. `console/tests/browser-smoke.cjs` runs in the Puppeteer image against a disposable sample container. Never use a real engagement for browser mutations. `docs/work-laptop-acceptance.md` lists release checks and expected outcomes.
+
+`make up` remembers the engagement in ignored `docker-compose.override.yaml`. Pass `ENG=` deliberately. Keep the current console running while testing another container on a spare port. Python code changes require process restart; static assets reload in the browser.
+
+## Claude commands and Confluence
+
+Commands remain under `.claude/skills/`, with a `usage:` frontmatter line discovered by `.claude/hooks/list-commands.sh`. Do not move them into a different agent's directory. New `/anonymise-register` and `/check-register-release` wrap deterministic scripts and acceptance instructions. Existing `/handoff` and `/resume` remain available.
+
+Confluence reads/writes use `confluence.json`, the declared parent and direct children, and the existing permission log. `ask` means ask and record the answer. Never change engagement/source guards to make a refusal pass. No live connector behaviour has been validated by this feature implementation. `/push-confluence` still reviews built output and checks page versions before sending.
+
+## Main files
+
+`server.py`: coordination and API. `items.py`: item files. `model.py`: model data. `integrity.py`: pure findings/provenance. `workspaces.py`: review/meeting state. `operations.py`: journal/recovery/events. `views.py`: filter/report semantics. `anonymise.py`: deterministic export. `static/workspaces.js`: shared review/meeting interface. `static/store.js`: browser state and revision-aware requests.
 
 ## Conventions
 
-Australian English. No em dashes. No rhyming patterns of three, no "not x but y" framing. Documents carry a version and date near the top and are bumped on change. Commits end with the attribution lines the session provides. Item files carry `updated` and a History section and rely on git for history.
-
-## Where the thinking is
-
-The model document's version notes at the top say why each change was made. The console README says what each mode does. `console/confluence-runbook.md` says how pull, baseline, apply and push fit together. The artifact "Two Ways Into the Registers" is the same content as `console/static/guide.html`.
-
-## Open threads as of 16 September 2026
-
-The active handoff `handoffs/baseline-abb-nokia.md` holds the ordered next steps for the real engagement; `handoffs/console-rethink.md` holds the next steps for the console work; the threads below are the standing ones.
-
-- Connect a Confluence connector and set `parent_page_url`, then run `/import-confluence <engagement>` for the first real pull. Expect to add column words to `COLS` in `baseline.py` on the first real page.
-- The ingester still parses model 2.20. The model here is at 2.30. It is needed only by engagements in change-sets mode; direct mode is the default. Porting it (CR type, field trim, risk Kind, I20 forward transitions, change set apply stage, and the supports rules I21 to I23 with the link words `mitigated by` and `needs`) is Adam's call and happens in the other repository.
-- The push back to Confluence is built (`push-pages.py` and `/push-confluence`) but has never run against a live connector. The first real run will show whether the connector's update call wants the body in storage format as written, and whether the version check reads as expected.
-- `baseline/skip-pages.txt` names the pages that are views rather than registers. The test engagement has its four. On the first pull of a new source, expect to add them after seeing them.
-- The baseline screens still run in `console/static/old/`. Porting them into the table shell removes the last of the old front end.
+Australian English. No em dashes or "not x but y" framing. Documents carry a version and date. Preserve actual source evidence and distinguish recorded date from historical effective date. Item History and private operation journals complement git history. Commits use any attribution lines supplied by the session; never invent them.

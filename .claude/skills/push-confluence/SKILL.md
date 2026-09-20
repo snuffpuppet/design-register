@@ -1,7 +1,7 @@
 ---
 name: push-confluence
 description: Use when asked to push, write back, publish or sync an engagement's registers to the Confluence Design Register pages for a named engagement. Builds the pages first and sends nothing until the write gate is passed.
-usage: /push-confluence <engagement>: build the registers as pages, read the manifest, send under the write gate
+usage: "/push-confluence <engagement>: build the registers as pages, read the manifest, send under the write gate"
 ---
 
 # Push the registers back to Confluence

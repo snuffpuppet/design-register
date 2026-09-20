@@ -22,12 +22,13 @@
         <button class="btn" onClick=${() => setMode("set")}>Set field</button>
         <button class="btn" onClick=${() => setMode("move")}>Move to…</button>
         <button class="btn" onClick=${() => setMode("link")}>Link to…</button>
-        <button class="btn" disabled=${kinds.length !== 1 || items.length < 2} onClick=${() => setMode("merge")}>Merge</button>
+        <button class="btn" onClick=${() => run(async()=>{const r=await S.post('/api/reviews/create',{name:'Review selected items',ids});S.set({view:'reviews:'+r.id,open:null});})}>Review / merge</button>
+        <button class="btn" onClick=${() => run(async()=>{const r=await S.post('/api/meetings/create',{name:'Meeting agenda',ids});S.set({view:'meetings:'+r.id,session:r.id,open:null});})}>Meeting agenda</button>
         <button class="btn" onClick=${guarded(() => bulk({ op: "withdraw", gist: "withdrawn in bulk" }))}>Withdraw</button>
         <button class="btn ghost danger" onClick=${() => setMode("delete")}>Delete</button>` : null}
       ${mode === "set" ? html`<select class="inp" value=${field} onChange=${e => { setField(e.target.value); setValue(""); }}><option value="">field…</option>${fields.map(f => html`<option value=${f}>${S.model.labels[f] || f}</option>`)}</select>
         ${field && opts(field)?.length ? html`<select class="inp" value=${value} onChange=${e => setValue(e.target.value)}><option value="">–</option>${opts(field).map(o => html`<option value=${o}>${o}</option>`)}</select>` : html`<input class="inp" value=${value} onInput=${e => setValue(e.target.value)} placeholder="value" />`}
-        <button class="btn pri" disabled=${!field || !value.trim()} onClick=${guarded(() => bulk({ op: "set", fields: { [S.model.labels[field] || field]: value }, gist: (S.model.labels[field] || field) + " set in bulk" }))}>Apply to ${items.length}</button>` : null}
+        <button class="btn pri" disabled=${!field} onClick=${guarded(() => bulk({ op: "set", fields: { [S.model.labels[field] || field]: value }, gist: (S.model.labels[field] || field) + " set in bulk" }))}>Apply to ${items.length}</button>` : null}
       ${mode === "move" ? html`<select class="inp" value="" onChange=${e => { if (e.target.value) { MoveForm.open({ ids, to: e.target.value }); setMode(null); } }}><option value="">state…</option>${states.map(s => html`<option value=${s}>${s}</option>`)}</select>` : null}
       ${mode === "link" ? html`<select class="inp" value=${word} onChange=${e => setWord(e.target.value)}><option value="">link word…</option>${words.map(w => html`<option value=${w}>${w}</option>`)}</select>
         ${word ? html`<${Picker.Inline} word=${word} kind=${kinds[0]} value=${target} onPick=${setTarget} />` : null}

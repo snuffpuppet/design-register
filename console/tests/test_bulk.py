@@ -40,9 +40,10 @@ class Bulk(unittest.TestCase):
         self.assertEqual(self.read("REQ-0002")["owner"], "Tom Okafor")
         self.assertTrue(any("Adam" in h for h in self.read("REQ-0002")["history"]))
 
-    def test_transition_stops_at_the_first_refusal_and_reports_what_was_written(self):
+    def test_preflight_refuses_whole_batch_without_partial_writes(self):
         r = self.h.bulk({"ids": ["REQ-0001", "REQ-0003", "REQ-0002"], "op": "transition", "to": "Agreed", "madeBy": "Adam"})
-        self.assertEqual(r["written"], ["REQ-0001"])
+        self.assertEqual(r["written"], [])
+        self.assertEqual(self.read("REQ-0001")["status"], "Draft")
         self.assertEqual(r["failed"]["id"], "REQ-0003"); self.assertIn("Phase", r["failed"]["error"])
         self.assertEqual(self.read("REQ-0002")["status"], "Draft")
 

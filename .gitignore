@@ -6,3 +6,11 @@ docker-compose.override.yaml
 # Real client material, and the anonymise glossary that names it. engagements/test is the
 # shareable copy and is tracked; regenerate it with "make anonymise".
 engagements/abb-nokia/
+
+# Private engagement folders are opt-in fixtures, never implicitly shareable.
+engagements/*
+!engagements/README.md
+!engagements/test/
+!engagements/test/**
+**/anonymise/glossary.json
+**/anonymise/*.private.json

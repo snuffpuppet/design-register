@@ -52,20 +52,20 @@ class Renumber(unittest.TestCase):
 
     def test_refuses_on_a_dirty_tree(self):
         open(os.path.join(self.d, "scratch.txt"), "w").write("x")
-        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam", "allowUnpublished": True})
 
     def test_refuses_when_not_a_git_repository(self):
         d = tempfile.mkdtemp()
         try:
             use(d)
             write_item(d, "REQ-0005", "Five", "Draft", **{"raised-on": "1 September 2026"})
-            with self.assertRaises(ValueError) as cm: self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+            with self.assertRaises(ValueError) as cm: self.h.renumber({"type": "REQ", "madeBy": "Adam", "allowUnpublished": True})
             self.assertIn("not a git repository", str(cm.exception))
         finally:
             use(self.d); shutil.rmtree(d)
 
     def test_renames_files_rewrites_links_and_writes_the_map(self):
-        r = self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+        r = self.h.renumber({"type": "REQ", "madeBy": "Adam", "allowUnpublished": True})
         self.assertEqual(r["map"], {"REQ-0005": "REQ-0001"})
         self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0001")))
         self.assertFalse(os.path.exists(IT.item_path(self.d, "REQ-0005")))
@@ -80,11 +80,11 @@ class Renumber(unittest.TestCase):
         write_item(self.d, "REQ-9001", "Nine", "Draft")
         subprocess.run(["git", "-C", self.d, "add", "-A"])
         subprocess.run(["git", "-C", self.d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "occupy"])
-        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam", "allowUnpublished": True})
         self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0005")))
         self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-9001")))
 
     def test_refuses_in_change_sets_mode(self):
         open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         subprocess.run(["git", "-C", self.d, "add", "-A"]); subprocess.run(["git", "-C", self.d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "m"])
-        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam"})
+        with self.assertRaises(ValueError): self.h.renumber({"type": "REQ", "madeBy": "Adam", "allowUnpublished": True})

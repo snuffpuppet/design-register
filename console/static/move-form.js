@@ -51,13 +51,16 @@
             if (k.field) f[S.model.labels[k.field] || k.field] = fields[l];
             else if (k.link) links.push(k.link + " " + fields[l]);
           }
-          // Per-item gaps first, as single edits, then the shared move in one bulk call.
-          for (const i of items) for (const l of missing(i.id)) if (!shared.includes(l) && per[i.id]?.[l]) {
-            const k = keyFor(i.kind, mv.to, l);
-            if (k.field) await S.post("/api/edit", { id: i.id, fields: { [S.model.labels[k.field] || k.field]: per[i.id][l] }, gist: "set before " + mv.to });
-            else if (k.link) await S.post("/api/edit", { id: i.id, links: [k.link + " " + per[i.id][l]], gist: "set before " + mv.to });
+          const perItem = {};
+          for (const i of items) {
+            perItem[i.id] = {fields:{},links:[]};
+            for (const l of missing(i.id)) if (!shared.includes(l) && per[i.id]?.[l]) {
+              const k=keyFor(i.kind,mv.to,l);
+              if(k.field) perItem[i.id].fields[S.model.labels[k.field] || k.field]=per[i.id][l];
+              else if(k.link) perItem[i.id].links.push(k.link+' '+per[i.id][l]);
+            }
           }
-          const r = await S.post("/api/bulk", { ids: items.map(i => i.id), op: "transition", to: mv.to, fields: f, links, gist: note });
+          const r = await S.post("/api/bulk", {ids:items.map(i=>i.id),op:"transition",to:mv.to,fields:f,links,perItem,gist:note});
           if (r.failed) throw new Error(`Wrote ${r.written.length}; stopped at ${r.failed.id}: ${r.failed.error}`);
         }
         await S.load(); MoveForm.close();

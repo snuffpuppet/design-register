@@ -1,10 +1,14 @@
-"""Register model 2.30 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
+"""Register model 2.31 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
 frontmatter keys of section 7; long fields (body headings) are lower-cased heading names.
 Contains SPECIAL_ON_ENTRY, WITHDRAWS, BACKWARD, and FORWARD for entry rules and provenance tracking.
 """
+
+MODEL_VERSION = "2.31"
+CHANGE_SET_CONTRACT = "2.30"
+REVIEW_OUTCOMES = ["confirmed", "corrected", "merged", "excluded", "needs clarification", "retyped", "split"]
 
 DIRS = {
     "REQ": "requirements", "DEC": "decisions", "LIM": "limitations",

@@ -11,9 +11,9 @@
 #   make logs          follow the container log
 #   make shell         a shell inside the running container
 #   make clean         stop the console, remove the image, and delete generated data
-#   make anonymise     write a shareable copy of an engagement (see engagements/abb-nokia/anonymise)
+#   make anonymise     deterministic fixture export using a private glossary (docs/anonymisation.md)
 #   make push-pages    build the Confluence push files for an engagement into <ENG>/push/ (sends nothing)
-#   make test          run the console's unit tests inside the python image
+#   make test          build and run the console unit tests in Docker
 #
 # Point the console at another engagement:  make up ENG=engagements/acme
 # Serve it somewhere else:                  make up PORT=8090
@@ -34,7 +34,7 @@ export IMAGE NAME PORT ENG_ABS
 
 COMPOSE := docker compose
 
-.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise push-pages test
+.PHONY: help build rebuild up down restart reload logs shell status sample clean env anonymise push-pages test acceptance
 
 help:
 	@sed -n '2,20p' Makefile | sed 's/^# \{0,1\}//'
@@ -81,21 +81,21 @@ sample:
 
 # Unit tests for the console, run in the official python image. No host python. Renumber's tests
 # shell out to git, so the image needs it installed first.
-test:
-	docker run --rm -v "$(CURDIR)/console:/app" -w /app python:3.12-slim sh -c "apt-get update -qq >/dev/null && apt-get install -y -qq git >/dev/null && python -m unittest discover -s tests -v"
+test: build
+	docker run --rm -v "$(CURDIR)/console:/app" -w /app $(IMAGE) python -W ignore::ResourceWarning -m unittest discover -s tests -v
 
-# A shareable copy of an engagement: every company, person, product and technical term
-# replaced by a haberdashery one, and the baseline verdicts re-keyed onto it. The tool and
-# its glossary live in the source engagement; see engagements/abb-nokia/anonymise/README.md.
+# Deterministic export; the private glossary stays with the source on the work laptop.
 SRCENG ?= engagements/abb-nokia
-DEST   ?= engagements/test
+DEST   ?= /tmp/register-anonymised
+GLOSSARY ?= $(SRCENG)/anonymise/glossary.json
 
 anonymise: build
-	@test -d "$(SRCENG)/anonymise" || { echo "no anonymise tool in $(SRCENG)"; exit 1; }
-	rm -rf "$(DEST)"
-	$(COMPOSE) run --rm --no-deps -v "$(CURDIR):/repo" -w /repo --entrypoint sh console -c \
-	  'python3 /repo/$(SRCENG)/anonymise/translate.py /repo/$(DEST) && python3 /repo/$(SRCENG)/anonymise/verdicts.py /repo/$(DEST)'
-	@echo "anonymised $(SRCENG) -> $(DEST); serve it with 'make up ENG=$(DEST)'"
+	@test -f "$(GLOSSARY)" || { echo "Set GLOSSARY to the private replacements JSON on the work laptop."; exit 1; }
+	@test -d "$(dir $(DEST))" || { echo "Create the destination parent folder first."; exit 1; }
+	docker run --rm -v "$(abspath $(SRCENG)):/source:ro" -v "$(abspath $(GLOSSARY)):/private-glossary.json:ro" -v "$(abspath $(dir $(DEST))):/output" $(IMAGE) python /app/anonymise.py /source "/output/$(notdir $(DEST))" --glossary /private-glossary.json
+
+acceptance: test
+	@echo "Container tests passed. Follow docs/work-laptop-acceptance.md for browser checks."
 
 clean:
 	$(COMPOSE) down --rmi local --remove-orphans

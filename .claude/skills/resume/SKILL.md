@@ -1,7 +1,7 @@
 ---
 name: resume
 description: Use at the start of a session when asked to resume, pick up, continue, or carry on from a previous session, or when a handoff exists and the user's request matches its objective. Reads the handoff, judges whether it is still relevant after whatever has happened since, and only then proposes where to start.
-usage: /resume [guide]: read a handoff, check it still holds after what changed, propose where to start
+usage: "/resume [guide]: read a handoff, check it still holds after what changed, propose where to start"
 ---
 
 # Resume from a handoff

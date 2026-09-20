@@ -1,8 +1,8 @@
-# Confluence baseline runbook
+# Confluence import and review runbook
 
-Version 0.3, 15 September 2026.
+Version 0.4, 19 September 2026.
 
-How generated registers held in Confluence become a baselined engagement, and how the result goes back. Claude Code does the Confluence side through an MCP connector; the console does the baseline; the ingester in `solution-register` applies the change set. The three never share anything but files.
+How generated registers become working items, are rationalised and go back to Confluence. Claude commands retain the existing connector gates. The separate ingester applies ordinary change sets only when its contract is compatible.
 
 ## 0. Before anything
 
@@ -47,13 +47,15 @@ Use it only where the source's own numbering is the row position. The refs shift
 
 The console reads every `.md` in that folder as candidates. Every row is a candidate whatever id or status it claims; the id is kept as a reference, the status is kept in Notes.
 
-## 2. Baseline
+## 2. Import and review
 
-In the console, Baseline mode. Work through the candidates: reject with a reason, retype, merge duplicates into a survivor, fix owner and priority in bulk, accept. State lives in `<local_copy>/verdicts.json`. Click a title to correct a candidate's fields before deciding. Missing supports offers the record each accepted candidate's state implies is missing, for accepting, editing then accepting, or dismissing with a reason. When ready, Freeze baseline writes every candidate not rejected or merged as an item file in the engagement's registers, unreviewed rows included, assigns ids, and writes `<local_copy>/frozen.md` (the id map) and `<local_copy>/rejections.md` for the knowledge base pipeline. It also reports what is left: unreviewed items, supports still missing, and scopes off the list. The freeze runs once and refuses if a register already has items. From there the console's Rationalise view carries the same review forward over the real items, working down the unreviewed rows, the missing supports and the off-list scopes the freeze reported.
+Open the console and select which source pages contain register rows, excluding views. Choose Import and review. This creates actual register files with source provenance and an ID map, and immediately opens a persistent review batch. There is no separate freeze stage. The internal `baseline/frozen.md` map remains for compatibility with push and old imports. Initial import refuses existing registers.
 
-## 3. Apply
+Review actual items: confirm, correct with evidence, merge with conflict choices, retype, split, exclude or mark needs clarification. Save proposals and preview them before applying. Historical corrections can set the known current state directly; missing evidence and relationships remain visible. Repeated reviews can cover any existing items. Do not overwrite the original source snapshot when refreshing a live engagement; retain a new source export for separate reconciliation.
 
-Nothing to apply: the frozen item files are the baseline. From here the console writes in the engagement's mode: in place by default, or as change sets the ingester in `solution-register` applies through its gate.
+## 3. Ongoing work
+
+Use Desktop for current workflow and Meetings for fixed agendas and recorded outcomes. Direct mode updates registers through recoverable operations. Change-sets mode sends supported ordinary proposals to a compatible ingester. Review corrections are direct-only; metadata works in either mode. Full operational instructions are in `README.md` and `docs/work-laptop-acceptance.md`.
 
 ## 4. Push
 

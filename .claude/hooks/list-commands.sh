@@ -6,7 +6,7 @@ out=""
 for f in .claude/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
   name=$(sed -n 's/^name: *//p' "$f" | head -1)
-  usage=$(sed -n 's/^usage: *//p' "$f" | head -1)
+  usage=$(sed -n 's/^usage: *//p' "$f" | head -1 | sed 's/^"//; s/"$//')
   if [ -z "$usage" ]; then
     usage=$(sed -n 's/^description: *//p' "$f" | head -1 | sed 's/^Use when //; s/^Use at //; s/[.;].*$//' | cut -c1-90)
   fi

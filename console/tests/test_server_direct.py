@@ -37,7 +37,7 @@ class Mode(unittest.TestCase):
         self.assertEqual(S.load_engagement()["writes"], "direct")
 
     def test_change_sets_line(self):
-        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.30\n")
         self.assertEqual(S.load_engagement()["writes"], "change-sets"); self.assertFalse(S.writes_direct())
 
     def test_unknown_value_is_refused(self):
@@ -108,7 +108,7 @@ class DirectWrites(unittest.TestCase):
         self.assertIn("triggered by LIM-0001", self.read("CR-0001")["links"])
 
     def test_change_sets_mode_still_appends_blocks(self):
-        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.30\n")
         r = self.h.edit({"id": "OI-0001", "fields": {"Next action": "email"}, "madeBy": "Adam"})
         self.assertEqual(r["changeSet"], "CS-0001"); self.assertEqual(self.read("OI-0001")["next action"], "ring")
 

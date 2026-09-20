@@ -17,7 +17,7 @@
   function LongField({ i, field }) {
     const [edit, setEdit] = preactHooks.useState(false);
     if (edit) return html`<${Cells.Editor} item=${i} field=${field} long onDone=${() => setEdit(false)} />`;
-    return html`<p class="ed" onClick=${() => setEdit(true)}>${i[field]}</p>`;
+    return html`<p class="ed" onClick=${() => setEdit(true)}>${i[field] || "Add " + (Store.model.labels[field] || field)}</p>`;
   }
   function More({ i }) {
     const S = Store, [open, setOpen] = preactHooks.useState(false);
@@ -31,8 +31,8 @@
     return html`<span class="stwrap">
       <button class="btn ghost" onClick=${() => setOpen(!open)}>⋯</button>
       ${open ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
-        ${S.state.unreviewed.includes(i.id) ? html`<div class="mi" onClick=${markReviewed}><span>Mark reviewed</span></div>` : null}
-        <div class="mi" onClick=${() => { setOpen(false); setMerging(true); }}><span>Merge into…</span></div>
+
+        <div class="mi" onClick=${() => { setOpen(false); S.post('/api/reviews/create',{name:'Merge review '+i.id,ids:[i.id]}).then(async r=>{await S.load();S.set({view:'reviews:'+r.id,open:null});}).catch(e=>S.toast(e.message)); }}><span>Merge into…</span></div>
         <div class="mi" onClick=${() => { setOpen(false); setDeleting(true); }}><span>Delete</span></div>
       </div>` : null}
       ${merging ? html`<div class="menu right" onClick=${e => e.stopPropagation()}>
@@ -83,6 +83,8 @@
     return html`<aside class="panel">
       <div class="bar top"><span class=${"pill " + i.kind}>${i.id}</span><span class="muted small">${at + 1} of ${rows.length} · ↑↓ to step</span><div class="sp"></div>
         <button class="btn" onClick=${() => setLinkTo({})}>Link to…</button>
+        <button class="btn" onClick=${() => { navigator.clipboard.writeText(location.origin + '/#item/' + encodeURIComponent(i.id)).then(() => S.toast('Link copied'), () => S.toast('Copy this URL: ' + location.origin + '/#item/' + i.id)); }}>Copy link</button>
+        <button class="btn" onClick=${async () => { try {const r=await S.post('/api/reviews/create',{name:'Review '+i.id,ids:[i.id]});await S.load();S.set({view:'reviews:'+r.id,open:null});}catch(e){S.toast(e.message);} }}>Review</button>
         <${More} i=${i} />
         <button class="btn ghost" onClick=${() => S.set({ open: null })}>Esc ✕</button></div>
       ${linkTo ? html`<${Picker.LinkTo} item=${i} word=${linkTo.word} onClose=${() => setLinkTo(null)} />` : null}
@@ -95,7 +97,7 @@
           <div class="card"><div class="h3">Next moves</div><div class="moves">
             ${moves.map(to => html`<span class="btn" onClick=${() => MoveForm.open({ ids: [i.id], to })}>${to}${need(to) ? html` <span class="muted">needs ${need(to)}</span>` : null}</span>`)}
             ${!moves.length ? html`<span class="muted">${i.status} is terminal.</span>` : null}</div></div>
-          ${long.map(k => i[k] ? html`<div class="sec"><div class="h3">${S.model.labels[k] || k}</div><${LongField} i=${i} field=${k} /></div>` : null)}
+          ${long.map(k => html`<div class="sec"><div class="h3">${S.model.labels[k] || k}</div><${LongField} i=${i} field=${k} /></div>`)}
           ${i.links.length ? html`<div class="sec"><div class="h3">Links</div>${i.links.map(l => html`<div class="mono small">${l}</div>`)}</div>` : null}
           ${i.history?.length ? html`<div class="sec"><div class="h3">History</div>${i.history.slice().reverse().map(h => html`<div class="mono small muted">${h}</div>`)}</div>` : null}
         </div>

@@ -8,6 +8,8 @@ status: active
 model-version: 2.28
 ---
 
+> 19 September 2026: console behaviour changed on feature/rationalisation-meetings. Read current CLAUDE.md and docs/work-laptop-acceptance.md before following these historical next steps. Freeze is no longer a user-facing stage. Real engagement data was not changed by this feature.
+
 ## Objective
 
 Turn the registers held in the oss-kb Confluence Design Register into the abb-nokia engagement's working registers and run the engagement from them. The freeze has now happened, so the remaining work is rationalising in place while new items are raised, pushing the tables back to Confluence, and writing every meeting's changes straight into the item files.

@@ -52,7 +52,7 @@ class Merge(Base):
         write_item(self.d, "DEC-0001", "Manual port", "Proposed", links=["dispositions LIM-0001", "affects REQ-0002"])
 
     def test_merge_folds_rewrites_and_removes(self):
-        r = self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"]))
+        r = self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"], resolutions={"title":"Bulk porting","status":"Draft"}))
         self.assertEqual(r["removed"], ["REQ-0002"])
         self.assertFalse(os.path.exists(IT.item_path(self.d, "REQ-0002")))
         s = self.read("REQ-0001")
@@ -72,7 +72,7 @@ class Merge(Base):
     def test_merge_drops_survivors_own_link_to_loser(self):
         write_item(self.d, "DEC-0001", "Manual port", "Proposed", links=["supersedes DEC-0002"])
         write_item(self.d, "DEC-0002", "Old manual port note", "Proposed", links=["superseded by DEC-0001"])
-        r = self.h.merge(self.req(survivor="DEC-0001", losers=["DEC-0002"]))
+        r = self.h.merge(self.req(survivor="DEC-0001", losers=["DEC-0002"], resolutions={"title":"Manual port"}))
         self.assertFalse(os.path.exists(IT.item_path(self.d, "DEC-0002")))
         dec = self.read("DEC-0001")
         self.assertFalse(any("DEC-0002" in l for l in dec["links"]))
@@ -86,7 +86,7 @@ class Merge(Base):
     def test_merge_refuses_in_change_sets_mode(self):
         open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n")
         with self.assertRaises(ValueError) as e:
-            self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"]))
+            self.h.merge(self.req(survivor="REQ-0001", losers=["REQ-0002"], resolutions={"title":"Bulk porting","status":"Draft"}))
         self.assertIn("change set", str(e.exception).lower())
         self.assertTrue(os.path.exists(IT.item_path(self.d, "REQ-0002")))
 
