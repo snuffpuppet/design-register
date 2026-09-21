@@ -40,7 +40,7 @@ class Renumber(unittest.TestCase):
         write_item(self.d, "REQ-0002", "Two", "Draft", **{"raised-on": "2 September 2026"})
         write_item(self.d, "REQ-0005", "Five", "Draft", **{"raised-on": "1 September 2026"})
         write_item(self.d, "LIM-0001", "Lim", "Identified", links=["constrains REQ-0005"])
-        write_item(self.d, "CR-0001", "Cr", "Proposed", links=["triggered by LIM-0001", "delivers REQ-0002"])
+        write_item(self.d, "CP-0001", "Cr", "Proposed", links=["triggered by LIM-0001", "delivers REQ-0002"])
         subprocess.run(["git", "init", "-q", self.d]); subprocess.run(["git", "-C", self.d, "add", "-A"])
         subprocess.run(["git", "-C", self.d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "seed"])
 
@@ -72,7 +72,7 @@ class Renumber(unittest.TestCase):
         self.assertEqual(self.read("REQ-0001")["title"], "Five")
         self.assertTrue(any("renumbered from REQ-0005" in h for h in self.read("REQ-0001")["history"]))
         self.assertEqual(self.read("LIM-0001")["links"], ["constrains REQ-0001"])
-        self.assertEqual(self.read("CR-0001")["links"], ["triggered by LIM-0001", "delivers REQ-0002"])
+        self.assertEqual(self.read("CP-0001")["links"], ["triggered by LIM-0001", "delivers REQ-0002"])
         self.assertIn("LIM-0001", r["touched"])
         self.assertIn("REQ-0005 → REQ-0001", open(os.path.join(self.d, "renumbered.md")).read())
 

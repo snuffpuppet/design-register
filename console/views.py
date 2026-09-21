@@ -21,7 +21,7 @@ def default_views():
     return [
         {"name": "SLT weekly", "filter": {**blank_filter()}, "columns": ["id", "title", "status", "owner", "due"], "groupBy": "",
          "sections": ["moved", "raised", "outstanding", "gaps"]},
-        {"name": "Vendor owes", "filter": {**blank_filter(), "types": ["CR", "REQ"], "statuses": ["Approved", "Submitted", "Designed", "Delivered"]},
+        {"name": "Vendor owes", "filter": {**blank_filter(), "types": ["CP", "REQ"], "statuses": ["Approved", "Submitted", "Designed", "Delivered"]},
          "columns": ["id", "title", "status", "phase", "vendor-ref"], "groupBy": "type", "sections": ["table"]},
         {"name": "By scope", "filter": blank_filter(), "columns": ["id", "title", "status", "owner"], "groupBy": "scope", "sections": ["table"]},
     ]
@@ -59,7 +59,7 @@ def apply_filter(items, filter, integrity=None):
 
 def sections(view, items, integrity, today, events=None):
     """The four SLT sections as lists of rows. `moved`: items with a History move line on or after `since`.
-    `raised`: raised-on on or after since. `outstanding`: DEC Proposed, CR For approval, OI Blocked, anything overdue.
+    `raised`: raised-on on or after since. `outstanding`: DEC Proposed, CP For approval, OI Blocked, anything overdue.
     `gaps`: the integrity failures."""
     items = apply_filter(items, view["filter"], integrity)
     since = parse_date(view["filter"].get("since")) or (parse_date(today) - datetime.timedelta(days=7))
@@ -85,7 +85,7 @@ def sections(view, items, integrity, today, events=None):
             raised.append({"id": it["id"], "title": it["title"], "status": it["status"], "owner": it.get("owner", "")})
         due = parse_date(it.get("due"))
         overdue = due is not None and due < now and it["status"] not in M.TERMINAL.get(it["kind"], set())
-        if (it["kind"], it["status"]) in (("DEC", "Proposed"), ("CR", "For approval"), ("OI", "Blocked")) or overdue:
+        if (it["kind"], it["status"]) in (("DEC", "Proposed"), ("CP", "For approval"), ("OI", "Blocked")) or overdue:
             outstanding.append({"id": it["id"], "title": it["title"], "status": it["status"], "due": it.get("due", ""),
                                 "overdue": (now - due).days if overdue else 0})
     ids = {i['id'] for i in items}

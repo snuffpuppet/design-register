@@ -57,8 +57,8 @@ class Suggestions(unittest.TestCase):
         self.assertNotIn("approved-by", s[0]["fields"])
 
     def test_s5_unless_honours_target_kind(self):
-        lim = item("LIM-0002", "Accepted", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CR-0001"])
-        r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must"), item("CR-0001", "Proposed", reason="r", links=["triggered by LIM-0002"])])
+        lim = item("LIM-0002", "Accepted", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CP-0001"])
+        r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must"), item("CP-0001", "Proposed", reason="r", links=["triggered by LIM-0002"])])
         self.assertEqual(len(sug(r, "S5", "LIM-0002")), 1)
 
     def test_s6_change_requested_offers_cr_with_reverse_link(self):
@@ -66,13 +66,13 @@ class Suggestions(unittest.TestCase):
                    **{"chosen-option": "1"}, links=["constrains REQ-0001"])
         r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must")])
         s = sug(r, "S6", "LIM-0003")[0]
-        self.assertEqual(s["kind"], "CR"); self.assertEqual(s["fields"]["title"], "Add SMS")
+        self.assertEqual(s["kind"], "CP"); self.assertEqual(s["fields"]["title"], "Add SMS")
         self.assertEqual(s["fields"]["reason"], "No SMS"); self.assertEqual(s["reverse"], "triggered by LIM-0003")
         self.assertEqual(s["link"], "dispositioned by ")
 
     def test_s8_any_cr_without_trigger_offers_limitation(self):
-        r = I.check([item("CR-0001", "Submitted", reason="Vendor CR 77", **{"vendor-ref": "VCR-77", "approved-by": "SLT"})])
-        s = sug(r, "S8", "CR-0001")
+        r = I.check([item("CP-0001", "Submitted", reason="Vendor CR 77", **{"vendor-ref": "VCR-77", "approved-by": "SLT"})])
+        s = sug(r, "S8", "CP-0001")
         self.assertEqual(len(s), 1); self.assertEqual(s[0]["kind"], "LIM"); self.assertEqual(s[0]["status"], "Identified")
         self.assertIn("VCR-77", s[0]["fields"]["source"])
 
@@ -83,8 +83,8 @@ class Suggestions(unittest.TestCase):
         self.assertEqual([p["rule"] for p in r["prompts"] if p["id"] == "LIM-0002"], ["S12"])
 
     def test_s13_prompt_when_cr_withdrawn(self):
-        lim = item("LIM-0003", "Change requested", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CR-0001"])
-        r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must"), item("CR-0001", "Withdrawn", reason="x", links=["triggered by LIM-0003"], **{"approved-by": "SLT"})])
+        lim = item("LIM-0003", "Change requested", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CP-0001"])
+        r = I.check([lim, item("REQ-0001", "Agreed", moscow="Must"), item("CP-0001", "Withdrawn", reason="x", links=["triggered by LIM-0003"], **{"approved-by": "SLT"})])
         self.assertIn("S13", [p["rule"] for p in r["prompts"] if p["id"] == "LIM-0003"])
 
     def test_s17_only_when_mitigation_text(self):
@@ -147,12 +147,12 @@ class Suggestions(unittest.TestCase):
 
     def test_s8_implemented_by_is_carried_but_not_demanded(self):
         # Optional on a limitation until it is dispositioned (2.30), so an empty value offers no box.
-        r = I.check([item("CR-0002", "Proposed", reason="Vendor CR 78", **{"implemented-by": ""})])
-        s = sug(r, "S8", "CR-0002")
+        r = I.check([item("CP-0002", "Proposed", reason="Vendor CR 78", **{"implemented-by": ""})])
+        s = sug(r, "S8", "CP-0002")
         self.assertEqual(len(s), 1)
         self.assertNotIn("implemented-by", s[0]["fields"])
-        r = I.check([item("CR-0003", "Proposed", reason="Vendor CR 79", **{"implemented-by": "Both"})])
-        self.assertEqual(sug(r, "S8", "CR-0003")[0]["fields"]["implemented-by"], "Both")
+        r = I.check([item("CP-0003", "Proposed", reason="Vendor CR 79", **{"implemented-by": "Both"})])
+        self.assertEqual(sug(r, "S8", "CP-0003")[0]["fields"]["implemented-by"], "Both")
 
     def test_s10_closed_open_item_prompts_for_a_resolution(self):
         r = I.check([item("OI-0005", "Closed", **{"next action": "x", "closed-on": "1 September 2026"})])
@@ -200,14 +200,14 @@ class Suggestions(unittest.TestCase):
         self.assertNotIn("S16", rules_for(r, "REQ-0008"))
 
     def test_s19_delivered_cr_without_a_delivers_link_prompts(self):
-        r = I.check([item("CR-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001"],
+        r = I.check([item("CP-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001"],
                           **{"approved-by": "SLT", "closed-on": "1 September 2026"})])
-        self.assertIn("S19", rules_for(r, "CR-0003"))
+        self.assertIn("S19", rules_for(r, "CP-0003"))
 
     def test_s19_silent_when_delivers_present(self):
-        r = I.check([item("CR-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001", "delivers REQ-0001"],
+        r = I.check([item("CP-0003", "Delivered", reason="x", phase="P1", links=["triggered by LIM-0001", "delivers REQ-0001"],
                           **{"approved-by": "SLT", "closed-on": "1 September 2026"}), item("REQ-0001", "Delivered", moscow="Must", phase="P1")])
-        self.assertNotIn("S19", rules_for(r, "CR-0003"))
+        self.assertNotIn("S19", rules_for(r, "CP-0003"))
 
     def test_offer_never_carries_approved_by(self):
         for row in [r for r in I.M.SUPPORTS if r["offer"]]:
@@ -285,9 +285,9 @@ class Rules(unittest.TestCase):
         self.assertEqual(warns(r, "I16"), ["DEC-0001"])
 
     def test_i17_deferred_cr(self):
-        r = I.check([item("CR-0001", "Deferred", reason="x", phase="", links=["triggered by LIM-0001", "worked by OI-0001"], **{"approved-by": "S", "closed-on": "1 September 2026"}),
-                     item("LIM-0001", "Change requested", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CR-0001"]), item("REQ-0001", "Agreed", moscow="Must"), item("OI-0001", "Open", **{"next action": "x"})])
-        self.assertEqual(fails(r, "I17"), ["CR-0001"])
+        r = I.check([item("CP-0001", "Deferred", reason="x", phase="", links=["triggered by LIM-0001", "worked by OI-0001"], **{"approved-by": "S", "closed-on": "1 September 2026"}),
+                     item("LIM-0001", "Change requested", **{"chosen-option": "1"}, links=["constrains REQ-0001", "dispositioned by CP-0001"]), item("REQ-0001", "Agreed", moscow="Must"), item("OI-0001", "Open", **{"next action": "x"})])
+        self.assertEqual(fails(r, "I17"), ["CP-0001"])
 
     def test_i19_stakeholders_when_given(self):
         r = I.check([item("REQ-0001", "Agreed", moscow="Must", owner="Nobody Known")], stakeholders=[{"name": "Priya Nair", "role": "Owner"}])
@@ -366,7 +366,7 @@ class LinkExisting(unittest.TestCase):
         close = item("DEC-0001", "Proposed", title="Accept one channel per customer", rationale="r")
         far = item("DEC-0002", "Proposed", title="Retire the legacy portal", rationale="r")
         mid = item("DEC-0003", "Proposed", title="Customer channel policy", rationale="r")
-        cr = item("CR-0001", "Proposed", title="One channel per customer", reason="r")
+        cr = item("CP-0001", "Proposed", title="One channel per customer", reason="r")
         r = I.check([lim, far, close, mid, cr])
         s = sug(r, "S5", "LIM-0001")[0]
         self.assertEqual([m["id"] for m in s["matches"]], ["DEC-0001", "DEC-0003"])

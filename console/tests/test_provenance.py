@@ -10,24 +10,24 @@ class Provenance(unittest.TestCase):
     def setUp(self):
         self.items = [
             it("DEC-0003", "Accepted", ["introduces LIM-0004"]),
-            it("LIM-0004", "Change requested", ["introduced by DEC-0003", "constrains REQ-0042", "dispositioned by CR-0009"]),
+            it("LIM-0004", "Change requested", ["introduced by DEC-0003", "constrains REQ-0042", "dispositioned by CP-0009"]),
             it("REQ-0042", "Agreed"),
-            it("CR-0009", "For approval", ["triggered by LIM-0004", "worked by OI-0011", "delivers REQ-0099"]),
+            it("CP-0009", "For approval", ["triggered by LIM-0004", "worked by OI-0011", "delivers REQ-0099"]),
             it("OI-0011", "Open"),
         ]
         self.by = {x["id"]: x for x in self.items}
         self.p = I.provenance(self.items, self.by)
 
     def test_backward_hop_carries_word_and_neighbour(self):
-        back = self.p["CR-0009"]["back"]
+        back = self.p["CP-0009"]["back"]
         self.assertEqual([(b["word"], b["id"], b["status"]) for b in back], [("triggered by", "LIM-0004", "Change requested")])
 
     def test_forward_hop(self):
-        fwd = self.p["CR-0009"]["forward"]
+        fwd = self.p["CP-0009"]["forward"]
         self.assertEqual([(f["word"], f["id"]) for f in fwd], [("worked by", "OI-0011")])
 
     def test_dangling_link_is_reported_not_walked(self):
-        self.assertEqual(self.p["CR-0009"]["dangling"], ["delivers REQ-0099"])
+        self.assertEqual(self.p["CP-0009"]["dangling"], ["delivers REQ-0099"])
 
     def test_reverse_of_a_backward_word_appears_forward_on_the_target(self):
         # LIM-0004 introduced by DEC-0003; DEC-0003 also writes introduces. One entry, not two.
@@ -39,7 +39,7 @@ class Provenance(unittest.TestCase):
 
     def test_link_with_word_but_no_id_token_is_dangling(self):
         # "triggered by nothing here" has the word but no id, should go to dangling
-        items = [it("CR-0001", "Open", ["triggered by nothing here"])]
+        items = [it("CP-0001", "Open", ["triggered by nothing here"])]
         by = {x["id"]: x for x in items}
         p = I.provenance(items, by)
-        self.assertEqual(p["CR-0001"]["dangling"], ["triggered by nothing here"])
+        self.assertEqual(p["CP-0001"]["dangling"], ["triggered by nothing here"])

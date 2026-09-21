@@ -9,7 +9,7 @@ import os, shutil, sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "test-data", "puppy-gloves")
 ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else ROOT)
-DIRS = {"REQ": "requirements", "DEC": "decisions", "LIM": "limitations", "RSK": "risks", "OI": "open-items", "CR": "change-requests", "STK": "stakeholders"}
+DIRS = {"REQ": "requirements", "DEC": "decisions", "LIM": "limitations", "RSK": "risks", "OI": "open-items", "CP": "change-proposals", "STK": "stakeholders"}
 
 
 def item(id, title, status, fm, body, links=()):
@@ -55,7 +55,7 @@ stk("STK-0001", "Elena Marchetti", "Product owner", "Us", "Decides on order requ
 stk("STK-0002", "Martin Vasquez", "Solution architect", "Vendor", "Vendor design authority")
 stk("STK-0003", "Priya Nair", "Operations lead", "Us", "Decides on manual process")
 stk("STK-0004", "Adam Moyes", "Solution architect", "Us", "Design authority")
-stk("STK-0005", "Change board", "Forum", "Us", "Approves change requests and cost")
+stk("STK-0005", "Change board", "Forum", "Us", "Approves change proposals and cost")
 stk("STK-0006", "Tom Okafor", "Billing SME", "Us", "Advises on billing")
 
 C = {"implemented-by": "Vendor"}
@@ -91,7 +91,7 @@ item("LIM-0022", "Platform holds one notification channel per customer", "Identi
      {"Impact": "REQ-0015 needs email and SMS on day one; the platform can send to one channel.", "Options": "", "Source": "T002/88:0-1 | Martin Vasquez | 00:06:40 | \"one channel per customer, that is how the object is built\"", "Notes": "Not yet assessed. Needs an open item."}, ["constrains REQ-0015"])
 item("LIM-0023", "Address validation rejects unit numbers with a slash", "Resolved",
      {"owner": "Adam Moyes", "chosen-option": "", "implemented-by": "Vendor", "vendor-ref": "VND-DEF-3", "raised-on": "26 August 2026", "closed-on": "5 September 2026", "updated": "5 September 2026"},
-     {"Impact": "About 40 addresses a month failed validation.", "Options": "", "Source": "Vendor defect VND-DEF-3 closed 5 September 2026; retest passed", "Notes": "Vendor conformance path: held to the agreed requirement, no CR."}, ["constrains REQ-0014"])
+     {"Impact": "About 40 addresses a month failed validation.", "Options": "", "Source": "Vendor defect VND-DEF-3 closed 5 September 2026; retest passed", "Notes": "Vendor conformance path: held to the agreed requirement, no CP."}, ["constrains REQ-0014"])
 item("LIM-0024", "Vendor invoicing engine cannot itemise charges per site for multi-site orders", "Accepted",
      {"owner": "Tom Okafor", "chosen-option": "1", "implemented-by": "Vendor", "vendor-ref": "", "raised-on": "6 September 2026", "closed-on": "", "updated": "6 September 2026"},
      {"Impact": "Multi-site orders are billed on the primary site only; the second site's usage is unaccounted for.",
@@ -119,7 +119,7 @@ item("RSK-0004", "Vendor delivers the port allocation change by 30 September", "
      {"Trigger": "30 September passes without the change in the test environment, or the vendor says it slips.", "Mitigation": "Adam checks the vendor sprint review each Tuesday; escalate to the change board at the first slip.", "Source": "Vendor sprint plan, 5 September 2026", "Notes": ""}, [])
 item("RSK-0005", "The billing adapter can merge two service lines at rating time", "Identified",
      {"kind": "Assumption", "owner": "Tom Okafor", "likelihood": "L", "impact": "M", "due": "", "raised-on": "26 August 2026", "closed-on": "", "updated": "26 August 2026"},
-     {"Trigger": "Billing SME confirms rating happens per service line with no merge hook.", "Mitigation": "", "Source": "Billing workshop, 26 August 2026", "Notes": "Underpins CR-0002. Not yet verified."}, [])
+     {"Trigger": "Billing SME confirms rating happens per service line with no merge hook.", "Mitigation": "", "Source": "Billing workshop, 26 August 2026", "Notes": "Underpins CP-0002. Not yet verified."}, [])
 item("RSK-0006", "Vendor's chosen SMS carrier may fail silently for some country codes", "Mitigating",
      {"kind": "Risk", "owner": "Adam Moyes", "likelihood": "L", "impact": "M", "due": "30 September 2026", "raised-on": "6 September 2026", "closed-on": "", "updated": "6 September 2026"},
      {"Trigger": "More than 1% of SMS confirmations show no delivery receipt within 24 hours.", "Mitigation": "Vendor adds a delivery receipt check and alerts the service desk on failure.", "Source": "Vendor sync, 6 September 2026", "Notes": "Mitigation agreed but not yet linked to an open item; gap left for the demo data."}, [])
@@ -144,12 +144,12 @@ item("OI-0046", "Assess LIM-0022 against REQ-0015", "Open",
      {"owner": "", "due": "", "raised-on": "9 September 2026", "closed-on": "", "updated": "9 September 2026"},
      {"Next action": "", "Source": "T002, 9 September 2026", "Notes": "Register defect on purpose: no owner, no next action."}, [])
 
-# --- Change requests ---
-item("CR-0001", "Add SMS as a second notification channel", "For approval",
+# --- Change proposals ---
+item("CP-0001", "Add SMS as a second notification channel", "For approval",
      {"owner": "Adam Moyes", "chosen-option": "Vendor adds a channel list to the customer object and a second sender", "estimate": "$48,000; 5 weeks; vendor quote Q-2291, 8 September 2026", "approved-by": "", "phase": "Day one", "implemented-by": "Vendor", "vendor-ref": "", "raised-on": "5 September 2026", "closed-on": "", "updated": "8 September 2026"},
-     {"Reason": "Day-one customers expect a text as well as an email; without it the contact centre handles the confirmation calls that the SMS would prevent.", "Source": "CR page: cr-0001-options.md", "Notes": ""},
+     {"Reason": "Day-one customers expect a text as well as an email; without it the contact centre handles the confirmation calls that the SMS would prevent.", "Source": "Solution design: notification-options.md", "Notes": ""},
      ["triggered by REQ-0015", "delivers REQ-0015", "worked by OI-0033"])
-item("CR-0002", "Single invoice line for split-site orders", "Deferred",
+item("CP-0002", "Single invoice line for split-site orders", "Deferred",
      {"owner": "Tom Okafor", "chosen-option": "Billing adapter merges the two service lines at rating time", "estimate": "$20,000; 3 weeks; internal estimate, 26 August 2026", "approved-by": "Change board", "phase": "Release 2", "implemented-by": "Both", "vendor-ref": "", "raised-on": "26 August 2026", "closed-on": "2 September 2026", "updated": "2 September 2026"},
      {"Reason": "Customers with two sites receive two lines for one order and ring billing. Deferred to Release 2 with the board's approval.", "Source": "Change board, 2 September 2026", "Notes": ""},
      ["triggered by REQ-0017", "delivers REQ-0017"])

@@ -1,4 +1,4 @@
-"""Register model 2.34 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
+"""Register model 2.35 as data: types, states, transitions, the fields each move demands, the supports each state implies, and special entry conditions.
 
 This is the only place the console knows the model. It mirrors sections 4.2, 4.4, 9 (I2, I20)
 and SUPPORTS (4.4 and 5 as implications) of solution-register-model.md. Field keys are the
@@ -6,17 +6,17 @@ frontmatter keys of section 7; long fields (body headings) are lower-cased headi
 Contains SPECIAL_ON_ENTRY, WITHDRAWS, BACKWARD, and FORWARD for entry rules and provenance tracking.
 """
 
-MODEL_VERSION = "2.34"
-CHANGE_SET_CONTRACT = "2.30"
+MODEL_VERSION = "2.35"
+CHANGE_SET_CONTRACT = "2.35"
 REVIEW_OUTCOMES = ["confirmed", "corrected", "merged", "excluded", "needs clarification", "retyped", "split"]
 
 DIRS = {
     "REQ": "requirements", "DEC": "decisions", "LIM": "limitations",
-    "RSK": "risks", "OI": "open-items", "CR": "change-requests",
+    "RSK": "risks", "OI": "open-items", "CP": "change-proposals",
 }
 NAMES = {
     "REQ": "Requirement", "DEC": "Decision", "LIM": "Limitation",
-    "RSK": "Risk", "OI": "Open item", "CR": "Change proposal",
+    "RSK": "Risk", "OI": "Open item", "CP": "Change proposal",
 }
 
 STATES = {
@@ -25,7 +25,7 @@ STATES = {
     "LIM": ["Identified", "Under assessment", "Accepted", "Change requested", "Resolved", "Withdrawn"],
     "RSK": ["Identified", "Mitigating", "Realised", "Retired"],
     "OI":  ["Open", "Blocked", "Closed"],
-    "CR":  ["Proposed", "For approval", "Approved", "Submitted", "Deferred", "Delivered", "Withdrawn", "Rejected"],
+    "CP":  ["Proposed", "For approval", "Approved", "Submitted", "Deferred", "Delivered", "Withdrawn", "Rejected"],
 }
 TERMINAL = {
     "REQ": {"Verified", "Withdrawn"},
@@ -33,12 +33,12 @@ TERMINAL = {
     "LIM": {"Accepted", "Change requested", "Resolved", "Withdrawn"},
     "RSK": {"Realised", "Retired"},
     "OI":  {"Closed"},
-    "CR":  {"Delivered", "Withdrawn", "Rejected"},
+    "CP":  {"Delivered", "Withdrawn", "Rejected"},
 }
 # States that set Closed on: terminal ones plus the approved states.
 CLOSES = {t: set(s) for t, s in TERMINAL.items()}
 CLOSES["DEC"] |= {"Accepted"}
-CLOSES["CR"] |= {"Approved", "Deferred"}
+CLOSES["CP"] |= {"Approved", "Deferred"}
 
 # 4.4 arrows plus the I20 return moves.
 TRANSITIONS = {
@@ -54,7 +54,7 @@ TRANSITIONS = {
     },
     "RSK": {"Identified": ["Mitigating", "Realised", "Retired"], "Mitigating": ["Realised", "Retired"]},
     "OI": {"Open": ["Blocked", "Closed"], "Blocked": ["Open", "Closed"]},
-    "CR": {
+    "CP": {
         "Proposed": ["For approval", "Withdrawn"],
         "For approval": ["Approved", "Deferred", "Rejected", "Withdrawn"],
         "Approved": ["Submitted"], "Submitted": ["Delivered"], "Deferred": ["Proposed"],
@@ -68,7 +68,7 @@ SHORT = {
     "LIM": ["scope", "owner", "chosen-option", "implemented-by"],
     "RSK": ["scope", "risk-kind", "owner", "likelihood", "impact", "due"],
     "OI":  ["scope", "owner", "due"],
-    "CR":  ["scope", "owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
+    "CP":  ["scope", "owner", "chosen-option", "estimate", "approved-by", "phase", "implemented-by", "vendor-ref"],
 }
 LONG = {
     "REQ": ["options", "source", "notes"],
@@ -76,7 +76,7 @@ LONG = {
     "LIM": ["impact", "options", "source", "notes"],
     "RSK": ["trigger", "mitigation", "source", "notes"],
     "OI":  ["next action", "source", "notes"],
-    "CR":  ["reason", "source", "notes"],
+    "CP":  ["reason", "source", "notes"],
 }
 LABELS = {
     "risk-kind": "Kind", "moscow": "MoSCoW", "phase": "Phase", "scope": "Scope", "owner": "Owner", "implemented-by": "Implemented by",
@@ -104,7 +104,7 @@ REQUIRED_ON_ENTRY = {
     },
     "RSK": {"Mitigating": ["trigger", "mitigation"], "Realised": ["link:realised as"], "Retired": ["mitigation"]},
     "OI": {"Open": ["owner", "next action"], "Blocked": ["next action"], "Closed": ["link:resolves into"]},
-    "CR": {
+    "CP": {
         "Proposed": ["reason", "link:triggered by"],
         "For approval": ["reason", "chosen-option", "estimate"],
         "Approved": ["approved-by", "phase"], "Deferred": ["approved-by", "phase"],
@@ -119,18 +119,18 @@ REQUIRED_ON_CREATE = {
     "LIM": ["title", "scope", "owner", "source"],
     "RSK": ["title", "scope", "risk-kind", "owner", "likelihood", "impact", "source"],
     "OI":  ["title", "scope", "owner", "next action", "source"],
-    "CR":  ["title", "scope", "owner", "reason", "implemented-by", "source", "link:triggered by"],
+    "CP":  ["title", "scope", "owner", "reason", "implemented-by", "source", "link:triggered by"],
 }
-FIRST_STATE = {"REQ": "Draft", "DEC": "Proposed", "LIM": "Identified", "RSK": "Identified", "OI": "Open", "CR": "Proposed"}
+FIRST_STATE = {"REQ": "Draft", "DEC": "Proposed", "LIM": "Identified", "RSK": "Identified", "OI": "Open", "CP": "Proposed"}
 
 # Which link words may be written from each type (section 5), and what they may point at.
 LINK_WORDS = {
     "REQ": {"replaces": "CLAIM", "preserves": "CLAIM", "worked by": "OI"},
     "DEC": {"addresses": "REQ", "introduces": "LIM", "raises": "RSK", "supersedes": "DEC", "superseded by": "DEC", "proposed by": "OI"},
-    "LIM": {"constrains": "REQ", "dispositioned by": "DEC|CR", "previously dispositioned by": "DEC|CR", "assessed by": "OI", "introduced by": "DEC", "needs": "REQ"},
+    "LIM": {"constrains": "REQ", "dispositioned by": "DEC|CP", "previously dispositioned by": "DEC|CP", "assessed by": "OI", "introduced by": "DEC", "needs": "REQ"},
     "RSK": {"realised as": "OI", "raised by": "DEC", "mitigated by": "OI"},
     "OI":  {"resolves into": "ANY", "clarifies": "CLAIM"},
-    "CR":  {"triggered by": "LIM|REQ", "delivers": "REQ", "part of": "CR", "worked by": "OI", "based on": "DEC"},
+    "CP":  {"triggered by": "LIM|REQ", "delivers": "REQ", "part of": "CP", "worked by": "OI", "based on": "DEC"},
 }
 
 
@@ -156,13 +156,13 @@ SUPPORTS = [
          offer=("DEC", "Proposed"), link=("dispositioned by", None),
          fields={"title": "Accept: {title}", "owner": "{owner}", "consulted": "Vendor", "implemented-by": "{implemented-by}",
                  "rationale": "Accepts {id} with option {chosen-option}: {chosen}. Beat: {beaten}"}),
-    dict(rule="S6", check="I7", level="fail", when=("LIM", ["Change requested"]), unless="link:dispositioned by:CR", only_if=None,
-         offer=("CR", "Proposed"), link=("dispositioned by", "triggered by"),
+    dict(rule="S6", check="I7", level="fail", when=("LIM", ["Change requested"]), unless="link:dispositioned by:CP", only_if=None,
+         offer=("CP", "Proposed"), link=("dispositioned by", "triggered by"),
          fields={"title": "{chosen}", "owner": "{owner}", "reason": "{impact}", "chosen-option": "{chosen}", "implemented-by": "{implemented-by}"}),
-    dict(rule="S7", check="I3", level="fail", when=("CR", ["Proposed", "For approval", "Submitted"]), unless="link:worked by", only_if=None,
+    dict(rule="S7", check="I3", level="fail", when=("CP", ["Proposed", "For approval", "Submitted"]), unless="link:worked by", only_if=None,
          offer=("OI", "Open"), link=("worked by", None),
-         fields={"title": "Progress CR: {title}", "owner": "{owner}", "next action": "Shape, estimate and take {id} to approval"}),
-    dict(rule="S8", check="I10", level="fail", when=("CR", None), unless="link:triggered by", only_if=None,
+         fields={"title": "Progress CP: {title}", "owner": "{owner}", "next action": "Shape, estimate and take {id} to approval"}),
+    dict(rule="S8", check="I10", level="fail", when=("CP", None), unless="link:triggered by", only_if=None,
          offer=("LIM", "Identified"), link=("triggered by", None),
          fields={"title": "Behind {id}: {title}", "owner": "{owner}", "impact": "{reason}", "implemented-by": "{implemented-by}",
                  "source": "Implied by {id}; vendor ref {vendor-ref}"}),
@@ -176,9 +176,9 @@ SUPPORTS = [
          fields={"title": "{title}", "owner": "{owner}", "rationale": "{rationale}", "consulted": "{consulted}", "implemented-by": "{implemented-by}"}),
     dict(rule="S12", check="I7", level="fail", when=("LIM", ["Accepted"]), unless="linked:dispositioned by:DEC:Accepted", only_if="link:dispositioned by:DEC",
          offer=None, link=(None, None), fields={}, prompt="The accepting decision is not yet Accepted."),
-    dict(rule="S13", check="I7", level="fail", when=("LIM", ["Change requested"]), unless="linked:dispositioned by:CR:Proposed|For approval|Approved|Submitted|Deferred|Delivered", only_if="link:dispositioned by:CR",
+    dict(rule="S13", check="I7", level="fail", when=("LIM", ["Change requested"]), unless="linked:dispositioned by:CP:Proposed|For approval|Approved|Submitted|Deferred|Delivered", only_if="link:dispositioned by:CP",
          offer=None, link=(None, None), fields={}, prompt="The change proposal was withdrawn or rejected: move this limitation back to Under assessment."),
-    dict(rule="S14", check="I10", level="fail", when=("CR", ["Approved", "Submitted", "Delivered", "Deferred", "Withdrawn", "Rejected"]), unless="field:approved-by", only_if=None,
+    dict(rule="S14", check="I10", level="fail", when=("CP", ["Approved", "Submitted", "Delivered", "Deferred", "Withdrawn", "Rejected"]), unless="field:approved-by", only_if=None,
          offer=None, link=(None, None), fields={}, prompt="Approved by is empty."),
     dict(rule="S15", check="I2", level="fail", when=("LIM", ["Accepted", "Change requested"]), unless="field:chosen-option", only_if=None,
          offer=None, link=(None, None), fields={}, prompt="Impact, at least two Options and a Chosen option are needed."),
@@ -190,10 +190,10 @@ SUPPORTS = [
     dict(rule="S18", check="I22", level="warn", when=("LIM", ["Accepted"]), unless="link:needs", only_if="tooling",
          offer=("REQ", "Draft"), link=("needs", None),
          fields={"title": "{chosen}", "owner": "{owner}", "moscow": "Must", "implemented-by": "Internal"}),
-    dict(rule="S19", check="I23", level="fail", when=("CR", ["Delivered"]), unless="link:delivers", only_if=None,
+    dict(rule="S19", check="I23", level="fail", when=("CP", ["Delivered"]), unless="link:delivers", only_if=None,
          offer=None, link=(None, None), fields={}, prompt="Add a delivers link to the requirement, then move that requirement."),
     dict(rule="S21", check="I7", level="warn", when=("LIM", ["Accepted"]), unless="linked:constrains:REQ:Withdrawn", only_if="unmet",
-         offer=None, link=(None, None), fields={}, prompt="The chosen option leaves the need unmet: set the requirement to Won't or a later Phase, with a Deferred CR."),
+         offer=None, link=(None, None), fields={}, prompt="The chosen option leaves the need unmet: set the requirement to Won't or a later Phase, with a Deferred CP."),
 ]
 
 # Section 9 rules. One short line each, condensed from the model document, so the console can print
@@ -208,20 +208,20 @@ RULES = {
     "I7": "Every limitation's disposition links and Source match its status under the model's limitation rules.",
     "I8": "Every DEC in Superseded has a superseded by link to a DEC in Accepted or Proposed.",
     "I9": "Every OI in Closed has Closed on and a resolves into link, and every OI in Blocked has a Next action starting Blocked.",
-    "I10": "Every CR past Proposed has Approved by and Closed on, and a triggered by link that matches its status.",
+    "I10": "Every CP past Proposed has Approved by and Closed on, and a triggered by link that matches its status.",
     "I11": "Every DEC in Accepted or Rejected has Approved by, Closed on and at least one Consulted entry.",
-    "I12": "Every REQ, DEC and CR, and every LIM in Accepted or Change requested, has Implemented by set to Vendor, Internal or Both.",
+    "I12": "Every REQ, DEC and CP, and every LIM in Accepted or Change requested, has Implemented by set to Vendor, Internal or Both.",
     "I13": "Every RSK in Realised has a realised as link to an open item.",
     "I14": "Every item has a Source.",
     "I15": "A DEC in Proposed or REQ in Draft older than 14 days is a warning.",
     "I16": "A DEC with no addresses link and no accepts wording in its Rationale is a warning.",
-    "I17": "Every CR in Deferred has a later Phase and no open item in Links.",
+    "I17": "Every CP in Deferred has a later Phase and no open item in Links.",
     "I18": "Every replaces, preserves and clarifies target exists and is not Retired or Withdrawn.",
     "I19": "Every person named in Owner, Approved by and Consulted resolves to a known stakeholder.",
     "I20": "A status change follows an arrow in 4.4, with only the named return moves allowed.",
     "I21": "Every RSK in Mitigating whose Mitigation names an action has a mitigated by link to an open item.",
     "I22": "Every LIM in Accepted whose chosen option needs something built has a needs link to an internal REQ (warning).",
-    "I23": "Every CR in Delivered has a delivers link to the requirement it delivered.",
+    "I23": "Every CP in Delivered has a delivers link to the requirement it delivered.",
     "I24": "Every item's Scope is one of the engagement's Scopes, and no item is without one, where the engagement declares any.",
 }
 
@@ -230,22 +230,22 @@ RULES = {
 SPECIAL_ON_ENTRY = [
     dict(kind="OI", state="Blocked", field="next action", check="prefix", value="Blocked: ",
          text='Next action starting "Blocked: "'),
-    dict(kind="CR", state="Submitted", field="vendor-ref", check="required_if", when="implemented-by", equals="Vendor",
+    dict(kind="CP", state="Submitted", field="vendor-ref", check="required_if", when="implemented-by", equals="Vendor",
          text="Vendor ref"),
 ]
 
 # The withdrawing terminal state per type, for the bulk bar's Withdraw.
-WITHDRAWS = {"REQ": "Withdrawn", "LIM": "Withdrawn", "CR": "Withdrawn", "DEC": "Rejected", "RSK": "Retired", "OI": "Closed"}
+WITHDRAWS = {"REQ": "Withdrawn", "LIM": "Withdrawn", "CP": "Withdrawn", "DEC": "Rejected", "RSK": "Retired", "OI": "Closed"}
 
 # Link words that read as provenance. BACKWARD walks to what an item came from; FORWARD to what it produced.
 BACKWARD = {
     "REQ": ["replaces"], "DEC": ["proposed by"], "LIM": ["introduced by", "constrains"],
-    "RSK": ["raised by"], "OI": [], "CR": ["triggered by", "part of", "based on"],
+    "RSK": ["raised by"], "OI": [], "CP": ["triggered by", "part of", "based on"],
 }
 FORWARD = {
     "REQ": ["worked by"], "DEC": ["addresses", "introduces", "raises", "supersedes"],
     "LIM": ["dispositioned by", "assessed by", "needs"], "RSK": ["realised as", "mitigated by"],
-    "OI": ["resolves into"], "CR": ["delivers", "worked by"],
+    "OI": ["resolves into"], "CP": ["delivers", "worked by"],
 }
 
 

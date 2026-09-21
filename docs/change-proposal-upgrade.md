@@ -1,46 +1,68 @@
-# Change proposal upgrade on the work laptop
+# Migrate internal CRs to Change proposals
 
-Version 1.0, 21 September 2026. Model 2.34.
+Version 2.0, 21 September 2026. Model 2.35.
 
-The internal **Change request** register is now **Change proposals**. Existing CR records load under the new name automatically. Keep `CR-…` IDs, the `change-requests/` folder, links, history, vendor references and existing status values. No bulk retype, renumber or file rewrite is needed. This upgrade does not edit engagement data at startup.
+**This version performs the actual migration.** Version 2.34 only changed the display name; that did not distinguish our records from the vendor's CRs. Follow these steps even if you already ran the earlier inventory.
 
-A proposal tracks outstanding work discovered through iterative requirements and solution design. It links to the design in Source and to its triggering requirement or limitation. Lightweight options stay upstream; requirements now support an optional Options section. Where a Decision selected the approach, use **based on DEC-…**. Proposal approval authorises cost and delivery. The vendor manages its own change request, referenced in Vendor ref when one exists.
+- Internal `CR-0001` becomes **`CP-0001`**, in **`change-proposals/CP-0001.md`**. The numeric suffix stays the same.
+- The vendor's CR number/link stays unchanged in **Vendor ref**, even if it happens to match an old internal ID.
+- Structured register links, saved-view type filters, review/meeting identities, rubbish-bin records and internal baseline-map destinations are updated.
+- Original item history, titles, narrative, Source citations and raw imported pages remain unchanged. The journal records who migrated and the full ID mapping; aliases keep old internal CR URLs resolvable.
+- Existing lifecycle statuses remain unchanged. `Submitted` still means handed to the implementer; LIM `Change requested` still means dispositioned through a proposal.
 
-## Pull and check
+`proposal-check` is **preview only**. Its output is a plan for you or your work-laptop agent to inspect. **`proposal-migrate` applies it**; no free-form rewriting by an agent is required.
 
-Use the repository folder on the work laptop. Replace `/absolute/path/to/engagement` below with the actual engagement folder, and retain your usual port if different from 8085.
+## Work-laptop steps
 
-1. Stop the console with `make down`, and pause the separate ingester or other writers. Back up the **whole engagement folder**, including hidden files, journals and rubbish bin, using your normal work-laptop backup process. Record the current repo commit with `git rev-parse HEAD` for rollback.
-2. Check `git status`. Preserve any local code changes before pulling; do not discard them. Pull the published update on `feature/rationalisation-meetings` using `git pull --ff-only`. Confirm `console/model.py` declares `MODEL_VERSION = "2.34"`. If not, the update has not reached your checkout.
-3. Run the read-only compatibility inventory:
+Run from the repository folder. Replace `/absolute/path/to/engagement`, the operator and the token below with actual values. Retain your usual port if it differs from 8085.
+
+1. Stop the console with `make down` and stop the separate ingester or any other writer. Back up the **whole engagement folder**, including hidden files, journals and rubbish bin. Record the current code commit with `git rev-parse HEAD`. Resolve unapplied change sets through the existing ingester before upgrading; the migration refuses them.
+2. Preserve any local code changes shown by `git status`, then pull the update on `feature/rationalisation-meetings` with `git pull --ff-only`. Check that `console/model.py` declares model **2.35** and `"CP": "change-proposals"`.
+3. Preview the migration:
 
    ```sh
    make proposal-check ENG=/absolute/path/to/engagement
    ```
 
-   It builds the image and mounts the engagement read-only. Every existing CR is listed with its status, scope, phase, estimate, vendor reference and Source. Errors identify unrecognised statuses or malformed records; resolve these deliberately before proceeding. Missing facts are review work, not a reason to fabricate values. No report file is created; terminal output may contain private register content.
-4. Start the updated console against the same engagement:
+   This mounts the engagement read-only. Check the `CR-… → CP-…` mapping and changed paths. It refuses malformed records, existing/reserved CP ID collisions, unapplied change sets and interrupted operations. Keep the **Preview token** printed at the end. Missing dates, estimates or design references are not invented.
+4. Apply that exact preview:
+
+   ```sh
+   make proposal-migrate ENG=/absolute/path/to/engagement MADE_BY="Your name" EXPECT=PASTE_PREVIEW_TOKEN_HERE
+   ```
+
+   This is the data migration. It requires a named operator and a matching token; if the engagement changed after preview, run the preview again. File moves and link/metadata updates happen in one recovery-journal transaction. Failures roll back. The current console and migration share an exclusive writer lock; older consoles and the external ingester must still be stopped explicitly.
+5. Run the check again:
+
+   ```sh
+   make proposal-check ENG=/absolute/path/to/engagement
+   ```
+
+   Expect **0 active CR records**, **0 internal IDs to migrate**, and no Write/Remove paths. Re-running apply after completion is also a no-op.
+6. Start the updated console and refresh the browser:
 
    ```sh
    make up ENG=/absolute/path/to/engagement PORT=8085
    ```
 
-5. Refresh the browser. Open **Change proposals** under Registers and check a known CR's ID, history, incoming links and Vendor ref. Its status should be unchanged. `Submitted` still means handed to the implementer; LIM `Change requested` still means dispositioned through a proposal. Neither requires renaming historical records.
+   Check a known **CP-…** record, its history, incoming links and unchanged Vendor ref. Open an old `/#item/CR-…` URL and confirm it resolves to the CP. Check **Outstanding proposals** and a saved scope/phase view. The server refuses to start with unmigrated active or binned internal CR records rather than silently omitting them.
 
-## Review the existing proposals
+Review/meeting IDs are retained. When migrated identities affect a review, its old item approval revision stays stale: reconfirm it before applying an outstanding review. This deliberately preserves stale-edit protection. Old CRs in preserved narrative/history are historical citations, not active record IDs. If a saved report name itself says CR, you can rename that caption separately; its type filter is migrated automatically.
 
-In Rationalise, set Made by and correct only facts supported by evidence:
+## After migration
 
-- **Source:** ensure it includes the solution design and relevant section. Keep existing citations. The inventory cannot decide whether a citation is a valid design reference; review this manually.
-- **Scope / Phase:** set the delivery scope and intended phase, including deferred work. Leave unknown values visible until confirmed.
-- **Estimate:** use `Indicative` or `Confirmed`, followed by cost, duration/effort, source and date. Blank displays as **Not sized**, never zero. No automatic cost total is calculated from these free-text values.
-- **Vendor ref:** retain the vendor's ID/link. Blank may mean no vendor request exists yet, or that none is needed for internal delivery. Vendor ref is required by the existing Desktop rule on handover (`Submitted`) for Vendor implementation.
-- **Links:** retain `triggered by` and any limitation disposition links. Add `based on DEC-…` if a separate Decision selected the option. No new Decision is needed just to restate proposal approval.
+Use **Outstanding proposals** to see unfinished and deferred work by scope and phase. Source should reference the solution design and section. Keep lightweight Options on the requirement/limitation and use `based on DEC-…` where a separate Decision selected the approach. Estimate should state Indicative or Confirmed, cost, duration/effort, source and date; blank remains **Not sized**, never zero. Fill missing facts only from evidence.
 
-Use **Outstanding proposals** under Work for all unfinished proposals, including Deferred. This opens the shared table without switching editing mode and shows scope, phase, estimate, implementer, vendor reference and Source. Choose Phase and use **+ Filter → Scope**, or Rationalise's Scope dropdown, to prepare a Phase 1 / Enterprise Ethernet view. **No phase** exposes unallocated work. The view includes unsized and not-yet-approved proposals. Save the current view to reuse its filters and columns in Reports; existing saved views are preserved.
+The separate `solution-register` ingester is **not ported by this update**. It must support `CP` IDs, `change-proposals/`, Options and proposal relationships before resuming writes to the migrated engagement. Do not falsely change its declared version. The console requires a declared 2.35 ingester for change-set writes; direct console work remains available without that declaration. No live Confluence publication occurs during migration.
 
-## Compatibility and rollback
+## Recovery and rollback
 
-The separate `solution-register` ingester is not changed or declared compatible by this update. Keep the engagement's declared ingester version accurate. Before using new requirement Options or `based on` links through a change-set ingester, port and verify that support there. Direct console writes retain the existing journalled transaction and recovery boundary.
+For an interrupted migration or earlier prepared operation, keep all writers stopped and run:
 
-Before any new edits, rollback is a code rollback and restart because the upgrade does not rewrite data. After edits using new Options or relationships, do not run an older writer without checking field preservation. Restore a backup only deliberately, with writers stopped, accounting for work recorded since that backup. No live Confluence publication is part of this upgrade.
+```sh
+make proposal-recover ENG=/absolute/path/to/engagement
+```
+
+This restores prepared transaction snapshots and prints a fresh preview. Inspect it, then apply using its new token. Ordinary exceptions already roll back automatically.
+
+For rollback to old code, stop writers and deliberately restore the pre-migration engagement backup together with the matching old code. Do not run an older writer against CP files. Account for any subsequent work before restoring a backup. Historical operation journals are retained unchanged; do not use an old undo operation to restore a CR-era snapshot under the new model.

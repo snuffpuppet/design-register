@@ -17,6 +17,7 @@ import operations as O
 import workspaces as W
 import structure as T
 import views as V
+import proposal_upgrade as P
 from items import parse_item, render_item, item_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,9 +46,14 @@ def parse_date(s):
     return datetime.date(int(m.group(3)), MONTHS.index(m.group(2)) + 1, int(m.group(1)))
 
 
+def require_proposal_migration():
+    P.require_migrated(ENG)
+
+
 # ---------- item files (section 7) ----------
 
 def load_registers():
+    require_proposal_migration()
     items = {}
     for kind, d in M.DIRS.items():
         for p in sorted(glob.glob(os.path.join(ENG, d, f"{kind}-*.md"))):
@@ -341,8 +347,8 @@ def compatibility():
     version = re.search(r'^- Ingester model version:\s*(\S+)', text, re.M)
     version = version.group(1) if version else ''
     return {'consoleModel': M.MODEL_VERSION, 'changeSetContract': M.CHANGE_SET_CONTRACT, 'ingesterModel': version,
-            'compatible': version in ('2.30', '2.31', '2.32', '2.33'),
-            'message': '' if version in ('2.30', '2.31', '2.32', '2.33') else 'Declare Ingester model version: 2.30 (or 2.31) after porting the shared contract before writing change sets.'}
+            'compatible': version == M.CHANGE_SET_CONTRACT,
+            'message': '' if version == M.CHANGE_SET_CONTRACT else 'Port the ingester to model 2.35 (CP IDs and change-proposals), then declare Ingester model version: 2.35 before writing change sets.'}
 
 
 def require_compatible():
@@ -1222,9 +1228,11 @@ class H(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    O.recover(ENG)
-    os.makedirs(CS_DIR, exist_ok=True)
-    print(f"console: engagement {ENG}\nconsole: http://localhost:{PORT}/")
-    # threaded: one slow or stuck client must not freeze the console for everyone.
-    # Writes stay serialised on LOCK in do_POST, so only reads actually run concurrently.
-    ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
+    with O.writer_lock(ENG):
+        O.recover(ENG)
+        require_proposal_migration()
+        os.makedirs(CS_DIR, exist_ok=True)
+        print(f"console: engagement {ENG}\nconsole: http://localhost:{PORT}/")
+        # threaded: one slow or stuck client must not freeze the console for everyone.
+        # Writes stay serialised on LOCK in do_POST, so only reads actually run concurrently.
+        ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

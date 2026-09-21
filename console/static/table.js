@@ -102,7 +102,7 @@
       ${ui.mode === 'rationalise' ? html`<div class="bar muted">Corrections save immediately. Status changes skip workflow requirements; integrity gaps remain visible.</div>` : null}
       <div class="bar chips">
         ${ui.mode === 'rationalise' ? html`<${QuickFilters} f=${f} />` : null}
-        ${f.types.includes("CR") || ui.view === "CR" ? html`<label>Phase <select class="inp" aria-label="Filter by phase" value=${JSON.stringify(f.phases || [])} onChange=${e => S.set({filter:{...f,phases:JSON.parse(e.target.value)},selection:new Set(),lastSel:null})}>
+        ${f.types.includes("CP") || ui.view === "CP" ? html`<label>Phase <select class="inp" aria-label="Filter by phase" value=${JSON.stringify(f.phases || [])} onChange=${e => S.set({filter:{...f,phases:JSON.parse(e.target.value)},selection:new Set(),lastSel:null})}>
           <option value="[]">All phases</option>
           ${(f.phases || []).length > 1 ? html`<option value=${JSON.stringify(f.phases)}>Multiple phases</option>` : null}
           <option value='[""]'>No phase</option>

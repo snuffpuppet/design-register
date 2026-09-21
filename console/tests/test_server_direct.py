@@ -37,7 +37,7 @@ class Mode(unittest.TestCase):
         self.assertEqual(S.load_engagement()["writes"], "direct")
 
     def test_change_sets_line(self):
-        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.30\n")
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.35\n")
         self.assertEqual(S.load_engagement()["writes"], "change-sets"); self.assertFalse(S.writes_direct())
 
     def test_unknown_value_is_refused(self):
@@ -86,10 +86,10 @@ class DirectWrites(unittest.TestCase):
         items = S.overlay(S.load_registers(), S.load_change_sets())
         s = next(x for x in S.integrity_of(items)["suggestions"] if x["rule"] == "S6" and x["id"] == "LIM-0001")
         r = self.h.support_accept({"id": "LIM-0001", "key": s["key"], "fields": {"Owner": "Tom Okafor"}, "madeBy": "Adam"})
-        self.assertEqual(r["item"], "CR-0001")
-        self.assertIn("dispositioned by CR-0001", self.read("LIM-0001")["links"])
-        self.assertIn("triggered by LIM-0001", self.read("CR-0001")["links"])
-        self.assertEqual(self.read("CR-0001")["status"], "Proposed")
+        self.assertEqual(r["item"], "CP-0001")
+        self.assertIn("dispositioned by CP-0001", self.read("LIM-0001")["links"])
+        self.assertIn("triggered by LIM-0001", self.read("CP-0001")["links"])
+        self.assertEqual(self.read("CP-0001")["status"], "Proposed")
 
     def test_move_with_ticked_offer_links_the_real_id(self):
         write_item(self.d, "RSK-0001", "Slip", "Identified", **{"risk-kind": "Risk", "likelihood": "L", "impact": "H", "mitigation": "watch it", "trigger": "t"})
@@ -100,15 +100,15 @@ class DirectWrites(unittest.TestCase):
         self.assertEqual(self.read("OI-0002")["status"], "Open")
 
     def test_support_link_writes_both_files(self):
-        write_item(self.d, "CR-0001", "Vendor adds bulk port", "Proposed", reason="Ops")
+        write_item(self.d, "CP-0001", "Vendor adds bulk port", "Proposed", reason="Ops")
         items = S.overlay(S.load_registers(), S.load_change_sets())
         s = next(x for x in S.integrity_of(items)["suggestions"] if x["rule"] == "S6" and x["id"] == "LIM-0001")
-        self.h.support_link({"id": "LIM-0001", "key": s["key"], "target": "CR-0001", "madeBy": "Adam"})
-        self.assertIn("dispositioned by CR-0001", self.read("LIM-0001")["links"])
-        self.assertIn("triggered by LIM-0001", self.read("CR-0001")["links"])
+        self.h.support_link({"id": "LIM-0001", "key": s["key"], "target": "CP-0001", "madeBy": "Adam"})
+        self.assertIn("dispositioned by CP-0001", self.read("LIM-0001")["links"])
+        self.assertIn("triggered by LIM-0001", self.read("CP-0001")["links"])
 
     def test_change_sets_mode_still_appends_blocks(self):
-        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.30\n")
+        open(os.path.join(self.d, "engagement.md"), "w").write("# Engagement: x\n\n- Writes: change-sets\n- Ingester model version: 2.35\n")
         r = self.h.edit({"id": "OI-0001", "fields": {"Next action": "email"}, "madeBy": "Adam"})
         self.assertEqual(r["changeSet"], "CS-0001"); self.assertEqual(self.read("OI-0001")["next action"], "ring")
 

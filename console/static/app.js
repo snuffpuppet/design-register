@@ -10,11 +10,23 @@
     const main = Store.ui.view === 'rubbish' ? html`<${RubbishBin}/>` : /^(reviews|meetings)(:|$)/.test(Store.ui.view) ? html`<${Workspace}/>` : Store.ui.view === 'operations' ? html`<${Operations}/>` : Store.ui.view.startsWith("report:") ? html`<${Report} key=${Store.ui.view}/>` : html`<${Table} key=${Store.ui.mode} />`;
     return html`<div class="layout2"><${Rail} />${main}${Store.ui.open ? html`<${Panel} key=${Store.ui.mode + Store.ui.open} />` : null}${Store.ui.move ? html`<${MoveForm.Form} key=${Store.ui.move.ids.join(",")+Store.ui.move.to}/>` : null}${Store.ui.create ? html`<${CreateForm.Form}/>` : null}${Store.ui.structure ? html`<${StructuralDialog} key=${Store.ui.structure.action + Store.ui.structure.ids.join(",")}/>` : null}</div>`;
   }
+  function openFromHash() {
+    if (!Store.state) return;
+    const match = /^#item\/(.+)$/.exec(location.hash);
+    if (!match) return;
+    let id;
+    try { id = decodeURIComponent(match[1]); } catch { return; }
+    const seen = new Set();
+    while (!Store.byId[id] && Store.state.aliases[id]?.targets?.length && !seen.has(id)) {
+      seen.add(id); id = Store.state.aliases[id].targets[0];
+    }
+    Store.set({open: Store.byId[id] ? id : null});
+  }
+  window.addEventListener('hashchange', openFromHash);
   async function boot(retries = 20) {
     try { await Store.load(); }
     catch (e) { if (retries > 0) return setTimeout(() => boot(retries - 1), 500); document.getElementById("root").textContent = "The console could not load: " + e.message; return; }
-    const match = /^#item\/(.+)$/.exec(location.hash);
-    if (match) { let id=decodeURIComponent(match[1]); const seen=new Set(); while(!Store.byId[id] && Store.state.aliases[id]?.targets?.length && !seen.has(id)){seen.add(id);id=Store.state.aliases[id].targets[0];} Store.ui.open=Store.byId[id] ? id : null; }
+    openFromHash();
     preact.render(html`<${App} />`, document.getElementById("root"));
   }
   document.addEventListener("keydown", e => {

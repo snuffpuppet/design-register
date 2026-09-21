@@ -50,6 +50,8 @@ def translate_json(value, replace):
 
 
 def export(source, destination, glossary):
+    from proposal_upgrade import require_migrated
+    require_migrated(source, include_bin=False)
     source, destination = Path(source).resolve(), Path(destination).resolve()
     if not source.is_dir(): raise ValueError('Source engagement does not exist.')
     if destination == source or source in destination.parents or destination in source.parents:

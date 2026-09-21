@@ -1,6 +1,6 @@
 # Handoffs
 
-Version 1.4, 21 September 2026.
+Version 1.5, 21 September 2026.
 
 One file per objective, written by `/handoff` and read by `/resume`. The index below is the list `/resume` picks from. A handoff is context about where an objective stood on a date at a commit; `/resume` checks what has changed since before acting on it.
 
@@ -11,4 +11,4 @@ One file per objective, written by `/handoff` and read by `/resume`. The index b
 
 - [Continue refining the register dashboard](../HANDOFF.md) · active · 21 September 2026
 
-- [Upgrade work-laptop CR records to Change proposals](../docs/change-proposal-upgrade.md) · ready for rollout · 21 September 2026
+- [Migrate work-laptop internal CR records to CP identifiers](../docs/change-proposal-upgrade.md) · ready for rollout · 21 September 2026

@@ -10,12 +10,12 @@ class RoundTrip(unittest.TestCase):
         shutil.rmtree(self.d)
 
     def test_every_field_and_history_survive_a_round_trip(self):
-        it = {"id": "CR-0007", "kind": "CR", "title": "Vendor adds bulk port", "status": "Proposed", "owner": "Tom Okafor",
+        it = {"id": "CP-0007", "kind": "CP", "title": "Vendor adds bulk port", "status": "Proposed", "owner": "Tom Okafor",
               "chosen-option": "1", "estimate": "$20k", "approved-by": "", "phase": "Day one", "implemented-by": "Vendor", "vendor-ref": "CR2-3",
               "links": ["triggered by LIM-0002", "worked by OI-0009"], "raised-on": "1 September 2026", "closed-on": "", "updated": "14 September 2026",
               "reason": "Ops cannot port in bulk", "description": "The vendor builds bulk port", "source": "workshop", "notes": "Baseline import from CRs",
               "history": ["14 September 2026 | Adam Moyes | Proposed → For approval | ready | console session"]}
-        p = os.path.join(self.d, "CR-0007.md"); open(p, "w", encoding="utf-8").write(IT.render_item(it))
+        p = os.path.join(self.d, "CP-0007.md"); open(p, "w", encoding="utf-8").write(IT.render_item(it))
         back = IT.parse_item(p)
         for k, v in it.items():
             self.assertEqual(back[k], v, k)

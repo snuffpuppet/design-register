@@ -76,10 +76,10 @@ class Specials(unittest.TestCase):
         self.assertEqual(M.missing_for("OI", "Blocked", it), [])
 
     def test_vendor_cr_needs_vendor_ref_for_submitted(self):
-        it = {"kind": "CR", "status": "Approved", "approved-by": "x", "phase": "P1", "implemented-by": "Vendor", "links": []}
-        self.assertIn("Vendor ref", M.missing_for("CR", "Submitted", it))
+        it = {"kind": "CP", "status": "Approved", "approved-by": "x", "phase": "P1", "implemented-by": "Vendor", "links": []}
+        self.assertIn("Vendor ref", M.missing_for("CP", "Submitted", it))
         it["implemented-by"] = "Internal"
-        self.assertEqual(M.missing_for("CR", "Submitted", it), [])
+        self.assertEqual(M.missing_for("CP", "Submitted", it), [])
 
     def test_withdraws_names_a_terminal_state_per_type(self):
         for k, st in M.WITHDRAWS.items():

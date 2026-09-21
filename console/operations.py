@@ -6,6 +6,21 @@ import json
 import os
 from pathlib import Path
 import uuid
+import fcntl
+
+
+@contextlib.contextmanager
+def writer_lock(eng):
+    """One console or offline migration writer per engagement (Docker/Linux)."""
+    with (Path(eng) / '.register-writer.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError('Another console or migration is using this engagement. Stop it first.') from None
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def atomic(path, text):
@@ -86,6 +101,8 @@ def undo(eng, op_id):
     op = next((o for o in records(eng) if o['id'] == op_id), None)
     if not op or op['status'] != 'applied':
         raise ValueError('Choose an applied operation.')
+    if op.get('action') == 'migration/CR-to-CP':
+        raise ValueError('Roll back this model migration offline with the matching old code and engagement backup; the CP console cannot write CR-era records.')
     current = snapshot(eng)
     matches = digest(current) == op['afterDigest'] if op.get('delta') else current == op['after']
     if not matches:

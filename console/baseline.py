@@ -21,7 +21,7 @@ KIND_WORDS = {
     "LIM": ["limitation", "lim", "constraint", "gap", "shortfall"],
     "RSK": ["risk", "rsk", "issue", "assumption", "dependency", "dependencies", "raid"],
     "OI":  ["open item", "action", "open question", "question", "todo", "oi"],
-    "CR":  ["change proposal", "change request", "cr", "change"],
+    "CP":  ["change proposal", "cp", "change request", "cr", "change"],
 }
 # column heuristics: model key -> words that a source header may use
 COLS = {
@@ -123,8 +123,8 @@ def guess_kind(*texts):
 
 def ref_kind(ref):
     """A source id written in the model's own form (REQ-012, OI-3) names its type; a bare number says nothing."""
-    m = re.match(r"\s*(REQ|DEC|LIM|RSK|OI|CR)-?\d", (ref or "").upper())
-    return m.group(1) if m else None
+    m = re.match(r"\s*(REQ|DEC|LIM|RSK|OI|CP|CR)-?\d", (ref or "").upper())
+    return ("CP" if m.group(1) == "CR" else m.group(1)) if m else None
 
 
 def map_header(cells):
@@ -221,7 +221,7 @@ def load_candidates(bdir):
                 if rec.get("status"): notes.append(f"Source status: {rec['status']}")
                 if rec.get("raised-by") and rec.get("owner"): notes.append(f"Raised by: {rec['raised-by']}")
                 vref = rec.get("vendor-ref", "")
-                if vref and kind != "CR":  # model 4.1: Vendor ref is a change request field; elsewhere it is a note
+                if vref and kind != "CP":  # model 4.1: Vendor ref is a change request field; elsewhere it is a note
                     notes.append(f"Vendor ref: {vref}"); vref = ""
                 notes += extra
                 cands.append({
@@ -266,7 +266,7 @@ tokens = I.tokens
 
 
 def related_kinds():
-    """Type pairs the model relates (section 5, mirrored in model.py). A CR delivers a REQ, a LIM constrains
+    """Type pairs the model relates (section 5, mirrored in model.py). A CP delivers a REQ, a LIM constrains
     one, a DEC addresses one: those read alike by design and are never each other's duplicate."""
     pairs = set()
     for src, words in M.LINK_WORDS.items():
@@ -461,7 +461,7 @@ def as_items(cands, v):
         it["status"] = status_of(it)
         it["links"] = list(dict.fromkeys(list(c.get("links") or []) + source_links(c, refmap)
                                          + sum((source_links(m, refmap) for m in merged), [])))
-        if k == "CR" and not it.get("reason"):
+        if k == "CP" and not it.get("reason"):
             it["reason"] = it.get("rationale", "")
         items.append(it)
     return items
@@ -533,7 +533,7 @@ def support_verdict(bdir, key, verdict, reason="", fields=None, sugg=None, targe
                 "scope": f.get("scope", ""),
                 "source_status": sugg["status"], "owner": f.get("owner", ""), "approved-by": "", "moscow": f.get("moscow", ""), "phase": f.get("phase", ""),
                 "implemented-by": f.get("implemented-by", ""), "vendor-ref": "", "raised-on": "", "consulted": f.get("consulted", ""),
-                "rationale": f.get("rationale", "") if sugg["kind"] != "CR" else f.get("reason", ""), "impact": f.get("impact", ""), "description": "",
+                "rationale": f.get("rationale", "") if sugg["kind"] != "CP" else f.get("reason", ""), "impact": f.get("impact", ""), "description": "",
                 "source": f.get("source", ""), "confidence": "", "inferred": False, "trigger": "", "mitigation": "", "likelihood": "",
                 "risk-kind": "Risk" if sugg["kind"] == "RSK" else "", "chosen-option": f.get("chosen-option", ""), "options": "",
                 "next action": f.get("next action", ""), "due": f.get("due", ""),
@@ -578,7 +578,7 @@ def assemble(cands, v, today):
         long_map = {"rationale": "Rationale", "impact": "Impact", "trigger": "Trigger", "mitigation": "Mitigation", "options": "Options", "next action": "Next action"}
         for key, lab in long_map.items():
             if key in M.LONG[k] and c.get(key): fields[lab] = c[key]
-        if k == "CR" and c.get("rationale"): fields["Reason"] = c["rationale"]
+        if k == "CP" and c.get("rationale"): fields["Reason"] = c["rationale"]
         if k == "OI" and not c.get("next action") and c.get("description"): fields["Next action"] = c["description"].split("\n")[0]
         if k == "DEC" and c.get("approved-by"): fields["Approved by"] = c["approved-by"]
         src = [c["source"]] + [m["source"] for m in merged_into.get(c["id"], [])]
@@ -601,7 +601,7 @@ def export_blocks(cands, v, today):
 
 
 FROZEN = "frozen.md"
-LINK_RE = re.compile(r"\b(REQ|DEC|LIM|RSK|OI|CR)-?(\d+)\b")
+LINK_RE = re.compile(r"\b(REQ|DEC|LIM|RSK|OI|CP|CR)-?(\d+)\b")
 # a candidate id, or an implied candidate id, as integrity.LINK_ID reads them
 CAND_RE = re.compile(r"\b[ci][0-9a-f]{8,10}\b")
 

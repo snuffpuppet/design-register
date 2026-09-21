@@ -59,6 +59,8 @@ def parse_item(path):
 
 
 def load_items(eng):
+    from proposal_upgrade import require_migrated
+    require_migrated(eng, include_bin=False)
     out = []
     for kind, d in M.DIRS.items():
         for p in sorted(glob.glob(os.path.join(eng, d, f"{kind}-*.md"))):

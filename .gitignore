@@ -14,3 +14,5 @@ engagements/*
 !engagements/test/**
 **/anonymise/glossary.json
 **/anonymise/*.private.json
+# Local console/migration writer lock; never engagement content.
+.register-writer.lock

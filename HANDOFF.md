@@ -5,12 +5,12 @@ written: 21 September 2026
 commit: 9ed53db
 branch: feature/rationalisation-meetings
 status: active
-model-version: 2.34
+model-version: 2.35
 ---
 
 # Dashboard refinement handoff
 
-Version 1.3, 21 September 2026.
+Version 1.4, 21 September 2026.
 
 ## Objective
 
@@ -20,11 +20,11 @@ Read [README.md](README.md) for current operator instructions, then [CLAUDE.md](
 
 ## Where things stand
 
-- Latest validation for model 2.34: **224 Python tests passed**. Chromium passed proposal labels, unfinished/deferred inclusion, combined scope/phase filtering, blank estimates, saved report filtering, No phase and design guidance. `make proposal-check` passed against a disposable engagement. The browser save check requires Made by, as do other journalled operations. Work-laptop data and Confluence remain untouched.
+- Latest validation for model 2.35: **232 Python tests passed**. Chromium verified legacy CR URL aliases, CP-only current IDs/types, phase/scope proposal filtering, new CP creation without reusing binned IDs, and restoration of a migrated bin item with incoming links and unchanged vendor CR reference. CLI preview/apply and a zero-change repeat preview passed on `/tmp/register-cp-migration-check/engagement`. No work-laptop data or Confluence publication was touched.
 
 - Latest refinement: Rationalise now has visible Type and Scope dropdowns above the table, with All types, All scopes and No scope options. They share the existing filters, retain Rationalise mode and clear row selection when changed. Scope choices include declared and recorded values. README describes the controls. Included in this refinement update.
 - Filter validation: Chromium passed combined type/scope filtering, clearing to all items, blank scope, switching type from a register view, existing multi-filter state and search, with no browser errors. Used a disposable copy under `/tmp/register-filter-check` on port 18088. No backend changes or model changes; Python tests were not rerun. The active `register-console` mounts this checkout's `console` directory, so refresh the browser for the new controls.
-- Branch: `feature/rationalisation-meetings`. The baseline before this refinement was `9ed53db` (`improve UI`). Inspect git for the current refinement commit. The update includes Rationalise filters, model 2.34 Change proposals and the work-laptop upgrade procedure.
+- Branch: `feature/rationalisation-meetings`. The baseline before this refinement was `9ed53db` (`improve UI`). Inspect git for the current refinement commit. The update includes Rationalise filters, model 2.35 CP identifiers and migration and the work-laptop upgrade procedure.
 - The four latest requests are implemented: single/bulk type changes, dismissible status menus, a persistent rubbish bin with restoration, and lead-first merging with before/after previews and Accept/Cancel.
 - Ordinary Rationalise edits save directly. Type changes and merges use a preview because they restructure records and references. They do not require a review batch.
 - Last implementation validation: **219 Python tests passed**. Chromium checks passed for status Escape/outside dismissal, merge/type preview cancellation and acceptance, reference rewrites, and bin persistence/restoration. Earlier browser checks covered single status corrections, bulk date set/clear, bulk scope edits and scope shortcuts restoring Desktop workflow checks. These were disposable fixtures, not company registers. Tests were not rerun for this documentation-only handoff.
@@ -46,15 +46,15 @@ The user's direction is: **“Simple beats complicated every time.”**
 
 ## Agreed terminology and next work-laptop migration
 
-Implemented in model 2.34: **Change proposal** replaces the internal Change request display name. Existing CR records load unchanged; no data rewrite is necessary. See [the work-laptop upgrade procedure](docs/change-proposal-upgrade.md).
+**Correction in model 2.35:** the user explicitly requires internal **CP IDs** to distinguish them from vendor **CRs**. The display-only 2.34 update was insufficient. `proposal-check` previews; **`proposal-migrate` actually moves CR files to `change-proposals/CP-…` and rewrites structured references**. See [the updated work-laptop upgrade procedure](docs/change-proposal-upgrade.md). Do not repeat the old advice that no data migration is needed.
 
 - A change proposal tracks outstanding work identified as requirements and solution design develop iteratively. It need not represent a departure from a previously complete or approved baseline. It can be essential to delivery.
 - Requirements and limitations retain lightweight options. A Decision records the selected option where the decision rules require one. The proposal has a separate purpose: visibility of the resulting work, scope, sizing, cost, approval and delivery. Reference the originating requirements/limitations, any relevant Decision and the solution design rather than duplicating their contents.
 - A proposal must link to the solution design. It may exist before sizing, approval or creation of a vendor change request. Selecting an approach and authorising its cost and delivery are separate decisions; the name remains Change proposal after approval, with status showing its position.
 - Vendor change requests are managed by the vendor. Store their references/links on the proposal where vendor work requires them; do not introduce another internally managed vendor-request record. Internal, Vendor and Both delivery remain supported.
 - SLT needs to see outstanding proposals by phase and scope, such as Phase 1 or Enterprise Ethernet, with delivery/approval position and cost visibility. Distinguish unknown sizing from zero cost, and indicative estimates from confirmed costs.
-- **On the work laptop after the next repo pull:** follow docs/change-proposal-upgrade.md. Stop writers, back up, pull, run `make proposal-check ENG=<actual engagement>`, and restart against that engagement. The check is read-only; CR IDs, folders, links, history and statuses remain unchanged. Review Source for the solution design and review phase, scope and sizing manually; do not invent missing facts.
-- Implementation: new/legacy import headings accepted, requirement Options supported, optional `based on DEC-…` link supported. Outstanding proposals opens the shared table with unfinished/deferred CRs, phase/scope filters and estimate/vendor/design visibility. Saved reports preserve phase filters and blank estimates read Not sized. Existing statuses (including Submitted and LIM Change requested) deliberately retained for compatibility. No ingester compatibility declaration or real-data migration was performed.
+- **On the work laptop after the next repo pull:** stop console/ingester, back up, pull, run `make proposal-check ENG=<actual engagement>`, inspect the mapping, then run `make proposal-migrate ENG=<actual engagement> MADE_BY="<operator>" EXPECT=<preview token>`. Recheck for zero remaining work, then restart. The new server refuses unmigrated active/binned CR records. Numeric suffixes, statuses, original history and vendor references are preserved. Structured links, aliases, saved filters, review/meeting references and bin records migrate. The external ingester needs a separate CP port; no declaration is changed automatically.
+- Implementation: new/legacy import headings accepted, requirement Options supported, optional `based on DEC-…` link supported. Outstanding proposals opens the shared table with unfinished/deferred CPs, phase/scope filters and estimate/vendor/design visibility. Saved reports preserve phase filters and blank estimates read Not sized. Existing statuses (including Submitted and LIM Change requested) deliberately retained for compatibility. Migration uses the existing journal transaction boundary, stale-preview checks and an exclusive writer lock. Old internal CR URLs resolve via aliases. Changed review identities retain stale item revisions and must be reconfirmed. Model 2.35 change-set writes require a genuinely ported 2.35 ingester. No ingester compatibility declaration or real-data migration was performed.
 
 ## Next steps
 

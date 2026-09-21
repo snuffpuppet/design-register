@@ -97,10 +97,17 @@ anonymise: build
 acceptance: test
 	@echo "Container tests passed. Follow docs/work-laptop-acceptance.md for browser checks."
 
-# Compatibility inventory only. The engagement is mounted read-only; no data migration is necessary.
-.PHONY: proposal-check
+# Preview is read-only. Apply requires the preview token and operator, with other writers stopped.
+export EXPECT MADE_BY
+.PHONY: proposal-check proposal-migrate proposal-recover
 proposal-check: build
 	docker run --rm -v "$(ENG_ABS):/engagement:ro" $(IMAGE) python /app/proposal_upgrade.py /engagement
+
+proposal-migrate: build
+	docker run --rm -e EXPECT -e MADE_BY -v "$(ENG_ABS):/engagement" $(IMAGE) python /app/proposal_upgrade.py /engagement --apply
+
+proposal-recover: build
+	docker run --rm -v "$(ENG_ABS):/engagement" $(IMAGE) python /app/proposal_upgrade.py /engagement --recover
 
 clean:
 	$(COMPOSE) down --rmi local --remove-orphans

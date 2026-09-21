@@ -92,7 +92,7 @@
       <div class="panel-body">
         <div class="panel-main">
           <${Title} i=${i} />
-          ${i.kind === "CR" ? html`<p class="muted small">Change proposal · Source must reference the solution design and section. Estimate should include Indicative or Confirmed, cost, effort/duration, source and date. Vendor ref links to the vendor's change request when one exists.</p>` : null}
+          ${i.kind === "CP" ? html`<p class="muted small">Change proposal · Source must reference the solution design and section. Estimate should include Indicative or Confirmed, cost, effort/duration, source and date. Vendor ref links to the vendor's change request when one exists.</p>` : null}
           <div class="chips"><${Cells.StatusCell} item=${i} />
             ${S.model.scopes.length || i.scope ? html`<${Chip} i=${i} field="scope" label="Scope" />` : null}
             ${short.map(k => html`<${Chip} i=${i} field=${k} label=${S.model.labels[k] || k} />`)}</div>

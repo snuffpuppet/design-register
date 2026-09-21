@@ -99,7 +99,7 @@
       <button class="btn pri" onClick=${()=>run(async()=>{await S.post('/api/import',{});await S.load();S.set({mode:'rationalise',view:'all'});})}>Import and review</button></main>`;
   }
   function Operations() {
-    return html`<main class="main-col workspace"><div class="bar top"><h2>Recent operations</h2><div class="sp"></div><${Maker}/></div><div class="workspace-content"><p>Undo checks that affected register data has not changed. Recovery runs automatically after an interrupted write.</p>${Store.state.operations.slice().reverse().map(o=>html`<div class="card"><b>${o.action}</b><p>${o.at} · ${o.by} · ${o.status}</p><button class="btn" disabled=${o.status!=='applied'} onClick=${()=>run(async()=>{await Store.post('/api/operations/undo',{operation:o.id});await Store.load();})}>Undo operation</button></div>`)}</div></main>`;
+    return html`<main class="main-col workspace"><div class="bar top"><h2>Recent operations</h2><div class="sp"></div><${Maker}/></div><div class="workspace-content"><p>Undo checks that affected register data has not changed. Recovery runs automatically after an interrupted write.</p>${Store.state.operations.slice().reverse().map(o=>html`<div class="card"><b>${o.action}</b><p>${o.at} · ${o.by} · ${o.status}</p>${o.action==='migration/CR-to-CP' ? html`<p>Model migration: rollback requires the matching old code and engagement backup, with the console stopped.</p>` : html`<button class="btn" disabled=${o.status!=='applied'} onClick=${()=>run(async()=>{await Store.post('/api/operations/undo',{operation:o.id});await Store.load();})}>Undo operation</button>`}</div>`)}</div></main>`;
   }
   function Workspace() {
     const [category,id]=Store.ui.view.split(':');

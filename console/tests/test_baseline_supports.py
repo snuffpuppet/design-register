@@ -61,7 +61,7 @@ class BaselineSupports(unittest.TestCase):
         B.support_verdict(self.b, x["key"], "Accept", sugg=x)
         v = B.load_verdicts(self.b)
         imp = v[B.IMPLIED_KEY][0]
-        self.assertEqual(imp["id"], "i" + x["key"][1:]); self.assertEqual(imp["kind"], "CR")
+        self.assertEqual(imp["id"], "i" + x["key"][1:]); self.assertEqual(imp["kind"], "CP")
         self.assertTrue(imp["implied"]); self.assertEqual(v[imp["id"]]["verdict"], "Accept")
         self.assertIn("triggered by " + x["id"], imp["links"])
         self.assertIn("dispositioned by " + imp["id"], v[x["id"]]["links"])
@@ -246,10 +246,10 @@ class LinkExisting(unittest.TestCase):
         self.assertFalse(v.get(B.IMPLIED_KEY))
 
     def test_link_writes_the_reverse_where_the_model_names_one(self):
-        # S6 offers a CR with the reverse word triggered by; make an accepted CR candidate to link
-        open(os.path.join(self.b, "Changes.md"), "w").write("---\npage-id: 4\npage-title: Change requests\n---\n\n# Change requests\n\n| Ref | Change request | Status | Owner | Reason |\n|---|---|---|---|---|\n| CR-001 | Vendor adds bulk port | Proposed | Tom Okafor | Ops |\n")
-        B.apply_verdict(self.b, [self.cid("CR-001")], "Accept")
-        x = self.sugg("S6"); cr = self.cid("CR-001")
+        # S6 offers a CP with the reverse word triggered by; make an accepted CP candidate to link
+        open(os.path.join(self.b, "Changes.md"), "w").write("---\npage-id: 4\npage-title: Change requests\n---\n\n# Change requests\n\n| Ref | Change request | Status | Owner | Reason |\n|---|---|---|---|---|\n| CP-001 | Vendor adds bulk port | Proposed | Tom Okafor | Ops |\n")
+        B.apply_verdict(self.b, [self.cid("CP-001")], "Accept")
+        x = self.sugg("S6"); cr = self.cid("CP-001")
         self.assertIn(cr, [m["id"] for m in x["matches"]])
         B.support_verdict(self.b, x["key"], "Link", sugg=x, target=cr)
         v = B.load_verdicts(self.b)
@@ -362,7 +362,7 @@ page-title: Change requests
 
 | Ref | Change request | Status | Owner | Domain |
 |---|---|---|---|---|
-| CR-001 | Vendor adds bulk port | Proposed | Tom Okafor | CarrierEthernet |
+| CP-001 | Vendor adds bulk port | Proposed | Tom Okafor | CarrierEthernet |
 """)
         c = B.load_candidates(self.b)[0]
         self.assertEqual(c["scope"], "CarrierEthernet")

@@ -1,8 +1,8 @@
 # design-register
 
-Version 1.6, 21 September 2026.
+Version 1.7, 21 September 2026.
 
-A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.34). The transcript ingester stays in the separate `solution-register` repository.
+A local console for correcting generated registers and progressing work through the register workflow. Rationalise and Desktop share the same table, filters and item panel. Six Markdown registers follow `solution-register-model.md` (2.35). The transcript ingester stays in the separate `solution-register` repository.
 
 ## Working contexts
 
@@ -16,7 +16,7 @@ Saved reviews remain available for older review batches and optional splitting. 
 
 ## Using Rationalise
 
-**Change proposals (model 2.34):** internal CR records now use this name; existing IDs, folders, statuses and vendor references remain valid. A proposal tracks outstanding work emerging through requirements and design development, with the solution design linked in Source. A vendor change request is an optional external reference. Requirements can hold lightweight Options; proposals can link **based on** a Decision that selected the approach.
+**Change proposals (model 2.35):** internal records now use **CP IDs** and `change-proposals/`, distinct from vendor CRs. Run the preview and **apply** migration for existing internal CR records. Numeric suffixes, original history and vendor references are preserved; links and metadata are updated and old IDs redirect through aliases. A proposal tracks outstanding work emerging through requirements and design development, with the solution design linked in Source. A vendor change request is an optional external reference. Requirements can hold lightweight Options; proposals can link **based on** a Decision that selected the approach.
 
 Open **Outstanding proposals** under Work to see unfinished proposals with phase, scope, estimate and vendor reference. Use Phase and Scope filters to prepare an SLT view and **Save current view** to reuse it. Blank estimates show **Not sized**; record Indicative or Confirmed, cost, effort/duration, source and date in Estimate. See the [work-laptop upgrade steps](docs/change-proposal-upgrade.md) before pulling this update into use.
 

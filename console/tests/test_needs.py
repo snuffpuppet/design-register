@@ -27,7 +27,7 @@ class Needs(unittest.TestCase):
         write_item(self.d, "REQ-0001", "One", "Draft", moscow="Must")
         write_item(self.d, "REQ-0002", "Two", "Draft", moscow="Must", phase="P1")
         write_item(self.d, "REQ-0003", "Three", "Verified", moscow="Must", phase="P1")
-        write_item(self.d, "CR-0001", "Vendor CR", "Approved", **{"approved-by": "Board", "phase": "P1", "reason": "r"})
+        write_item(self.d, "CP-0001", "Vendor CP", "Approved", **{"approved-by": "Board", "phase": "P1", "reason": "r"})
         write_item(self.d, "OI-0001", "Wait", "Open", **{"next action": "wait"})
 
     def tearDown(self):
@@ -43,18 +43,18 @@ class Needs(unittest.TestCase):
         self.assertFalse(r["ok"]); self.assertIn("not an allowed move", r["missing"][0])
 
     def test_needs_includes_specials(self):
-        self.assertEqual(self.h.needs({"ids": ["CR-0001"], "to": "Submitted"})["needs"]["CR-0001"]["missing"], ["Vendor ref"])
+        self.assertEqual(self.h.needs({"ids": ["CP-0001"], "to": "Submitted"})["needs"]["CP-0001"]["missing"], ["Vendor ref"])
         self.assertEqual(self.h.needs({"ids": ["OI-0001"], "to": "Blocked"})["needs"]["OI-0001"]["missing"], ['Next action starting "Blocked: "'])
 
     def test_search_filters_by_type_and_text_and_excludes(self):
         r = self.h.search_items({"q": "o", "types": ["REQ"], "exclude": "REQ-0001"})["items"]
         self.assertEqual([x["id"] for x in r], ["REQ-0002"])   # "Two" contains o; "Three" does not; REQ-0001 excluded
         r = self.h.search_items({"q": "0001", "types": [], "exclude": ""})["items"]
-        self.assertEqual([x["id"] for x in r], ["CR-0001", "OI-0001", "REQ-0001"])
+        self.assertEqual([x["id"] for x in r], ["CP-0001", "OI-0001", "REQ-0001"])
 
     def test_model_payload_carries_the_new_tables(self):
         m = self.h.model_payload()
         self.assertEqual(m["withdraws"]["DEC"], "Rejected")
-        self.assertIn("triggered by", m["backward"]["CR"])
+        self.assertIn("triggered by", m["backward"]["CP"])
         self.assertEqual(m["specials"][0]["kind"], "OI")
         self.assertIn("Priya Nair", m["owners"])

@@ -1,8 +1,8 @@
 # Register console
 
-Version 0.10, 21 September 2026. Model 2.34.
+Version 0.11, 21 September 2026. Model 2.35.
 
-See [Change proposal upgrade](../docs/change-proposal-upgrade.md) for the read-only legacy CR check and work-laptop rollout. Existing IDs, folders and statuses remain compatible.
+See [Change proposal upgrade](../docs/change-proposal-upgrade.md) for the legacy CR-to-CP preview/apply migration and work-laptop rollout. Internal IDs/folders and links migrate; vendor references, original history and statuses are preserved.
 
 ## Use
 

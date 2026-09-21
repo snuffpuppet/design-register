@@ -208,9 +208,9 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
         # I3
         if not term and not str(it.get("owner", "")).strip():
             fail("I3", it, "no Owner")
-        needs_oi = {"REQ": ["Draft"], "DEC": ["Proposed"], "LIM": ["Under assessment"], "CR": ["Proposed", "For approval", "Submitted"]}
+        needs_oi = {"REQ": ["Draft"], "DEC": ["Proposed"], "LIM": ["Under assessment"], "CP": ["Proposed", "For approval", "Submitted"]}
         if st in needs_oi.get(k, []):
-            words = {"REQ": "worked by", "DEC": "proposed by", "LIM": "assessed by", "CR": "worked by"}[k]
+            words = {"REQ": "worked by", "DEC": "proposed by", "LIM": "assessed by", "CP": "worked by"}[k]
             ois = [by_id.get(link_target(l)) for l in links_with(it, words)]
             if not any(o and o["kind"] == "OI" and str(o.get("owner", "")).strip() for o in ois):
                 fail("I3", it, f"no open item with an owner linked '{words}'")
@@ -218,7 +218,7 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
         if k == "OI" and st != "Closed" and not str(it.get("next action", "")).strip():
             fail("I4", it, "no Next action")
         # I5
-        if phases is not None and k in ("REQ", "CR") and str(it.get("phase", "")).strip() and it["phase"] not in phases:
+        if phases is not None and k in ("REQ", "CP") and str(it.get("phase", "")).strip() and it["phase"] not in phases:
             fail("I5", it, f"phase {it['phase']!r} is not in the engagement's Phases")
         # I24
         if scopes:
@@ -238,8 +238,8 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
             targets = [by_id.get(link_target(l)) for l in disp]
             if st == "Accepted" and not any(t and t["kind"] == "DEC" and t["status"] == "Accepted" for t in targets):
                 fail("I7", it, "Accepted without a dispositioned by link to an Accepted DEC")
-            if st == "Change requested" and not any(t and t["kind"] == "CR" and t["status"] not in ("Withdrawn", "Rejected") for t in targets):
-                fail("I7", it, "Change requested without a dispositioned by link to a live CR")
+            if st == "Change requested" and not any(t and t["kind"] == "CP" and t["status"] not in ("Withdrawn", "Rejected") for t in targets):
+                fail("I7", it, "Change requested without a dispositioned by link to a live CP")
             if st in ("Accepted", "Change requested") and not links_with(it, "constrains"):
                 fail("I7", it, "no constrains link")
             if st in ("Identified", "Under assessment") and disp:
@@ -248,7 +248,7 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
                 fail("I7", it, "Withdrawn without a reason in Source")
             for l in links_with(it, "previously dispositioned by"):
                 t = by_id.get(link_target(l))
-                if not (t and ((t["kind"] == "DEC" and t["status"] == "Superseded") or (t["kind"] == "CR" and t["status"] in ("Withdrawn", "Rejected")))):
+                if not (t and ((t["kind"] == "DEC" and t["status"] == "Superseded") or (t["kind"] == "CP" and t["status"] in ("Withdrawn", "Rejected")))):
                     fail("I7", it, "previously dispositioned by names a live record")
         # I8
         if k == "DEC" and st == "Superseded":
@@ -262,7 +262,7 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
             if st == "Blocked" and not str(it.get("next action", "")).startswith("Blocked:"):
                 fail("I9", it, "Blocked without a Next action starting 'Blocked: '")
         # I10
-        if k == "CR":
+        if k == "CP":
             if st in ("Approved", "Submitted", "Delivered", "Deferred", "Withdrawn", "Rejected") and not (str(it.get("approved-by", "")).strip() and str(it.get("closed-on", "")).strip()):
                 fail("I10", it, f"{st} without Approved by and Closed on")
             trig = [by_id.get(link_target(l)) for l in links_with(it, "triggered by")]
@@ -276,7 +276,7 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
             fail("I11", it, f"{st} without Approved by, Closed on and Consulted")
         # I12
         # A limitation's implementer follows from its chosen option, so it is checked only once dispositioned.
-        if (k in ("REQ", "DEC", "CR") or (k == "LIM" and st in ("Accepted", "Change requested"))) and it.get("implemented-by") not in ("Vendor", "Internal", "Both"):
+        if (k in ("REQ", "DEC", "CP") or (k == "LIM" and st in ("Accepted", "Change requested"))) and it.get("implemented-by") not in ("Vendor", "Internal", "Both"):
             fail("I12", it, "Implemented by is not Vendor, Internal or Both")
         # I13
         if k == "RSK" and st == "Realised" and not links_with(it, "realised as"):
@@ -292,7 +292,7 @@ def rules(items, by_id, phases=None, stakeholders=None, today=None, scopes=None)
         if k == "DEC" and not links_with(it, "addresses") and "accept" not in str(it.get("rationale", "")).lower():
             warn("I16", it, "no addresses link and no 'accepts' in Rationale")
         # I17
-        if k == "CR" and st == "Deferred":
+        if k == "CP" and st == "Deferred":
             if not str(it.get("phase", "")).strip() or links_with(it, "worked by"):
                 fail("I17", it, "Deferred needs a Phase and no open item")
         # I19
